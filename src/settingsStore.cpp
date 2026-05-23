@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:00 ***/
+/*** Last Changed: 2026-05-23 - 17:33 ***/
 #include "settingsStore.h"
 #include "appConfig.h"
 
@@ -41,7 +41,7 @@ static bool ensureSettingsFsMounted()
     return true;
   }
 
-  if (!LittleFS.begin(true))
+  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
   {
     ESP_LOGW(logTag, "LittleFS mount failed; using defaults");
     return false;

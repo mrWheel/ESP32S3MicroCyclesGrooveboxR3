@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:00 ***/
+/*** Last Changed: 2026-05-23 - 17:33 ***/
 #include "sampleManager.h"
 
 #include <LittleFS.h>
@@ -10,22 +10,30 @@
 //-- Logging tag.
 static const char* logTag = "SampleManager";
 
-//-- Minimal PCM WAV header.
-struct WavHeader
+//-- RIFF/WAV container header.
+struct RiffHeader
 {
   char riff[4];
   uint32_t chunkSize;
   char wave[4];
-  char fmt[4];
-  uint32_t fmtSize;
+};
+
+//-- Generic RIFF chunk header.
+struct ChunkHeader
+{
+  char id[4];
+  uint32_t size;
+};
+
+//-- Minimal PCM format payload from the "fmt " chunk.
+struct FmtChunk
+{
   uint16_t audioFormat;
   uint16_t numChannels;
   uint32_t sampleRate;
   uint32_t byteRate;
   uint16_t blockAlign;
   uint16_t bitsPerSample;
-  char data[4];
-  uint32_t dataSize;
 };
 
 //-- Fixed sample pool.
@@ -83,52 +91,145 @@ static void buildFallbackSample(uint8_t sampleIndex)
 
 } //   buildFallbackSample()
 
-//-- Validate WAV header for required realtime format.
-static bool isValidWavHeader(const WavHeader& header)
+//-- Parse RIFF chunks and locate "fmt " + "data" sections.
+static bool parseWavLayout(File& wavFile, FmtChunk& fmtChunk, uint32_t& dataOffset, uint32_t& dataSize)
 {
-  if (memcmp(header.riff, "RIFF", 4) != 0)
+  RiffHeader riffHeader;
+
+  dataOffset = 0;
+  dataSize = 0;
+
+  if (wavFile.read(reinterpret_cast<uint8_t*>(&riffHeader), sizeof(RiffHeader)) != sizeof(RiffHeader))
   {
     return false;
   }
 
-  if (memcmp(header.wave, "WAVE", 4) != 0)
+  if (memcmp(riffHeader.riff, "RIFF", 4) != 0 || memcmp(riffHeader.wave, "WAVE", 4) != 0)
   {
     return false;
   }
 
-  if (memcmp(header.fmt, "fmt ", 4) != 0)
+  bool fmtFound = false;
+  bool dataFound = false;
+
+  while (wavFile.available() >= static_cast<int>(sizeof(ChunkHeader)))
   {
-    return false;
+    ChunkHeader chunkHeader;
+    uint32_t chunkDataOffset = static_cast<uint32_t>(wavFile.position()) + sizeof(ChunkHeader);
+
+    if (wavFile.read(reinterpret_cast<uint8_t*>(&chunkHeader), sizeof(ChunkHeader)) != sizeof(ChunkHeader))
+    {
+      return false;
+    }
+
+    if (memcmp(chunkHeader.id, "fmt ", 4) == 0)
+    {
+      if (chunkHeader.size < 16)
+      {
+        return false;
+      }
+
+      if (wavFile.read(reinterpret_cast<uint8_t*>(&fmtChunk), sizeof(FmtChunk)) != sizeof(FmtChunk))
+      {
+        return false;
+      }
+
+      fmtFound = true;
+    }
+    else if (memcmp(chunkHeader.id, "data", 4) == 0)
+    {
+      dataOffset = chunkDataOffset;
+      dataSize = chunkHeader.size;
+      dataFound = true;
+    }
+
+    uint32_t nextChunkOffset = chunkDataOffset + chunkHeader.size;
+
+    //-- RIFF chunks are word-aligned.
+    if ((chunkHeader.size & 1U) != 0U)
+    {
+      nextChunkOffset++;
+    }
+
+    if (!wavFile.seek(nextChunkOffset, SeekSet))
+    {
+      return false;
+    }
   }
 
-  if (memcmp(header.data, "data", 4) != 0)
-  {
-    return false;
-  }
-
-  if (header.audioFormat != 1)
-  {
-    return false;
-  }
-
-  if (header.numChannels != 1)
-  {
-    return false;
-  }
-
-  if (header.bitsPerSample != 16)
-  {
-    return false;
-  }
-
-  if (header.sampleRate != 22050)
+  if (!fmtFound || !dataFound)
   {
     return false;
   }
 
   return true;
 
-} //   isValidWavHeader()
+} //   parseWavLayout()
+
+//-- Read one mono sample from current file position.
+static bool readMonoSample(File& wavFile, uint16_t numChannels, uint16_t bitsPerSample, int16_t& monoSample)
+{
+  int16_t channelSamples[2] = {0, 0};
+
+  if (numChannels == 0 || numChannels > 2)
+  {
+    return false;
+  }
+
+  if (bitsPerSample != 16 && bitsPerSample != 24)
+  {
+    return false;
+  }
+
+  for (uint16_t channelIndex = 0; channelIndex < numChannels; channelIndex++)
+  {
+    if (bitsPerSample == 16)
+    {
+      int16_t pcm16 = 0;
+
+      if (wavFile.read(reinterpret_cast<uint8_t*>(&pcm16), sizeof(int16_t)) != sizeof(int16_t))
+      {
+        return false;
+      }
+
+      channelSamples[channelIndex] = pcm16;
+    }
+    else
+    {
+      uint8_t pcm24[3];
+      int32_t signed24 = 0;
+
+      if (wavFile.read(pcm24, sizeof(pcm24)) != static_cast<int>(sizeof(pcm24)))
+      {
+        return false;
+      }
+
+      signed24 = static_cast<int32_t>(pcm24[0]) |
+                 (static_cast<int32_t>(pcm24[1]) << 8) |
+                 (static_cast<int32_t>(pcm24[2]) << 16);
+
+      if ((signed24 & 0x00800000L) != 0)
+      {
+        signed24 |= 0xFF000000L;
+      }
+
+      //-- Convert signed 24-bit to signed 16-bit.
+      channelSamples[channelIndex] = static_cast<int16_t>(signed24 >> 8);
+    }
+  }
+
+  if (numChannels == 1)
+  {
+    monoSample = channelSamples[0];
+    return true;
+  }
+
+  int32_t mixed = static_cast<int32_t>(channelSamples[0]) + static_cast<int32_t>(channelSamples[1]);
+  monoSample = static_cast<int16_t>(mixed / 2);
+
+  return true;
+
+} //   readMonoSample()
 
 //-- Load one sample from LittleFS into PSRAM/internal RAM.
 static bool loadSampleFromFile(uint8_t sampleIndex)
@@ -147,30 +248,58 @@ static bool loadSampleFromFile(uint8_t sampleIndex)
     return false;
   }
 
-  if (wavFile.size() < static_cast<int>(sizeof(WavHeader)))
+  FmtChunk fmtChunk;
+  uint32_t dataOffset = 0;
+  uint32_t dataSize = 0;
+
+  if (!parseWavLayout(wavFile, fmtChunk, dataOffset, dataSize))
   {
-    ESP_LOGW(logTag, "Invalid WAV file size: %s", samplePaths[sampleIndex]);
+    ESP_LOGW(logTag, "Invalid WAV layout: %s", samplePaths[sampleIndex]);
     wavFile.close();
     return false;
   }
 
-  WavHeader header;
+  bool supportedFormat = (fmtChunk.audioFormat == 1) &&
+                         ((fmtChunk.bitsPerSample == 16) || (fmtChunk.bitsPerSample == 24)) &&
+                         (fmtChunk.numChannels >= 1) &&
+                         (fmtChunk.numChannels <= 2) &&
+                         ((fmtChunk.sampleRate == 22050) || (fmtChunk.sampleRate == 44100));
 
-  if (wavFile.read(reinterpret_cast<uint8_t*>(&header), sizeof(WavHeader)) != sizeof(WavHeader))
+  if (!supportedFormat)
   {
-    ESP_LOGW(logTag, "Failed to read WAV header: %s", samplePaths[sampleIndex]);
+    ESP_LOGW(logTag,
+             "Unsupported WAV format: %s (fmt=%u ch=%u bits=%u rate=%lu)",
+             samplePaths[sampleIndex],
+             static_cast<unsigned>(fmtChunk.audioFormat),
+             static_cast<unsigned>(fmtChunk.numChannels),
+             static_cast<unsigned>(fmtChunk.bitsPerSample),
+             static_cast<unsigned long>(fmtChunk.sampleRate));
     wavFile.close();
     return false;
   }
 
-  if (!isValidWavHeader(header))
+  uint32_t bytesPerSample = static_cast<uint32_t>(fmtChunk.bitsPerSample) / 8U;
+  uint32_t inputFrameCount = dataSize / (static_cast<uint32_t>(fmtChunk.numChannels) * bytesPerSample);
+
+  if (inputFrameCount == 0)
   {
-    ESP_LOGW(logTag, "Unsupported WAV format: %s", samplePaths[sampleIndex]);
+    ESP_LOGW(logTag, "Empty WAV data: %s", samplePaths[sampleIndex]);
     wavFile.close();
     return false;
   }
 
-  uint32_t frameCount = header.dataSize / sizeof(int16_t);
+  uint32_t frameCount = inputFrameCount;
+
+  if (fmtChunk.sampleRate == 44100)
+  {
+    frameCount = inputFrameCount / 2;
+
+    if (frameCount == 0)
+    {
+      frameCount = 1;
+    }
+  }
+
   size_t sampleByteCount = static_cast<size_t>(frameCount) * sizeof(int16_t);
   int16_t* sampleData = static_cast<int16_t*>(heap_caps_malloc(sampleByteCount, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
 
@@ -186,7 +315,56 @@ static bool loadSampleFromFile(uint8_t sampleIndex)
     return false;
   }
 
-  if (wavFile.read(reinterpret_cast<uint8_t*>(sampleData), sampleByteCount) != static_cast<int>(sampleByteCount))
+  if (!wavFile.seek(dataOffset, SeekSet))
+  {
+    ESP_LOGW(logTag, "Failed to seek WAV data: %s", samplePaths[sampleIndex]);
+    free(sampleData);
+    wavFile.close();
+    return false;
+  }
+
+  bool decodeOk = true;
+
+  if (fmtChunk.sampleRate == 22050 && fmtChunk.numChannels == 1 && fmtChunk.bitsPerSample == 16)
+  {
+    if (wavFile.read(reinterpret_cast<uint8_t*>(sampleData), sampleByteCount) != static_cast<int>(sampleByteCount))
+    {
+      decodeOk = false;
+    }
+  }
+  else
+  {
+    for (uint32_t outputIndex = 0; outputIndex < frameCount; outputIndex++)
+    {
+      int16_t firstSample = 0;
+
+      if (!readMonoSample(wavFile, fmtChunk.numChannels, fmtChunk.bitsPerSample, firstSample))
+      {
+        decodeOk = false;
+        break;
+      }
+
+      if (fmtChunk.sampleRate == 44100)
+      {
+        int16_t secondSample = firstSample;
+
+        if (!readMonoSample(wavFile, fmtChunk.numChannels, fmtChunk.bitsPerSample, secondSample))
+        {
+          decodeOk = false;
+          break;
+        }
+
+        int32_t mixed = static_cast<int32_t>(firstSample) + static_cast<int32_t>(secondSample);
+        sampleData[outputIndex] = static_cast<int16_t>(mixed / 2);
+      }
+      else
+      {
+        sampleData[outputIndex] = firstSample;
+      }
+    }
+  }
+
+  if (!decodeOk)
   {
     ESP_LOGW(logTag, "Failed to read WAV data: %s", samplePaths[sampleIndex]);
     free(sampleData);
@@ -211,7 +389,7 @@ static bool loadSampleFromFile(uint8_t sampleIndex)
 //-- Initialize sample pool and load all configured sample files.
 bool sampleManagerInit()
 {
-  if (!LittleFS.begin(true))
+  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
   {
     ESP_LOGE(logTag, "LittleFS mount failed");
     return false;

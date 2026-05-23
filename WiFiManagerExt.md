@@ -17,6 +17,19 @@ The class handles:
 - AP SSID normalization using the current device MAC address
 - optional portal suspend/resume hooks for applications that also run a web server
 
+## What Changed (Current Code)
+
+Recent behavior updates in the class implementation:
+
+- AP/host identity suffix format is now `<name>-xxyyzz`.
+  - Uses the last 3 MAC bytes (6 hex chars).
+  - Older suffix formats are still stripped when normalizing names.
+- Explicit `startPortal()` now clears active/cached STA connection state before opening the portal.
+  - Prevents immediate portal completion caused by stale remembered station credentials.
+- `setDisabled(false)` now only enables runtime behavior.
+  - It no longer auto-starts station attempts directly.
+  - Portal or STA flow should be started explicitly by caller intent.
+
 ## WiFiManager Dependency
 
 This class uses tzapu/WiFiManager and keeps that dependency intact.
@@ -124,6 +137,11 @@ The standalone [include/WifiSettings.h](include/WifiSettings.h) header remains a
 - AP SSID and hostname are normalized with a MAC suffix.
 - The class strips older suffix formats before appending the current MAC-based suffix.
 - The fallback values are `DEFAULT_AP_SSID` and `DEFAULT_WIFI_HOSTNAME`.
+
+Current suffix detail:
+
+- Effective format: `<base>-xxyyzz`
+- Source: last 3 bytes of station MAC address
 
 ## Integration in This Repository
 

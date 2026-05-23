@@ -51,7 +51,7 @@ The software target is:
 
 - ESP32-WROVER
 - TFT_LCD_DISPLAY_EC11_BOARD
-- TFT_eSPI
+- Adafruit ST7789 (Adafruit_GFX + Adafruit_ST77xx)
 - PlatformIO
 - Arduino framework
 - I2S audio output
@@ -118,8 +118,8 @@ Use:
 
 ```ini
 -D PIN_I2S_BCLK=27
--D PIN_I2S_WS=21
--D PIN_I2S_DOUT=22
+-D PIN_I2S_WS=4
+-D PIN_I2S_DOUT=5
 ```
 
 Supported DACs:
@@ -184,7 +184,10 @@ Additional mandatory rules:
 
 Required:
 
-- TFT_eSPI
+- Adafruit GFX Library
+- Adafruit ST7735 and ST7789 Library
+- WiFiManager
+- ArduinoJson
 - LittleFS
 - driver/i2s.h
 - ESP-IDF FreeRTOS
@@ -263,20 +266,21 @@ A dedicated settings menu MUST exist in Phase 1.
 Menu title:
 
 ```text
-[System Settings]
+System Settings
 ```
 
 Menu entries:
 
 ```text
-SSID (RO)
-IP Address (RO)
-MAC Address (RO)
+SSID
+IP
+MAC
 
->erase WiFi Credentials<
+ Erase WiFi Credentials
  Start WiFi Manager
  Set theme (Red, Blue, Green enz.)
  Rotate Display (toggle between 1 and 3)
+ Encoder Order (A-B / B-A)
  Exit 
 ```
 
@@ -376,7 +380,8 @@ STEP 05
 
 Encoder:
 
-- rotate = move step cursor
+- rotate = move selected instrument (track)
+- rotate in Shift mode = move step cursor
 - click = toggle step
 - long click = menu
 
@@ -384,6 +389,27 @@ KEY0:
 
 - play/stop
 - shift modifier
+
+---
+
+# Documentation Sync Notes (2026-05-23)
+
+The code has evolved from the original phase planning above. Current behavior now includes:
+
+- Groovebox run mode uses partial redraw updates for the `STEP ..` footer line.
+- `System Settings` includes confirmation submenus for:
+  - `Erase WiFi Credentials`
+  - `Start WiFi Manager`
+- `Start WiFi Manager` shows a waiting screen until credentials are entered.
+- Portal AP identity format is now `<name>-xxyyzz` (last 3 MAC bytes).
+- WiFi credential persistence stores:
+  - STA credentials
+  - last connected SSID and IP
+
+Class documentation was updated accordingly in:
+
+- [DisplayDriverClass.md](DisplayDriverClass.md)
+- [WiFiManagerExt.md](WiFiManagerExt.md)
 
 ### Sequencer Timing
 

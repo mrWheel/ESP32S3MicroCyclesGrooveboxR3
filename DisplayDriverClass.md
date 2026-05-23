@@ -14,6 +14,19 @@ The class focuses on:
 - generic tiles and buttons
 - common screen helpers such as headers, centered text, lists, messages, and editor screens
 
+## What Changed (Current Code)
+
+The current class implementation includes the following recent updates:
+
+- Added `drawListLine(int lineIndex, const String& text, bool selected)`.
+  - This enables partial updates on active list screens without redrawing the full display.
+  - It is used by UI code to keep dynamic row updates stable and low-flicker.
+- List drawing style is now standardized as:
+  - selected row: `>item<`
+  - non-selected row: one leading space before item text
+- The public class API in [include/DisplayDriver.h](include/DisplayDriver.h) is now the authoritative source.
+  - This document reflects that API and should be updated together with header changes.
+
 The status screen is also supported, but only through a precomputed view-model.
 The timer application is responsible for assembling status data before calling the driver.
 
@@ -184,6 +197,11 @@ Use `headerRightText` for the caller-computed header text and `actionRowMessage`
 #### `drawListScreen(...)`
 
 Draws a scrollable list with a highlighted selection row.
+
+#### `drawListLine(int lineIndex, const String& text, bool selected)`
+
+Redraws exactly one list row using the same visual style as `drawListScreen()`.
+Useful for partial redraw paths where only one dynamic row changes.
 
 #### `drawListScreenWithDisabledItems(...)`
 
