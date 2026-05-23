@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:09 ***/
+/*** Last Changed: 2026-05-23 - 16:12 ***/
 #include "uiManager.h"
 
 #include "DisplayDriver.h"
@@ -123,25 +123,6 @@ static String fitListRowText(const String& text)
   return text.substring(0, listRowContentChars);
 
 } //   fitListRowText()
-
-//-- Build fixed-width line for direct footer redraw.
-static String fitFixedWidthText(const String& text, size_t width)
-{
-  String output = text;
-
-  if (output.length() > width)
-  {
-    output = output.substring(0, width);
-  }
-
-  while (output.length() < width)
-  {
-    output += " ";
-  }
-
-  return output;
-
-} //   fitFixedWidthText()
 
 //-- Persist currently active editable system settings.
 static void saveRuntimeSettingsFromCurrentState()
@@ -312,14 +293,14 @@ static void drawSequencerScreen()
 //-- Update only the dynamic Groovebox footer row while running.
 static void drawSequencerFooterUpdate(const SequencerView& view, const AudioEngineStats& audioStats)
 {
-  String footerLine = fitFixedWidthText(buildSequencerFooterLine(view, audioStats), footerLineChars);
+  String footerLine = fitListRowText(buildSequencerFooterLine(view, audioStats));
 
   if (footerLine == lastSequencerFooterLine)
   {
     return;
   }
 
-  display.drawCenteredLine(footerLine.c_str(), 184, 0xFFFF, 0x0000);
+  display.drawListLine(7, footerLine, false);
   lastSequencerFooterLine = footerLine;
 
 } //   drawSequencerFooterUpdate()

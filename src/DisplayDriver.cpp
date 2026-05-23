@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:00 ***/
+/*** Last Changed: 2026-05-23 - 16:12 ***/
 #include "DisplayDriver.h"
 #include "appConfig.h"
 #include "colorSettings.h"
@@ -1606,6 +1606,45 @@ void DisplayDriver::drawListScreen(const char* title, const String items[], size
   }
 
 } //   DisplayDriver::drawListScreen()
+
+//--- Draw one list line on the active list screen
+void DisplayDriver::drawListLine(int lineIndex, const String& text, bool selected)
+{
+  if (lineIndex < 0)
+  {
+    return;
+  }
+
+  int y = 30 + (lineIndex * 22);
+
+  if (y >= static_cast<int>(tft.height()))
+  {
+    return;
+  }
+
+  tft.setTextSize(2);
+
+  if (selected)
+  {
+    uint16_t selectedFillColor = getUiSelectedFillColor();
+
+    tft.fillRect(0, y, tft.width(), 22, selectedFillColor);
+    tft.setTextColor(getUiSelectedTextColor(), selectedFillColor);
+    tft.setCursor(6, y);
+    tft.print(">");
+    tft.print(text);
+    tft.print("<");
+  }
+  else
+  {
+    tft.fillRect(0, y, tft.width(), 22, ST77XX_BLACK);
+    tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+    tft.setCursor(6, y);
+    tft.print(" ");
+    tft.print(text);
+  }
+
+} //   DisplayDriver::drawListLine()
 
 //--- Class API wrapper: list screen with disabled items
 void DisplayDriver::drawListScreenWithDisabledItems(const char* title, const String items[], size_t itemCount, int selectedIndex, int firstVisibleIndex, const bool disabledItems[])
