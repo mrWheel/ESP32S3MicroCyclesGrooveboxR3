@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:00 ***/
+/*** Last Changed: 2026-05-23 - 16:09 ***/
 #include "uiManager.h"
 
 #include "DisplayDriver.h"
@@ -81,6 +81,37 @@ static String buildTrackStepText(const Track& track)
 
 } //   buildTrackStepText()
 
+//-- Build one Groovebox track row: left-aligned instrument, right-aligned 16 steps.
+static String buildTrackRowText(const char* trackName, const Track& track)
+{
+  String row;
+  String leftField;
+
+  leftField = String(trackName);
+
+  if (track.mute)
+  {
+    leftField += "*";
+  }
+
+  if (leftField.length() > 7)
+  {
+    leftField = leftField.substring(0, 7);
+  }
+
+  while (leftField.length() < 7)
+  {
+    leftField += " ";
+  }
+
+  row = leftField;
+  row += buildTrackStepText(track);
+  row += " ";
+
+  return row;
+
+} //   buildTrackRowText()
+
 //-- Clip list item text to fit 26-char display with cursor wrappers.
 static String fitListRowText(const String& text)
 {
@@ -93,7 +124,7 @@ static String fitListRowText(const String& text)
 
 } //   fitListRowText()
 
-//-- Build fixed-width line for direct text draws.
+//-- Build fixed-width line for direct footer redraw.
 static String fitFixedWidthText(const String& text, size_t width)
 {
   String output = text;
@@ -266,16 +297,7 @@ static void drawSequencerScreen()
 
   for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
   {
-    String line = String(trackNames[trackIndex]);
-    line += " ";
-    line += buildTrackStepText(view.pattern.tracks[trackIndex]);
-
-    if (view.pattern.tracks[trackIndex].mute)
-    {
-      line += " M";
-    }
-
-    lines[trackIndex + 1] = fitListRowText(line);
+    lines[trackIndex + 1] = fitListRowText(buildTrackRowText(trackNames[trackIndex], view.pattern.tracks[trackIndex]));
   }
 
   lines[7] = fitListRowText(buildSequencerFooterLine(view, audioStats));
@@ -287,7 +309,7 @@ static void drawSequencerScreen()
 
 } //   drawSequencerScreen()
 
-//-- Update only the dynamic Groovebox footer row.
+//-- Update only the dynamic Groovebox footer row while running.
 static void drawSequencerFooterUpdate(const SequencerView& view, const AudioEngineStats& audioStats)
 {
   String footerLine = fitFixedWidthText(buildSequencerFooterLine(view, audioStats), footerLineChars);
@@ -581,11 +603,11 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     }
     else if (view.shiftMode)
     {
-      sequencerMoveTrack(-1);
+      sequencerMoveCursor(-1);
     }
     else
     {
-      sequencerMoveCursor(-1);
+      sequencerMoveTrack(-1);
     }
   }
   else if (encoderEvent == ENCODER_EVENT_RIGHT)
@@ -596,11 +618,11 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     }
     else if (view.shiftMode)
     {
-      sequencerMoveTrack(1);
+      sequencerMoveCursor(1);
     }
     else
     {
-      sequencerMoveCursor(1);
+      sequencerMoveTrack(1);
     }
   }
   else if (encoderEvent == ENCODER_EVENT_SHORT_PRESS)
