@@ -386,6 +386,8 @@ KICK   x---x---x---
 SNARE  ----x-------
 CH     x-x-x-x-x-x-
 OH     --------x---
+TONE   ------------
+METAL  ------------
 
 STEP 05
 ```
