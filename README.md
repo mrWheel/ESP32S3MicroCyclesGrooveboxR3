@@ -131,6 +131,10 @@ Preferred for development:
 
 - MAX98357A
 
+If this build_flag is enabled do not try to initialize (or use) the hardware
+```ini
+  -D NO_DAC_HARDWARE
+```
 ---
 
 # Software Goals
@@ -172,6 +176,7 @@ Additional mandatory rules:
 - use printf()/snprintf() where possible
 - use ESP-IDF logging
 - audio thread must never block
+- All documantation in English only
 
 ---
 
@@ -183,9 +188,6 @@ Required:
 - LittleFS
 - driver/i2s.h
 - ESP-IDF FreeRTOS
-- WiFiManagerExt
-- DisplayDriver
-- InputClass
 
 ---
 
@@ -273,6 +275,8 @@ MAC Address (RO)
 
 >erase WiFi Credentials<
  Start WiFi Manager
+ Set theme (Red, Blue, Green enz.)
+ Rotate Display (toggle between 1 and 3)
  Exit 
 ```
 

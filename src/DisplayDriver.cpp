@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 13:42 ***/
+/*** Last Changed: 2026-05-23 - 16:00 ***/
 #include "DisplayDriver.h"
 #include "appConfig.h"
 #include "colorSettings.h"
@@ -351,16 +351,16 @@ void displayDrawListScreen(const char* title, const String items[], size_t itemC
       tft.fillRect(0, y, tft.width(), 22, selectedFillColor);
       tft.setTextColor(getUiSelectedTextColor(), selectedFillColor);
       tft.setCursor(6, y);
-      tft.print("> ");
+      tft.print(">");
       tft.print(items[itemIndex]);
-      tft.print(" <");
+      tft.print("<");
     }
     else
     {
       tft.fillRect(0, y, tft.width(), 22, ST77XX_BLACK);
       tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
       tft.setCursor(6, y);
-      tft.print("  ");
+      tft.print(" ");
       tft.print(items[itemIndex]);
     }
   }
@@ -397,9 +397,9 @@ void displayDrawListScreenWithDisabledItems(const char* title, const String item
       tft.fillRect(0, y, tft.width(), 22, selectedFillColor);
       tft.setTextColor(getUiSelectedTextColor(), selectedFillColor);
       tft.setCursor(6, y);
-      tft.print("> ");
+      tft.print(">");
       tft.print(items[itemIndex]);
-      tft.print(" <");
+      tft.print("<");
     }
     else
     {
@@ -416,7 +416,7 @@ void displayDrawListScreenWithDisabledItems(const char* title, const String item
       }
 
       tft.setCursor(6, y);
-      tft.print("  ");
+      tft.print(" ");
       tft.print(items[itemIndex]);
     }
   }
@@ -1591,16 +1591,16 @@ void DisplayDriver::drawListScreen(const char* title, const String items[], size
       tft.fillRect(0, y, tft.width(), 22, selectedFillColor);
       tft.setTextColor(getUiSelectedTextColor(), selectedFillColor);
       tft.setCursor(6, y);
-      tft.print("> ");
+      tft.print(">");
       tft.print(items[itemIndex]);
-      tft.print(" <");
+      tft.print("<");
     }
     else
     {
       tft.fillRect(0, y, tft.width(), 22, ST77XX_BLACK);
       tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
       tft.setCursor(6, y);
-      tft.print("  ");
+      tft.print(" ");
       tft.print(items[itemIndex]);
     }
   }
@@ -1637,9 +1637,9 @@ void DisplayDriver::drawListScreenWithDisabledItems(const char* title, const Str
       tft.fillRect(0, y, tft.width(), 22, selectedFillColor);
       tft.setTextColor(getUiSelectedTextColor(), selectedFillColor);
       tft.setCursor(6, y);
-      tft.print("> ");
+      tft.print(">");
       tft.print(items[itemIndex]);
-      tft.print(" <");
+      tft.print("<");
     }
     else
     {
@@ -1656,7 +1656,7 @@ void DisplayDriver::drawListScreenWithDisabledItems(const char* title, const Str
       }
 
       tft.setCursor(6, y);
-      tft.print("  ");
+      tft.print(" ");
       tft.print(items[itemIndex]);
     }
   }

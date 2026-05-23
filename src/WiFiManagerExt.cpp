@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 13:42 ***/
+/*** Last Changed: 2026-05-23 - 16:00 ***/
 #include "WiFiManagerExt.h"
 
 #include "appConfig.h"
@@ -118,7 +118,8 @@ void WiFiManagerExt::update()
 
   if (retryCount >= maxRetriesBeforePortal)
   {
-    startPortal();
+    ESP_LOGW(logTag, "STA connection failed after %u retries. Continuing without WiFi.", static_cast<unsigned>(maxRetriesBeforePortal));
+    setDisabled(true);
 
     return;
   }
@@ -179,6 +180,14 @@ void WiFiManagerExt::startPortal()
     return;
   }
 
+  //--- Explicit portal start begins a new credential session.
+  newCredentialsPending = false;
+
+  //--- Force manual credential entry in portal.
+  //--- This prevents immediate auto-connect with previously cached STA data.
+  WiFi.disconnect(true, true);
+  delay(50);
+
   WiFi.mode(WIFI_AP_STA);
   WiFi.setHostname(currentSettings.hostName.c_str());
 
@@ -229,14 +238,7 @@ void WiFiManagerExt::setDisabled(bool disabled)
 
   if (!disabled)
   {
-    if (currentSettings.staSsid.isEmpty())
-    {
-      startPortal();
-    }
-    else
-    {
-      startStationAttempt();
-    }
+    ESP_LOGI(logTag, "WiFi manager enabled at runtime");
 
     return;
   }
@@ -397,18 +399,18 @@ void WiFiManagerExt::startStationAttempt()
 
 } //   startStationAttempt()
 
-//--- Build MAC suffix using full six bytes (aabbccddeeff)
+//--- Build MAC suffix using last three bytes (xxyyzz)
 String WiFiManagerExt::buildMacSuffix() const
 {
   uint8_t macAddress[6];
-  char suffixBuffer[18];
+  char suffixBuffer[8];
 
   if (esp_read_mac(macAddress, ESP_MAC_WIFI_STA) != ESP_OK)
   {
-    return "000000000000";
+    return "000000";
   }
 
-  snprintf(suffixBuffer, sizeof(suffixBuffer), "%02x%02x%02x%02x%02x%02x", macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+  snprintf(suffixBuffer, sizeof(suffixBuffer), "%02x%02x%02x", macAddress[3], macAddress[4], macAddress[5]);
 
   return String(suffixBuffer);
 
@@ -417,6 +419,31 @@ String WiFiManagerExt::buildMacSuffix() const
 //--- Remove trailing identity MAC suffix if present
 String WiFiManagerExt::stripMacSuffixIfPresent(const String& value) const
 {
+  //--- Current format: <base>-xxyyzz
+  if (value.length() >= 8)
+  {
+    int suffixStart = static_cast<int>(value.length()) - 7;
+
+    if (value.charAt(suffixStart) == '-')
+    {
+      String suffix = value.substring(suffixStart + 1);
+      bool validSuffix = (suffix.length() == 6);
+
+      for (int index = 0; validSuffix && index < static_cast<int>(suffix.length()); index++)
+      {
+        if (!isxdigit(suffix.charAt(index)))
+        {
+          validSuffix = false;
+        }
+      }
+
+      if (validSuffix)
+      {
+        return value.substring(0, suffixStart);
+      }
+    }
+  }
+
   //--- New format: <base>-aabbccddeeff
   if (value.length() >= 14)
   {
@@ -478,7 +505,7 @@ String WiFiManagerExt::stripMacSuffixIfPresent(const String& value) const
 
 } //   stripMacSuffixIfPresent()
 
-//--- Build identity text: first 8 chars + "-" + MAC suffix
+//--- Build identity text: base + "-" + MAC suffix
 String WiFiManagerExt::buildIdentityWithMacSuffix(const String& baseValue, const String& fallbackValue) const
 {
   String base = stripMacSuffixIfPresent(baseValue);
@@ -486,11 +513,6 @@ String WiFiManagerExt::buildIdentityWithMacSuffix(const String& baseValue, const
   if (base.isEmpty())
   {
     base = fallbackValue;
-  }
-
-  if (base.length() > 8)
-  {
-    base = base.substring(0, 8);
   }
 
   return base + "-" + buildMacSuffix();
