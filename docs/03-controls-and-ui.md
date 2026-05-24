@@ -21,7 +21,10 @@ Tracks:
 
 - Rotate: select track
 - Rotate in SHIFT mode: move step cursor
-- Short press: toggle step on/off
+- Short press:
+  - If not in edit mode: enter edit mode
+  - If already in edit mode: toggle step on/off
+  - If BPM edit is active: exit BPM edit
 - Medium press:
   - Normal mode: BPM edit on/off
   - SHIFT mode: mute/unmute current track
@@ -29,8 +32,10 @@ Tracks:
 
 ## KEY0 Actions
 
-- Short press: Play/Stop
-- Medium press: SHIFT mode on/off
+- Short press:
+  - If in edit mode: exit edit mode
+  - If not in edit mode: Play/Stop
+- Medium press: toggle edit mode on/off
 - Long press: increase swing
 
 ## BPM Edit

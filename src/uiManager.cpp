@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-24 - 12:19 ***/
+/*** Last Changed: 2026-05-24 - 15:06 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -968,6 +968,10 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     {
       uiState.bpmEditMode = false;
     }
+    else if (!view.shiftMode)
+    {
+      sequencerToggleShiftMode();
+    }
     else
     {
       sequencerToggleCurrentStep();
@@ -1033,7 +1037,17 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
 
   if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
   {
-    sequencerTogglePlay();
+    SequencerView view;
+    sequencerGetView(view);
+
+    if (view.shiftMode)
+    {
+      sequencerToggleShiftMode();
+    }
+    else
+    {
+      sequencerTogglePlay();
+    }
   }
   else if (buttonEvent == BUTTON_EVENT_MEDIUM_PRESS)
   {
