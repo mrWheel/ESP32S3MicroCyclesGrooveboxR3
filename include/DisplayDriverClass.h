@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:13 ***/
+/*** Last Changed: 2026-05-24 - 12:19 ***/
 #ifndef DISPLAY_DRIVER_H
 #define DISPLAY_DRIVER_H
 
@@ -85,8 +85,9 @@ public:
   bool updateTile(int tileIndex, const std::string& text);
   bool updateTile(const char* name, const std::string& text);
   void clearTiles();
-  void drawListScreen(const char* title, const String items[], size_t itemCount, int selectedIndex, int firstVisibleIndex);
+  void drawListScreen(const char* title, const String items[], size_t itemCount, int selectedIndex, int firstVisibleIndex, const char* rightText = nullptr);
   void drawListLine(int lineIndex, const String& text, bool selected);
+  void drawListCharacterHighlight(int lineIndex, int charIndex, char character);
   void drawListScreenWithDisabledItems(const char* title, const String items[], size_t itemCount, int selectedIndex, int firstVisibleIndex, const bool disabledItems[]);
   void refreshHeaderIfNeeded(const char* rightText, uint32_t minimumIntervalMs);
   void drawNumberEditor(const char* label, uint32_t value, const char* unitLabel);

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:13 ***/
+/*** Last Changed: 2026-05-24 - 12:19 ***/
 #include "DisplayDriverClass.h"
 #include "appConfig.h"
 #include "colorSettings.h"
@@ -1563,11 +1563,11 @@ void DisplayDriver::clearTiles()
 } //   DisplayDriver::clearTiles()
 
 //--- Draw a list screen
-void DisplayDriver::drawListScreen(const char* title, const String items[], size_t itemCount, int selectedIndex, int firstVisibleIndex)
+void DisplayDriver::drawListScreen(const char* title, const String items[], size_t itemCount, int selectedIndex, int firstVisibleIndex, const char* rightText)
 {
   invalidateStatusScreenCache();
   tft.fillScreen(ST77XX_BLACK);
-  drawHeader(title);
+  drawHeader(title, rightText);
 
   tft.setTextSize(2);
 
@@ -1586,10 +1586,8 @@ void DisplayDriver::drawListScreen(const char* title, const String items[], size
 
     if (itemIndex == selectedIndex)
     {
-      uint16_t selectedFillColor = getUiSelectedFillColor();
-
-      tft.fillRect(0, y, tft.width(), 22, selectedFillColor);
-      tft.setTextColor(getUiSelectedTextColor(), selectedFillColor);
+      tft.fillRect(0, y, tft.width(), 22, ST77XX_BLACK);
+      tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
       tft.setCursor(6, y);
       tft.print(">");
       tft.print(items[itemIndex]);
@@ -1626,10 +1624,8 @@ void DisplayDriver::drawListLine(int lineIndex, const String& text, bool selecte
 
   if (selected)
   {
-    uint16_t selectedFillColor = getUiSelectedFillColor();
-
-    tft.fillRect(0, y, tft.width(), 22, selectedFillColor);
-    tft.setTextColor(getUiSelectedTextColor(), selectedFillColor);
+    tft.fillRect(0, y, tft.width(), 22, ST77XX_BLACK);
+    tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
     tft.setCursor(6, y);
     tft.print(">");
     tft.print(text);
@@ -1645,6 +1641,35 @@ void DisplayDriver::drawListLine(int lineIndex, const String& text, bool selecte
   }
 
 } //   DisplayDriver::drawListLine()
+
+//--- Highlight one character cell inside a list row.
+void DisplayDriver::drawListCharacterHighlight(int lineIndex, int charIndex, char character)
+{
+  const int rowY = 30 + (lineIndex * 22);
+  const int charWidth = 12;
+  const int charHeight = 22;
+  const int rowPrefixChars = 1;
+  const int charX = 6 + ((rowPrefixChars + charIndex) * charWidth);
+  uint16_t fillColor = getUiSelectedFillColor();
+  uint16_t textColor = getUiSelectedTextColor();
+
+  if (lineIndex < 0 || charIndex < 0)
+  {
+    return;
+  }
+
+  if (rowY >= static_cast<int>(tft.height()) || charX >= static_cast<int>(tft.width()))
+  {
+    return;
+  }
+
+  tft.setTextSize(2);
+  tft.fillRect(charX, rowY, charWidth, charHeight, fillColor);
+  tft.setTextColor(textColor, fillColor);
+  tft.setCursor(charX, rowY);
+  tft.print(character);
+
+} //   DisplayDriver::drawListCharacterHighlight()
 
 //--- Class API wrapper: list screen with disabled items
 void DisplayDriver::drawListScreenWithDisabledItems(const char* title, const String items[], size_t itemCount, int selectedIndex, int firstVisibleIndex, const bool disabledItems[])
@@ -1671,10 +1696,8 @@ void DisplayDriver::drawListScreenWithDisabledItems(const char* title, const Str
 
     if (itemIndex == selectedIndex)
     {
-      uint16_t selectedFillColor = getUiSelectedFillColor();
-
-      tft.fillRect(0, y, tft.width(), 22, selectedFillColor);
-      tft.setTextColor(getUiSelectedTextColor(), selectedFillColor);
+      tft.fillRect(0, y, tft.width(), 22, ST77XX_BLACK);
+      tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
       tft.setCursor(6, y);
       tft.print(">");
       tft.print(items[itemIndex]);

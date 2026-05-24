@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-24 - 11:12 ***/
+/*** Last Changed: 2026-05-24 - 12:19 ***/
 #include "settingsStore.h"
 #include "appConfig.h"
 
@@ -299,7 +299,7 @@ bool settingsStoreFindNextSequenceName(String& outName)
   {
     char candidateName[24];
 
-    snprintf(candidateName, sizeof(candidateName), "sequence_%03d", sequenceIndex);
+    snprintf(candidateName, sizeof(candidateName), "S%03d", sequenceIndex);
 
     String sequencePath = buildSequencePath(String(candidateName));
 

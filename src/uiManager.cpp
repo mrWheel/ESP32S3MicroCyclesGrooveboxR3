@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-24 - 11:22 ***/
+/*** Last Changed: 2026-05-24 - 12:19 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -8,6 +8,7 @@
 #include "sequencer.h"
 #include "systemManager.h"
 #include "InputClass.h"
+#include "progVersion.h"
 
 #include <Arduino.h>
 #include <esp_log.h>
@@ -184,7 +185,7 @@ static void normalizeMenuSelection(int direction)
 static void updateListFirstVisibleIndex(int selectedIndex, int itemCount, int& firstVisibleIndex)
 {
   int maxFirstVisible = 0;
-  int upperScrollTrigger = 1;
+  int upperScrollTrigger = 2;
   int lowerScrollTrigger = menuVisibleLineCount - 2;
 
   if (itemCount <= menuVisibleLineCount)
@@ -521,7 +522,18 @@ static void drawSequencerScreen()
   lines[7] = fitListRowText(buildSequencerFooterLine(view, audioStats));
 
   selectedLine = static_cast<int>(view.selectedTrack) + 1;
-  display.drawListScreen("Groovebox", lines, 8, selectedLine, 0);
+  display.drawListScreen("Groovebox", lines, 8, selectedLine, 0, PROG_VERSION);
+
+  if (view.shiftMode)
+  {
+    int stepCharIndex = 7 + static_cast<int>(view.cursorStep);
+
+    if (stepCharIndex >= 0 && stepCharIndex < static_cast<int>(lines[selectedLine].length()))
+    {
+      display.drawListCharacterHighlight(selectedLine, stepCharIndex, lines[selectedLine][stepCharIndex]);
+    }
+  }
+
   lastSequencerFooterLine = lines[7];
   sequencerScreenDrawn = true;
 
@@ -774,6 +786,13 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     uiState.eraseWifiConfirmOpen = false;
     uiState.sequenceListOpen = false;
     uiState.sequenceDeleteMode = false;
+
+    if (uiState.menuOpen)
+    {
+      uiState.menuSelection = settingsFirstActionIndex;
+      uiState.menuFirstVisibleIndex = 0;
+    }
+
     normalizeMenuSelection(0);
     updateListFirstVisibleIndex(uiState.menuSelection, settingsEntryCount, uiState.menuFirstVisibleIndex);
     uiState.dirty = true;
