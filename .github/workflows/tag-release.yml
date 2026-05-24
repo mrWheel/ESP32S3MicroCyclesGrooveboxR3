@@ -83,7 +83,7 @@ jobs:
         id: getVersion
         run: |
           sourceFile="${{ env.PROGRAM_DIR }}/${{ env.PROGRAM_SRC }}"
-          versionLine=$(grep -m1 'PROG_VERSION' "$sourceFile" || true)
+          versionLine=$(grep -m1 -E 'PROG_VERSION[[:space:]]*=' "$sourceFile" || true)
           rawVersion=$(echo "$versionLine" | grep -Eo 'v?[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)
           rawVersion="${rawVersion#v}"
           version=""

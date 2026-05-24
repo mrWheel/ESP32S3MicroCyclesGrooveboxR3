@@ -9,6 +9,7 @@
             "matchCommandLine": true
         },
         "git tag": true,
-        "git remote": true
+        "git remote": true,
+        "git ls-remote": true
     }
 }
