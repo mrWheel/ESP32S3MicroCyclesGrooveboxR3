@@ -1,6 +1,12 @@
 {
     "chat.tools.terminal.autoApprove": {
         "command": true,
-        "pio": true
+        "pio": true,
+        "git config": true,
+        "true": true,
+        "/^sh -n tools/git-hooks/pre-commit && echo 'pre-commit syntax OK'$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }

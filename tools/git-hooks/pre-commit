@@ -5,6 +5,9 @@ set -e
 #
 python3 tools/git-hooks/lastChanged.py
 
+# Stage all tracked/untracked changes before collecting staged file list.
+git add -A
+
 # Add only staged files (added/copied/modified)
 FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(c|cpp|h)$' || true)
 
