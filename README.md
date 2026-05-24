@@ -93,7 +93,7 @@ TFT_LCD_DISPLAY_EC11_BOARD (see <a href="https://willem.aandewiel.nl/index.php/2
 
 ESP32-WROVER with PSRAM
 
-## Fixed Board Pin Mapping
+## Fixed Board Pin Mapping for R2 board
 
 ```ini
 -D PIN_TFT_BL=13
@@ -108,6 +108,31 @@ ESP32-WROVER with PSRAM
 
 -D PIN_INPUT1=34
 -D PIN_INPUT2=35
+```
+
+## Fixed Board Pin Mapping for R3 board
+
+```ini
+  -D PIN_TFT_BL=2     ;- was 13
+  -D PIN_TFT_RST=4    ;- was 14
+  -D PIN_TFT_CS=5     ;- was 18
+  -D PIN_TFT_SCL=18   ;- was 21 [SCLK]
+  -D PIN_TFT_SDA=23   ;- was 22 [MOSI]
+  -D PIN_TFT_DC=15    ;- was 23
+  -D PIN_ENC_BTN=35   ;- was 25
+  -D PIN_KEY0=0       ;- was 26
+  -D PIN_ENC_A=36     ;- was 32 [VP]
+  -D PIN_ENC_B=39     ;- was 33 [VN]
+
+  -D PIN_I2S_BCLK=26
+  -D PIN_I2S_WS=25
+  -D PIN_I2S_DOUT=27
+  -D PIN_I2S_DIN=34
+
+  -D PIN_SD_MOSI=23   ;- share with TFT
+  -D PIN_SD_MISO=19
+  -D PIN_SD_SCLK=18   ;- share with TFT
+  -D PIN_SD_CS=13
 ```
 ## Add GPIO Warning Notes
 
