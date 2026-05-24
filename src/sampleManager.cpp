@@ -1,29 +1,20 @@
-/*** Last Changed: 2026-05-23 - 17:35 ***/
+/*** Last Changed: 2026-05-24 - 11:12 ***/
 #include "sampleManager.h"
 
-#include <LittleFS.h>
-#include <esp_log.h>
+#include "sampleCh.h"
+#include "sampleKick.h"
+#include "sampleMetal.h"
+#include "sampleOh.h"
+#include "sampleSnare.h"
+#include "sampleTone.h"
+
 #include <esp_heap_caps.h>
+#include <esp_log.h>
 #include <math.h>
 #include <string.h>
 
 //-- Logging tag.
 static const char* logTag = "SampleManager";
-
-//-- RIFF/WAV container header.
-struct RiffHeader
-{
-  char riff[4];
-  uint32_t chunkSize;
-  char wave[4];
-};
-
-//-- Generic RIFF chunk header.
-struct ChunkHeader
-{
-  char id[4];
-  uint32_t size;
-};
 
 //-- Minimal PCM format payload from the "fmt " chunk.
 struct FmtChunk
@@ -36,31 +27,47 @@ struct FmtChunk
   uint16_t bitsPerSample;
 };
 
+//-- Embedded WAV source descriptor.
+struct SampleSource
+{
+  const uint8_t* wavBytes;
+  size_t wavSize;
+  const char* name;
+};
+
 //-- Fixed sample pool.
 static SampleSlot sampleSlots[sampleCount];
 
 //-- Synthetic fallback waveforms.
 static int16_t fallbackSamples[sampleCount][512];
 
-//-- File mapping for required tracks.
-static const char* samplePaths[sampleCount] =
+//-- Embedded sample mapping for required tracks.
+static const SampleSource sampleSources[sampleCount] =
     {
-        "/samples/kick.wav",
-        "/samples/snare.wav",
-        "/samples/ch.wav",
-        "/samples/oh.wav",
-        "/samples/tone.wav",
-        "/samples/metal.wav"};
+        {sampleKickWavBytes, sampleKickWavSize, "kick"},
+        {sampleSnareWavBytes, sampleSnareWavSize, "snare"},
+        {sampleChWavBytes, sampleChWavSize, "ch"},
+        {sampleOhWavBytes, sampleOhWavSize, "oh"},
+        {sampleToneWavBytes, sampleToneWavSize, "tone"},
+        {sampleMetalWavBytes, sampleMetalWavSize, "metal"}};
 
-//-- Human readable slot names.
-static const char* sampleNames[sampleCount] =
-    {
-        "kick",
-        "snare",
-        "ch",
-        "oh",
-        "tone",
-        "metal"};
+//-- Read little-endian 16-bit value.
+static uint16_t readLe16(const uint8_t* data)
+{
+  return static_cast<uint16_t>(data[0]) |
+         (static_cast<uint16_t>(data[1]) << 8);
+
+} //   readLe16()
+
+//-- Read little-endian 32-bit value.
+static uint32_t readLe32(const uint8_t* data)
+{
+  return static_cast<uint32_t>(data[0]) |
+         (static_cast<uint32_t>(data[1]) << 8) |
+         (static_cast<uint32_t>(data[2]) << 16) |
+         (static_cast<uint32_t>(data[3]) << 24);
+
+} //   readLe32()
 
 //-- Build deterministic fallback drum-ish waveforms.
 static void buildFallbackSample(uint8_t sampleIndex)
@@ -92,82 +99,81 @@ static void buildFallbackSample(uint8_t sampleIndex)
 } //   buildFallbackSample()
 
 //-- Parse RIFF chunks and locate "fmt " + "data" sections.
-static bool parseWavLayout(File& wavFile, FmtChunk& fmtChunk, uint32_t& dataOffset, uint32_t& dataSize)
+static bool parseWavLayout(const uint8_t* wavBytes, size_t wavSize, FmtChunk& fmtChunk, const uint8_t*& pcmData, uint32_t& dataSize)
 {
-  RiffHeader riffHeader;
-
-  dataOffset = 0;
-  dataSize = 0;
-
-  if (wavFile.read(reinterpret_cast<uint8_t*>(&riffHeader), sizeof(RiffHeader)) != sizeof(RiffHeader))
-  {
-    return false;
-  }
-
-  if (memcmp(riffHeader.riff, "RIFF", 4) != 0 || memcmp(riffHeader.wave, "WAVE", 4) != 0)
-  {
-    return false;
-  }
-
+  size_t offset = 0;
   bool fmtFound = false;
   bool dataFound = false;
 
-  while (wavFile.available() >= static_cast<int>(sizeof(ChunkHeader)))
-  {
-    ChunkHeader chunkHeader;
-    uint32_t chunkDataOffset = static_cast<uint32_t>(wavFile.position()) + sizeof(ChunkHeader);
+  pcmData = nullptr;
+  dataSize = 0;
 
-    if (wavFile.read(reinterpret_cast<uint8_t*>(&chunkHeader), sizeof(ChunkHeader)) != sizeof(ChunkHeader))
+  if (wavBytes == nullptr || wavSize < 12)
+  {
+    return false;
+  }
+
+  if (memcmp(&wavBytes[0], "RIFF", 4) != 0 || memcmp(&wavBytes[8], "WAVE", 4) != 0)
+  {
+    return false;
+  }
+
+  offset = 12;
+
+  while ((offset + 8) <= wavSize)
+  {
+    const uint8_t* chunkHeader = &wavBytes[offset];
+    const char* chunkId = reinterpret_cast<const char*>(chunkHeader);
+    uint32_t chunkSize = readLe32(&chunkHeader[4]);
+    size_t chunkDataOffset = offset + 8;
+    size_t nextChunkOffset;
+
+    if ((chunkDataOffset + chunkSize) > wavSize)
     {
       return false;
     }
 
-    if (memcmp(chunkHeader.id, "fmt ", 4) == 0)
+    if (memcmp(chunkId, "fmt ", 4) == 0)
     {
-      if (chunkHeader.size < 16)
+      const uint8_t* fmtData = &wavBytes[chunkDataOffset];
+
+      if (chunkSize < 16)
       {
         return false;
       }
 
-      if (wavFile.read(reinterpret_cast<uint8_t*>(&fmtChunk), sizeof(FmtChunk)) != sizeof(FmtChunk))
-      {
-        return false;
-      }
-
+      fmtChunk.audioFormat = readLe16(&fmtData[0]);
+      fmtChunk.numChannels = readLe16(&fmtData[2]);
+      fmtChunk.sampleRate = readLe32(&fmtData[4]);
+      fmtChunk.byteRate = readLe32(&fmtData[8]);
+      fmtChunk.blockAlign = readLe16(&fmtData[12]);
+      fmtChunk.bitsPerSample = readLe16(&fmtData[14]);
       fmtFound = true;
     }
-    else if (memcmp(chunkHeader.id, "data", 4) == 0)
+    else if (memcmp(chunkId, "data", 4) == 0)
     {
-      dataOffset = chunkDataOffset;
-      dataSize = chunkHeader.size;
+      pcmData = &wavBytes[chunkDataOffset];
+      dataSize = chunkSize;
       dataFound = true;
     }
 
-    uint32_t nextChunkOffset = chunkDataOffset + chunkHeader.size;
+    nextChunkOffset = chunkDataOffset + chunkSize;
 
     //-- RIFF chunks are word-aligned.
-    if ((chunkHeader.size & 1U) != 0U)
+    if ((chunkSize & 1U) != 0U)
     {
       nextChunkOffset++;
     }
 
-    if (!wavFile.seek(nextChunkOffset, SeekSet))
-    {
-      return false;
-    }
+    offset = nextChunkOffset;
   }
 
-  if (!fmtFound || !dataFound)
-  {
-    return false;
-  }
-
-  return true;
+  return fmtFound && dataFound;
 
 } //   parseWavLayout()
 
-//-- Read one mono sample from current file position.
-static bool readMonoSample(File& wavFile, uint16_t numChannels, uint16_t bitsPerSample, int16_t& monoSample)
+//-- Read one mono sample from current PCM offset.
+static bool readMonoSampleFromBuffer(const uint8_t* pcmData, uint32_t dataSize, size_t& pcmOffset, uint16_t numChannels, uint16_t bitsPerSample, int16_t& monoSample)
 {
   int16_t channelSamples[2] = {0, 0};
 
@@ -185,36 +191,34 @@ static bool readMonoSample(File& wavFile, uint16_t numChannels, uint16_t bitsPer
   {
     if (bitsPerSample == 16)
     {
-      int16_t pcm16 = 0;
-
-      if (wavFile.read(reinterpret_cast<uint8_t*>(&pcm16), sizeof(int16_t)) != sizeof(int16_t))
+      if ((pcmOffset + 2) > dataSize)
       {
         return false;
       }
 
-      channelSamples[channelIndex] = pcm16;
+      channelSamples[channelIndex] = static_cast<int16_t>(readLe16(&pcmData[pcmOffset]));
+      pcmOffset += 2;
     }
     else
     {
-      uint8_t pcm24[3];
       int32_t signed24 = 0;
 
-      if (wavFile.read(pcm24, sizeof(pcm24)) != static_cast<int>(sizeof(pcm24)))
+      if ((pcmOffset + 3) > dataSize)
       {
         return false;
       }
 
-      signed24 = static_cast<int32_t>(pcm24[0]) |
-                 (static_cast<int32_t>(pcm24[1]) << 8) |
-                 (static_cast<int32_t>(pcm24[2]) << 16);
+      signed24 = static_cast<int32_t>(pcmData[pcmOffset + 0]) |
+                 (static_cast<int32_t>(pcmData[pcmOffset + 1]) << 8) |
+                 (static_cast<int32_t>(pcmData[pcmOffset + 2]) << 16);
 
       if ((signed24 & 0x00800000L) != 0)
       {
         signed24 |= 0xFF000000L;
       }
 
-      //-- Convert signed 24-bit to signed 16-bit.
       channelSamples[channelIndex] = static_cast<int16_t>(signed24 >> 8);
+      pcmOffset += 3;
     }
   }
 
@@ -229,33 +233,25 @@ static bool readMonoSample(File& wavFile, uint16_t numChannels, uint16_t bitsPer
 
   return true;
 
-} //   readMonoSample()
+} //   readMonoSampleFromBuffer()
 
-//-- Load one sample from LittleFS into PSRAM/internal RAM.
-static bool loadSampleFromFile(uint8_t sampleIndex)
+//-- Decode one embedded WAV source into sample slot storage.
+static bool loadSampleFromInclude(uint8_t sampleIndex)
 {
-  if (!LittleFS.exists(samplePaths[sampleIndex]))
-  {
-    ESP_LOGW(logTag, "Missing sample file: %s", samplePaths[sampleIndex]);
-    return false;
-  }
-
-  File wavFile = LittleFS.open(samplePaths[sampleIndex], "r");
-
-  if (!wavFile)
-  {
-    ESP_LOGW(logTag, "Missing sample file: %s", samplePaths[sampleIndex]);
-    return false;
-  }
-
-  FmtChunk fmtChunk;
-  uint32_t dataOffset = 0;
+  const SampleSource& source = sampleSources[sampleIndex];
+  FmtChunk fmtChunk = {};
+  const uint8_t* pcmData = nullptr;
   uint32_t dataSize = 0;
 
-  if (!parseWavLayout(wavFile, fmtChunk, dataOffset, dataSize))
+  if (source.wavBytes == nullptr || source.wavSize < 12)
   {
-    ESP_LOGW(logTag, "Invalid WAV layout: %s", samplePaths[sampleIndex]);
-    wavFile.close();
+    ESP_LOGW(logTag, "Embedded WAV missing: %s", source.name);
+    return false;
+  }
+
+  if (!parseWavLayout(source.wavBytes, source.wavSize, fmtChunk, pcmData, dataSize))
+  {
+    ESP_LOGW(logTag, "Invalid embedded WAV layout: %s", source.name);
     return false;
   }
 
@@ -269,57 +265,47 @@ static bool loadSampleFromFile(uint8_t sampleIndex)
   {
     ESP_LOGW(logTag,
              "Unsupported WAV format: %s (fmt=%u ch=%u bits=%u rate=%lu)",
-             samplePaths[sampleIndex],
+             source.name,
              static_cast<unsigned>(fmtChunk.audioFormat),
              static_cast<unsigned>(fmtChunk.numChannels),
              static_cast<unsigned>(fmtChunk.bitsPerSample),
              static_cast<unsigned long>(fmtChunk.sampleRate));
-    wavFile.close();
     return false;
   }
 
-  uint32_t bytesPerSample = static_cast<uint32_t>(fmtChunk.bitsPerSample) / 8U;
-  uint32_t inputFrameCount = dataSize / (static_cast<uint32_t>(fmtChunk.numChannels) * bytesPerSample);
+  uint32_t bytesPerInputSample = static_cast<uint32_t>(fmtChunk.bitsPerSample) / 8U;
+  uint32_t inputFrameCount = dataSize / (static_cast<uint32_t>(fmtChunk.numChannels) * bytesPerInputSample);
 
   if (inputFrameCount == 0)
   {
-    ESP_LOGW(logTag, "Empty WAV data: %s", samplePaths[sampleIndex]);
-    wavFile.close();
+    ESP_LOGW(logTag, "Embedded WAV is empty: %s", source.name);
     return false;
   }
 
-  uint32_t frameCount = inputFrameCount;
+  uint32_t outputFrameCount = inputFrameCount;
 
   if (fmtChunk.sampleRate == 44100)
   {
-    frameCount = inputFrameCount / 2;
+    outputFrameCount = inputFrameCount / 2;
 
-    if (frameCount == 0)
+    if (outputFrameCount == 0)
     {
-      frameCount = 1;
+      outputFrameCount = 1;
     }
   }
 
-  size_t sampleByteCount = static_cast<size_t>(frameCount) * sizeof(int16_t);
-  int16_t* sampleData = static_cast<int16_t*>(heap_caps_malloc(sampleByteCount, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  size_t sampleByteCount = static_cast<size_t>(outputFrameCount) * sizeof(int16_t);
+  int16_t* sampleData = static_cast<int16_t*>(heap_caps_malloc(sampleByteCount, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+  bool sampleStoredInInternalRam = (sampleData != nullptr);
 
   if (sampleData == nullptr)
   {
-    sampleData = static_cast<int16_t*>(heap_caps_malloc(sampleByteCount, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    sampleData = static_cast<int16_t*>(heap_caps_malloc(sampleByteCount, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   }
 
   if (sampleData == nullptr)
   {
-    ESP_LOGE(logTag, "Out of memory for sample: %s", samplePaths[sampleIndex]);
-    wavFile.close();
-    return false;
-  }
-
-  if (!wavFile.seek(dataOffset, SeekSet))
-  {
-    ESP_LOGW(logTag, "Failed to seek WAV data: %s", samplePaths[sampleIndex]);
-    free(sampleData);
-    wavFile.close();
+    ESP_LOGE(logTag, "Out of memory for embedded sample: %s", source.name);
     return false;
   }
 
@@ -327,18 +313,17 @@ static bool loadSampleFromFile(uint8_t sampleIndex)
 
   if (fmtChunk.sampleRate == 22050 && fmtChunk.numChannels == 1 && fmtChunk.bitsPerSample == 16)
   {
-    if (wavFile.read(reinterpret_cast<uint8_t*>(sampleData), sampleByteCount) != static_cast<int>(sampleByteCount))
-    {
-      decodeOk = false;
-    }
+    memcpy(sampleData, pcmData, sampleByteCount);
   }
   else
   {
-    for (uint32_t outputIndex = 0; outputIndex < frameCount; outputIndex++)
+    size_t pcmOffset = 0;
+
+    for (uint32_t outputIndex = 0; outputIndex < outputFrameCount; outputIndex++)
     {
       int16_t firstSample = 0;
 
-      if (!readMonoSample(wavFile, fmtChunk.numChannels, fmtChunk.bitsPerSample, firstSample))
+      if (!readMonoSampleFromBuffer(pcmData, dataSize, pcmOffset, fmtChunk.numChannels, fmtChunk.bitsPerSample, firstSample))
       {
         decodeOk = false;
         break;
@@ -348,7 +333,7 @@ static bool loadSampleFromFile(uint8_t sampleIndex)
       {
         int16_t secondSample = firstSample;
 
-        if (!readMonoSample(wavFile, fmtChunk.numChannels, fmtChunk.bitsPerSample, secondSample))
+        if (!readMonoSampleFromBuffer(pcmData, dataSize, pcmOffset, fmtChunk.numChannels, fmtChunk.bitsPerSample, secondSample))
         {
           decodeOk = false;
           break;
@@ -366,45 +351,40 @@ static bool loadSampleFromFile(uint8_t sampleIndex)
 
   if (!decodeOk)
   {
-    ESP_LOGW(logTag, "Failed to read WAV data: %s", samplePaths[sampleIndex]);
+    ESP_LOGW(logTag, "Failed to decode embedded WAV data: %s", source.name);
     free(sampleData);
-    wavFile.close();
     return false;
   }
 
-  wavFile.close();
-
   sampleSlots[sampleIndex].data = sampleData;
-  sampleSlots[sampleIndex].frameCount = frameCount;
+  sampleSlots[sampleIndex].frameCount = outputFrameCount;
   sampleSlots[sampleIndex].valid = true;
-  strncpy(sampleSlots[sampleIndex].name, sampleNames[sampleIndex], sizeof(sampleSlots[sampleIndex].name) - 1);
+  strncpy(sampleSlots[sampleIndex].name, source.name, sizeof(sampleSlots[sampleIndex].name) - 1);
   sampleSlots[sampleIndex].name[sizeof(sampleSlots[sampleIndex].name) - 1] = '\0';
 
-  ESP_LOGI(logTag, "Loaded sample %s (%lu frames)", sampleSlots[sampleIndex].name, static_cast<unsigned long>(frameCount));
+  ESP_LOGI(logTag,
+           "Loaded embedded sample %s (%lu frames, %s)",
+           sampleSlots[sampleIndex].name,
+           static_cast<unsigned long>(outputFrameCount),
+           sampleStoredInInternalRam ? "internal RAM" : "PSRAM");
 
   return true;
 
-} //   loadSampleFromFile()
+} //   loadSampleFromInclude()
 
-//-- Initialize sample pool and load all configured sample files.
+//-- Initialize sample pool and decode all embedded sample WAV headers.
 bool sampleManagerInit()
 {
-  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
-  {
-    ESP_LOGE(logTag, "LittleFS mount failed");
-    return false;
-  }
-
   for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
   {
     sampleSlots[sampleIndex].data = fallbackSamples[sampleIndex];
     sampleSlots[sampleIndex].frameCount = 512;
     sampleSlots[sampleIndex].valid = true;
-    strncpy(sampleSlots[sampleIndex].name, sampleNames[sampleIndex], sizeof(sampleSlots[sampleIndex].name) - 1);
+    strncpy(sampleSlots[sampleIndex].name, sampleSources[sampleIndex].name, sizeof(sampleSlots[sampleIndex].name) - 1);
     sampleSlots[sampleIndex].name[sizeof(sampleSlots[sampleIndex].name) - 1] = '\0';
     buildFallbackSample(sampleIndex);
 
-    if (!loadSampleFromFile(sampleIndex))
+    if (!loadSampleFromInclude(sampleIndex))
     {
       ESP_LOGW(logTag, "Using fallback sample for %s", sampleSlots[sampleIndex].name);
     }

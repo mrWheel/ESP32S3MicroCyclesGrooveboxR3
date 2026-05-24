@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:00 ***/
+/*** Last Changed: 2026-05-24 - 11:12 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -314,6 +314,61 @@ void sequencerLoadPattern(uint8_t slotIndex)
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerLoadPattern()
+
+//-- Export active sequence data for storage.
+void sequencerExportSequence(SequenceData& outData)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  outData.pattern = state.patterns[state.activePatternIndex];
+  outData.bpm = state.bpm;
+  outData.swingPercent = state.swingPercent;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerExportSequence()
+
+//-- Import sequence data into active pattern slot.
+void sequencerImportSequence(const SequenceData& sequenceData)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  state.patterns[state.activePatternIndex] = sequenceData.pattern;
+  state.bpm = sequenceData.bpm;
+  state.swingPercent = sequenceData.swingPercent;
+  state.currentStep = 0;
+  state.cursorStep = 0;
+  state.nextStepDueUs = 0;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerImportSequence()
+
+//-- Reset active pattern to an empty sequence.
+void sequencerClearActivePattern()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  Pattern& activePattern = state.patterns[state.activePatternIndex];
+
+  for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
+  {
+    activePattern.tracks[trackIndex].mute = false;
+
+    for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
+    {
+      activePattern.tracks[trackIndex].steps[stepIndex].trigger = false;
+      activePattern.tracks[trackIndex].steps[stepIndex].velocity = 255;
+    }
+  }
+
+  state.currentStep = 0;
+  state.cursorStep = 0;
+  state.nextStepDueUs = 0;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerClearActivePattern()
 
 //-- Build a thread-safe UI snapshot.
 void sequencerGetView(SequencerView& outView)
