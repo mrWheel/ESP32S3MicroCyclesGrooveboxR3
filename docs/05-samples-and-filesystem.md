@@ -1,37 +1,29 @@
-# 5. Samples and Filesystem
+# 5. Samples and Sequences
 
-## 5.1 Required Sample Files
+## Samples
 
-The firmware expects the following files in LittleFS:
+The Groovebox ships with built-in embedded samples:
 
-- `/samples/kick.wav`
-- `/samples/snare.wav`
-- `/samples/ch.wav`
-- `/samples/oh.wav`
-- `/samples/tone.wav`
-- `/samples/metal.wav`
+- Kick
+- Snare
+- CH
+- OH
+- Tone
+- Metal
 
-Repository defaults are provided in `data/samples/`.
+This means:
 
-## 5.2 Supported WAV Input Formats
+- No manual sample file upload is required for normal playback.
 
-Accepted input formats per loader:
+## Sequence Storage
 
-- PCM (`audioFormat == 1`)
-- Channels: mono or stereo
-- Bit depth: 16-bit or 24-bit
-- Sample rate: 22050 or 44100 Hz
+User sequences are saved in internal flash filesystem.
 
-Internal playback format is mono 16-bit @ 22050 Hz.
+- Sequence folder: `/sequences`
+- Naming format: `Snnn` (example: `S014`)
 
-If input is 44100 Hz, the loader downsamples by averaging frame pairs.
-If input is stereo, channels are mixed to mono.
+## If a Sample Sounds Wrong
 
-## 5.3 Fallback Sample Behavior
-
-If a file is missing or invalid:
-
-- A generated fallback waveform is used for that slot
-- The groovebox still boots and remains playable
-
-This prevents hard failure when sample files are incomplete.
+- First test with `TEST_TONE` to verify audio wiring path.
+- Then disable `TEST_TONE` again for normal drum playback.
+- Lower `AUDIO_MASTER_GAIN_PERCENT` if output is clipping or harsh.

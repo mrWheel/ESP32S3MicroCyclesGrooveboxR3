@@ -1,61 +1,45 @@
-# 4. System Settings and WiFi
+# 4. System Settings and Wi-Fi
 
-## 4.1 Opening System Settings
+## Open System Settings
 
-- Use **encoder long press** to open or close the menu.
-- Menu title: `System Settings`.
+- Use encoder long press.
 
-## 4.2 Menu Entries
+## Menu Items
 
-Read-only status entries:
+Status:
 
-1. `SSID: ...`
-2. `IP: ...`
-3. `MAC: ...`
+1. SSID
+2. IP
+3. MAC
 
-Action entries:
+Actions:
 
-4. `Erase WiFi Credentials`
-5. `Start WiFi Manager`
-6. `Set Theme (...)`
-7. `Rotate Display (...)`
-8. `Encoder Order (...)`
-9. `Exit`
+1. Load Sequence
+2. Save Sequence
+3. New Sequence
+4. Delete Sequence
+5. Erase WiFi Credentials
+6. Start WiFi Manager
+7. Set Theme
+8. Rotate Display
+9. Encoder Order
+10. Restart Groovebox
+11. Exit
 
-## 4.3 Menu Navigation
+## Sequence Workflow
 
-- Encoder left/right: move selection
-- Encoder short/medium press: execute selected action
-- KEY0 short press: close menu (or close confirmation dialog)
+- Load Sequence: load a saved pattern from storage.
+- Save Sequence: save current pattern to active name.
+- New Sequence: clear current pattern and assign next name.
+- Delete Sequence: remove a saved sequence.
 
-## 4.4 WiFi Manager Flow
+Generated sequence names follow this format:
 
-`Start WiFi Manager` behavior:
+- S001, S002, S003, ...
 
-1. Opens confirmation dialog (`No` / `Yes`)
-2. On `Yes`, starts captive portal mode
-3. UI shows waiting screen with AP name
-4. After credentials are entered and station connects, credentials are saved and device restarts
+## Wi-Fi Workflow
 
-Portal AP identity format:
-
-- `<base>-xxyyzz`
-- `xxyyzz` = last 3 bytes of device MAC
-
-## 4.5 Erase WiFi Credentials
-
-`Erase WiFi Credentials` behavior:
-
-1. Opens confirmation dialog
-2. On `Yes`, shows restart message
-3. Triggers credential erase + reboot path
-
-## 4.6 Runtime Settings Persistence
-
-The following values are persisted in `/settings.json`:
-
-- Display rotation
-- Theme color index
-- Encoder direction reversal (A-B/B-A)
-
-Stored WiFi information is persisted in `/wifiSettings.json`.
+- Start WiFi Manager opens a confirmation screen.
+- Confirm to launch captive portal mode.
+- Connect with your phone/laptop and enter credentials.
+- Device reconnects and returns to normal operation.

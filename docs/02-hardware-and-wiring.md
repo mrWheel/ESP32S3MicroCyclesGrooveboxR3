@@ -1,57 +1,40 @@
-# 2. Hardware and Wiring
+# 2. Hardware and Wiring (R3)
 
-## 2.1 Fixed Pin Mapping
-
-Default mapping from `platformio.ini`:
+## R3 Pin Mapping Used by Firmware
 
 ### Display
 
-- TFT backlight: GPIO13
-- TFT reset: GPIO14
-- TFT chip select: GPIO18
-- TFT SCL: GPIO21
-- TFT SDA: GPIO22
-- TFT D/C: GPIO23
+- Backlight: GPIO2
+- Reset: GPIO4
+- CS: GPIO5
+- SCL: GPIO18
+- SDA: GPIO23
+- D/C: GPIO15
 
-### Input
+### Controls
 
-- Encoder button: GPIO25
-- KEY0: GPIO26
-- Encoder A: GPIO32
-- Encoder B: GPIO33
+- Encoder button: GPIO35
+- KEY0: GPIO0
+- Encoder A: GPIO36
+- Encoder B: GPIO39
 
-### I2S Audio
+### Audio (I2S)
 
-- BCLK: GPIO27
-- WS/LRCLK: GPIO4
-- DOUT: GPIO5
+- BCLK: GPIO26
+- WS/LRCLK: GPIO25
+- DOUT: GPIO27
+- SD/EN (amplifier enable): GPIO14
 
-## 2.2 Display Format
+## Audio Wiring Checklist
 
-- Resolution: 320x240 (`TFT_WIDTH`, `TFT_HEIGHT`)
-- Supported runtime rotations in menu: 1 and 3
+1. Connect ESP32 BCLK to DAC BCLK.
+2. Connect ESP32 WS/LRCLK to DAC LRC/WS.
+3. Connect ESP32 DOUT to DAC DIN.
+4. Connect grounds together.
+5. Provide stable 3V3/5V power as required by your DAC board.
 
-## 2.3 Input Timing Thresholds
+## If You Hear Nothing
 
-Build-flag defaults used in this project:
-
-- Short press: 50 ms
-- Medium press: 1000 ms
-- Long press: 2000 ms
-
-(Separate thresholds exist for encoder push and KEY0, currently set equally.)
-
-## 2.4 Audio Path
-
-Internal chain:
-
-1. Samples loaded into memory from LittleFS
-2. Voices mixed to mono
-3. Mono duplicated to stereo
-4. 16-bit PCM written to I2S DMA
-
-Engine defaults:
-
-- 22050 Hz output
-- Block size: 128 frames
-- Voice pool: 16 fixed voices
+- Check that SD/EN wiring matches your DAC board expectation.
+- Verify speaker or amplifier connection.
+- Confirm you uploaded the R3 environment firmware.

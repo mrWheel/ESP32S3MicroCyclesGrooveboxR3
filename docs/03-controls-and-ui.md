@@ -1,15 +1,14 @@
-# 3. Controls and UI Operation
+# 3. Controls and Screen
 
-## 3.1 Main Screen Layout
+## Main Screen
 
-Header line shows:
+You see:
 
-- BPM value
-- Swing value (`SW`)
-- Transport state (`PLAY` or `STOP`)
-- Optional mode marker (`[BPM]` or `[SHIFT]`)
+- Header with BPM, swing, transport state, and version
+- Six track lines
+- Footer with current step, cursor step, and voice activity
 
-Track rows:
+Tracks:
 
 1. KICK
 2. SNARE
@@ -18,40 +17,30 @@ Track rows:
 5. TONE
 6. METAL
 
-Footer line shows:
+## Encoder Actions
 
-- Current playback step (`STEP`)
-- Edit cursor step (`CUR`)
-- Active voice count (`V`)
-
-## 3.2 Encoder Controls (Main Screen)
-
-- Rotate left/right (normal mode): select track
-- Rotate left/right in SHIFT mode: move step cursor
-- Short press: toggle step trigger at selected track + cursor
+- Rotate: select track
+- Rotate in SHIFT mode: move step cursor
+- Short press: toggle step on/off
 - Medium press:
-  - Normal mode: toggle BPM edit mode
-  - SHIFT mode: toggle mute for selected track
-- Long press: open/close System Settings
+  - Normal mode: BPM edit on/off
+  - SHIFT mode: mute/unmute current track
+- Long press: open or close System Settings
 
-## 3.3 KEY0 Controls (Main Screen)
+## KEY0 Actions
 
-- Short press: Play/Stop transport
-- Medium press: toggle SHIFT mode
-- Long press: increase swing by +2
+- Short press: Play/Stop
+- Medium press: SHIFT mode on/off
+- Long press: increase swing
 
-Swing range: 0..45.
+## BPM Edit
 
-## 3.4 BPM Edit Mode
+When BPM edit is active:
 
-When `[BPM]` is shown:
+- Rotate left: BPM down
+- Rotate right: BPM up
+- Short press: exit BPM edit
 
-- Encoder left: BPM -1
-- Encoder right: BPM +1
-- Encoder short press: exit BPM edit mode
+## SHIFT Visual Cue
 
-BPM range: 40..260.
-
-## 3.5 Mute Indication
-
-When a track is muted, a `*` is appended to the track label on screen.
+In SHIFT mode, the selected step character is highlighted for precise step editing.

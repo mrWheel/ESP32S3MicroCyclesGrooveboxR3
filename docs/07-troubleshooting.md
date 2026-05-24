@@ -1,55 +1,32 @@
 # 7. Troubleshooting
 
-## 7.1 No Sound
+## No Sound
 
-Check:
+1. Confirm firmware was uploaded for `ESP32GrooveboxR3`.
+2. Check I2S wiring: BCLK, WS/LRCLK, DOUT.
+3. Check SD/EN pin behavior for your DAC module.
+4. Verify speaker and power wiring.
 
-- DAC wiring for BCLK/WS/DOUT
-- DAC power and amplifier path
-- `NO_DAC_HARDWARE` flag is disabled when real audio hardware is connected
-- Sample files are present in LittleFS (`/samples/*.wav`)
+## Sound Is Very Distorted
 
-## 7.2 Distorted or Incorrect Samples
+1. Lower `AUDIO_MASTER_GAIN_PERCENT` in `platformio.ini`.
+2. Confirm DAC input wiring is correct (especially DOUT).
+3. Test with `TEST_TONE` to isolate wiring vs sample playback.
 
-Re-export WAV files as:
+## I Hear Only a Sine Tone
 
-- PCM
-- 16-bit or 24-bit
-- 22050 or 44100 Hz
-- mono preferred
+- `TEST_TONE` is enabled.
+- Disable `-D TEST_TONE` and rebuild/upload for normal drum playback.
 
-Avoid unsupported compressed WAV variants.
+## Wi-Fi Setup Does Not Start
 
-## 7.3 WiFi Portal Not Appearing
+1. Open System Settings.
+2. Select Start WiFi Manager.
+3. Confirm in the dialog.
+4. Join the shown access point and submit credentials.
 
-Verify:
+## Sequence Not Found
 
-- Open `System Settings` and run `Start WiFi Manager`
-- Confirm `Yes` in confirmation prompt
-- Connect to the AP shown on screen (`<base>-xxyyzz`)
-- Enter credentials and wait for auto-restart
-
-## 7.4 Settings Not Persisting
-
-Persistence requires LittleFS mount success.
-
-If settings reset every boot:
-
-- Re-upload filesystem image
-- Check flash partition config (`partitions_4MB_littlefs.csv`)
-
-## 7.5 Display Orientation Wrong
-
-Use:
-
-- `System Settings -> Rotate Display`
-
-The firmware toggles between rotation 1 and 3 and saves this value.
-
-## 7.6 Controls Feel Reversed
-
-Use:
-
-- `System Settings -> Encoder Order`
-
-This toggles A-B / B-A and persists the choice.
+- Use Load Sequence to refresh the list.
+- Create a New Sequence and Save Sequence once.
+- Check that flash partition and filesystem are not corrupted.

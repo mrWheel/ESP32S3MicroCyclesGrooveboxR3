@@ -1,28 +1,25 @@
-# ESP32 MicroCycles Groovebox User Manual
+# ESP32 MicroCycles Groovebox User Manual (R3)
 
-This manual explains how to install, wire, configure, and use the ESP32 MicroCycles Groovebox firmware.
+This manual is written for the R3 Groovebox hardware and for daily use.
 
 ## Manual Pages
 
 1. [Getting Started](./01-getting-started.md)
-2. [Hardware and Wiring](./02-hardware-and-wiring.md)
-3. [Controls and UI Operation](./03-controls-and-ui.md)
-4. [System Settings and WiFi](./04-system-settings-and-wifi.md)
-5. [Samples and Filesystem](./05-samples-and-filesystem.md)
-6. [Runtime Behavior and Performance](./06-performance-and-behavior.md)
+2. [Hardware and Wiring (R3)](./02-hardware-and-wiring.md)
+3. [Controls and Screen](./03-controls-and-ui.md)
+4. [System Settings and Wi-Fi](./04-system-settings-and-wifi.md)
+5. [Samples and Sequences](./05-samples-and-filesystem.md)
+6. [Playback Behavior](./06-performance-and-behavior.md)
 7. [Troubleshooting](./07-troubleshooting.md)
 
-## Device Summary
+## Groovebox Summary
 
-The groovebox is a 6-track, 16-step ESP32 sequencer with:
+- 6 tracks: Kick, Snare, CH, OH, Tone, Metal
+- 16-step sequencer
+- Encoder + encoder button + KEY0 workflow
+- ST7789 320x240 screen
+- I2S audio output to DAC/amplifier
 
-- Drum/sample playback (Kick, Snare, CH, OH, Tone, Metal)
-- Real-time audio rendering on core 0
-- Input, UI, and system handling on core 1
-- Rotary encoder + encoder pushbutton + KEY0 control
-- TFT screen with theme/rotation options
-- Optional WiFi portal for credential setup
+## Important
 
-## Firmware Scope
-
-This manual documents behavior from the current repository state (Phase 1 + Phase 2 baseline UI/sequencer behavior).
+This manual is intentionally practical and user-focused.

@@ -1,50 +1,34 @@
-# 1. Getting Started
+# 1. Getting Started (R3)
 
-## 1.1 What You Need
+## What You Need
 
-- ESP32 board target: **ESP32-WROVER** (with PSRAM recommended)
-- TFT_LCD_DISPLAY_EC11_BOARD-compatible wiring
+- ESP32 Groovebox R3 hardware
 - ST7789 display (320x240)
-- Rotary encoder with pushbutton
+- Rotary encoder with push button
 - KEY0 button
-- Optional I2S DAC (MAX98357A or PCM5102A)
-- USB cable and host computer with PlatformIO
+- I2S DAC module (for example MAX98357A or PCM5102A)
+- USB cable
+- PlatformIO on your computer
 
-## 1.2 Build Environment
+## Build and Flash
 
-Project configuration is defined in:
+1. Open this project in PlatformIO.
+2. Select environment `ESP32GrooveboxR3`.
+3. Build and upload firmware.
+4. Open serial monitor at 115200 baud.
 
-- `platformio.ini`
+## First Boot
 
-Main environment:
+At startup the Groovebox:
 
-- `env:ESP32Groovebox`
-- Framework: Arduino
-- Platform: espressif32
+1. Starts the screen and controls
+2. Loads saved settings
+3. Initializes audio output
+4. Loads the built-in drum/sample set
+5. Shows the main sequencer screen
 
-## 1.3 First Flash
+## Good To Know
 
-1. Build and flash the firmware with PlatformIO.
-2. Upload the `data/` folder to LittleFS (contains default sample files).
-3. Open serial monitor at 115200 baud.
-4. Confirm boot log reports Groovebox startup and pin mapping.
-
-## 1.4 First Boot Behavior
-
-On boot, the firmware:
-
-1. Initializes input and display
-2. Initializes sequencer state
-3. Mounts LittleFS and loads six sample slots
-4. Loads persisted runtime settings (`/settings.json`) if available
-5. Initializes audio engine
-6. Initializes system manager (WiFi disabled by default at startup)
-7. Starts FreeRTOS tasks
-
-## 1.5 No DAC Hardware Mode
-
-If `NO_DAC_HARDWARE` is enabled in build flags:
-
-- I2S/DAC init is skipped
-- System still runs UI and sequencer logic
-- Useful for control/UI testing without audio output hardware
+- Sample content is embedded in firmware.
+- You do not need to upload `/data/samples` for normal use.
+- If `TEST_TONE` is enabled, you will hear a test sine tone instead of drums.
