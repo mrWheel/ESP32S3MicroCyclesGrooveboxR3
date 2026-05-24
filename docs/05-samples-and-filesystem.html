@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>5. Samples and Filesystem | ESP32 MicroCycles Groovebox Manual</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages"><a href="./README.html">Manual Home</a> <a href="./01-getting-started.html">Getting Started</a> <a href="./02-hardware-and-wiring.html">Hardware and Wiring</a> <a href="./03-controls-and-ui.html">Controls and UI Operation</a> <a href="./04-system-settings-and-wifi.html">System Settings and WiFi</a> <a href="./05-samples-and-filesystem.html">Samples and Filesystem</a> <a href="./06-performance-and-behavior.html">Runtime Behavior and Performance</a> <a href="./07-troubleshooting.html">Troubleshooting</a></nav>
+      </header>
+      <main class="content">
+        <h1>5. Samples and Filesystem</h1>
+<h2>5.1 Required Sample Files</h2>
+<p>The firmware expects the following files in LittleFS:</p>
+<ul>
+<li><code>/samples/kick.wav</code></li>
+<li><code>/samples/snare.wav</code></li>
+<li><code>/samples/ch.wav</code></li>
+<li><code>/samples/oh.wav</code></li>
+<li><code>/samples/tone.wav</code></li>
+<li><code>/samples/metal.wav</code></li>
+</ul>
+<p>Repository defaults are provided in <code>data/samples/</code>.</p>
+<h2>5.2 Supported WAV Input Formats</h2>
+<p>Accepted input formats per loader:</p>
+<ul>
+<li>PCM (<code>audioFormat == 1</code>)</li>
+<li>Channels: mono or stereo</li>
+<li>Bit depth: 16-bit or 24-bit</li>
+<li>Sample rate: 22050 or 44100 Hz</li>
+</ul>
+<p>Internal playback format is mono 16-bit @ 22050 Hz.</p>
+<p>If input is 44100 Hz, the loader downsamples by averaging frame pairs.
+If input is stereo, channels are mixed to mono.</p>
+<h2>5.3 Fallback Sample Behavior</h2>
+<p>If a file is missing or invalid:</p>
+<ul>
+<li>A generated fallback waveform is used for that slot</li>
+<li>The groovebox still boots and remains playable</li>
+</ul>
+<p>This prevents hard failure when sample files are incomplete.</p>
+        <div class="footer-nav"><a href="./04-system-settings-and-wifi.html">← System Settings and WiFi</a><a href="./06-performance-and-behavior.html">Runtime Behavior and Performance →</a></div>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2. Hardware and Wiring | ESP32 MicroCycles Groovebox Manual</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages"><a href="./README.html">Manual Home</a> <a href="./01-getting-started.html">Getting Started</a> <a href="./02-hardware-and-wiring.html">Hardware and Wiring</a> <a href="./03-controls-and-ui.html">Controls and UI Operation</a> <a href="./04-system-settings-and-wifi.html">System Settings and WiFi</a> <a href="./05-samples-and-filesystem.html">Samples and Filesystem</a> <a href="./06-performance-and-behavior.html">Runtime Behavior and Performance</a> <a href="./07-troubleshooting.html">Troubleshooting</a></nav>
+      </header>
+      <main class="content">
+        <h1>2. Hardware and Wiring</h1>
+<h2>2.1 Fixed Pin Mapping</h2>
+<p>Default mapping from <code>platformio.ini</code>:</p>
+<h3>Display</h3>
+<ul>
+<li>TFT backlight: GPIO13</li>
+<li>TFT reset: GPIO14</li>
+<li>TFT chip select: GPIO18</li>
+<li>TFT SCL: GPIO21</li>
+<li>TFT SDA: GPIO22</li>
+<li>TFT D/C: GPIO23</li>
+</ul>
+<h3>Input</h3>
+<ul>
+<li>Encoder button: GPIO25</li>
+<li>KEY0: GPIO26</li>
+<li>Encoder A: GPIO32</li>
+<li>Encoder B: GPIO33</li>
+</ul>
+<h3>I2S Audio</h3>
+<ul>
+<li>BCLK: GPIO27</li>
+<li>WS/LRCLK: GPIO4</li>
+<li>DOUT: GPIO5</li>
+</ul>
+<h2>2.2 Display Format</h2>
+<ul>
+<li>Resolution: 320x240 (<code>TFT_WIDTH</code>, <code>TFT_HEIGHT</code>)</li>
+<li>Supported runtime rotations in menu: 1 and 3</li>
+</ul>
+<h2>2.3 Input Timing Thresholds</h2>
+<p>Build-flag defaults used in this project:</p>
+<ul>
+<li>Short press: 50 ms</li>
+<li>Medium press: 1000 ms</li>
+<li>Long press: 2000 ms</li>
+</ul>
+<p>(Separate thresholds exist for encoder push and KEY0, currently set equally.)</p>
+<h2>2.4 Audio Path</h2>
+<p>Internal chain:</p>
+<ol>
+<li>Samples loaded into memory from LittleFS</li>
+<li>Voices mixed to mono</li>
+<li>Mono duplicated to stereo</li>
+<li>16-bit PCM written to I2S DMA</li>
+</ol>
+<p>Engine defaults:</p>
+<ul>
+<li>22050 Hz output</li>
+<li>Block size: 128 frames</li>
+<li>Voice pool: 16 fixed voices</li>
+</ul>
+        <div class="footer-nav"><a href="./01-getting-started.html">← Getting Started</a><a href="./03-controls-and-ui.html">Controls and UI Operation →</a></div>
+      </main>
+    </div>
+  </body>
+</html>

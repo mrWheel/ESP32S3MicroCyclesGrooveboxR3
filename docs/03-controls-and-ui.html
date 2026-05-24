@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>3. Controls and UI Operation | ESP32 MicroCycles Groovebox Manual</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages"><a href="./README.html">Manual Home</a> <a href="./01-getting-started.html">Getting Started</a> <a href="./02-hardware-and-wiring.html">Hardware and Wiring</a> <a href="./03-controls-and-ui.html">Controls and UI Operation</a> <a href="./04-system-settings-and-wifi.html">System Settings and WiFi</a> <a href="./05-samples-and-filesystem.html">Samples and Filesystem</a> <a href="./06-performance-and-behavior.html">Runtime Behavior and Performance</a> <a href="./07-troubleshooting.html">Troubleshooting</a></nav>
+      </header>
+      <main class="content">
+        <h1>3. Controls and UI Operation</h1>
+<h2>3.1 Main Screen Layout</h2>
+<p>Header line shows:</p>
+<ul>
+<li>BPM value</li>
+<li>Swing value (<code>SW</code>)</li>
+<li>Transport state (<code>PLAY</code> or <code>STOP</code>)</li>
+<li>Optional mode marker (<code>[BPM]</code> or <code>[SHIFT]</code>)</li>
+</ul>
+<p>Track rows:</p>
+<ol>
+<li>KICK</li>
+<li>SNARE</li>
+<li>CH</li>
+<li>OH</li>
+<li>TONE</li>
+<li>METAL</li>
+</ol>
+<p>Footer line shows:</p>
+<ul>
+<li>Current playback step (<code>STEP</code>)</li>
+<li>Edit cursor step (<code>CUR</code>)</li>
+<li>Active voice count (<code>V</code>)</li>
+</ul>
+<h2>3.2 Encoder Controls (Main Screen)</h2>
+<ul>
+<li>Rotate left/right (normal mode): select track</li>
+<li>Rotate left/right in SHIFT mode: move step cursor</li>
+<li>Short press: toggle step trigger at selected track + cursor</li>
+<li>Medium press:</li>
+<li>Normal mode: toggle BPM edit mode</li>
+<li>SHIFT mode: toggle mute for selected track</li>
+<li>Long press: open/close System Settings</li>
+</ul>
+<h2>3.3 KEY0 Controls (Main Screen)</h2>
+<ul>
+<li>Short press: Play/Stop transport</li>
+<li>Medium press: toggle SHIFT mode</li>
+<li>Long press: increase swing by +2</li>
+</ul>
+<p>Swing range: 0..45.</p>
+<h2>3.4 BPM Edit Mode</h2>
+<p>When <code>[BPM]</code> is shown:</p>
+<ul>
+<li>Encoder left: BPM -1</li>
+<li>Encoder right: BPM +1</li>
+<li>Encoder short press: exit BPM edit mode</li>
+</ul>
+<p>BPM range: 40..260.</p>
+<h2>3.5 Mute Indication</h2>
+<p>When a track is muted, a <code>*</code> is appended to the track label on screen.</p>
+        <div class="footer-nav"><a href="./02-hardware-and-wiring.html">← Hardware and Wiring</a><a href="./04-system-settings-and-wifi.html">System Settings and WiFi →</a></div>
+      </main>
+    </div>
+  </body>
+</html>

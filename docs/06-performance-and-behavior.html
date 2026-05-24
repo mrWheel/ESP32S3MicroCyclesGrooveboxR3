@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>6. Runtime Behavior and Performance | ESP32 MicroCycles Groovebox Manual</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages"><a href="./README.html">Manual Home</a> <a href="./01-getting-started.html">Getting Started</a> <a href="./02-hardware-and-wiring.html">Hardware and Wiring</a> <a href="./03-controls-and-ui.html">Controls and UI Operation</a> <a href="./04-system-settings-and-wifi.html">System Settings and WiFi</a> <a href="./05-samples-and-filesystem.html">Samples and Filesystem</a> <a href="./06-performance-and-behavior.html">Runtime Behavior and Performance</a> <a href="./07-troubleshooting.html">Troubleshooting</a></nav>
+      </header>
+      <main class="content">
+        <h1>6. Runtime Behavior and Performance</h1>
+<h2>6.1 Task Model</h2>
+<p>Core 0:</p>
+<ul>
+<li><code>AudioTask</code></li>
+</ul>
+<p>Core 1:</p>
+<ul>
+<li><code>UiTask</code></li>
+<li><code>InputTask</code></li>
+<li><code>SystemTask</code></li>
+</ul>
+<h2>6.2 Sequencer Engine Characteristics</h2>
+<ul>
+<li>6 tracks × 16 steps</li>
+<li>4 pattern memory slots</li>
+<li>Deterministic step scheduling using <code>esp_timer_get_time()</code></li>
+<li>Swing timing applied per step interval</li>
+</ul>
+<h2>6.3 Audio Engine Characteristics</h2>
+<ul>
+<li>Fixed voice pool (16 voices)</li>
+<li>No dynamic voice allocation per trigger</li>
+<li>Clip-safe 16-bit mix output</li>
+<li>Mono source duplicated to stereo out</li>
+</ul>
+<h2>6.4 UI Refresh Strategy</h2>
+<ul>
+<li>Full screen draw when dirty state changes</li>
+<li>Footer-only partial updates while running</li>
+<li>Refresh interval target: 50 ms cadence in UI manager</li>
+</ul>
+<h2>6.5 Safe Fallback Behavior</h2>
+<p>If task creation for UI/input fails:</p>
+<ul>
+<li><code>loop()</code> runs fallback cycle for input + UI updates</li>
+</ul>
+<p>If system task fails:</p>
+<ul>
+<li><code>loop()</code> still services <code>systemManagerUpdate()</code></li>
+</ul>
+<p>This keeps the device operational under partial startup failures.</p>
+        <div class="footer-nav"><a href="./05-samples-and-filesystem.html">← Samples and Filesystem</a><a href="./07-troubleshooting.html">Troubleshooting →</a></div>
+      </main>
+    </div>
+  </body>
+</html>

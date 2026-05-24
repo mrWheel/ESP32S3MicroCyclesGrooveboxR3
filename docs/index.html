@@ -4,37 +4,49 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ESP32 MicroCycles Groovebox Manual</title>
+    <link rel="stylesheet" href="./manual-light.css" />
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 900px;
-        margin: 2rem auto;
-        padding: 0 1rem;
-        line-height: 1.5;
+      .hero {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.4rem clamp(1rem, 2.4vw, 2rem);
+        box-shadow: 0 12px 30px rgba(31, 41, 55, 0.06);
       }
-      h1 {
-        margin-bottom: 0.5rem;
+      .hero p { color: var(--muted); margin-top: 0.3rem; }
+      .manual-list {
+        list-style: none;
+        margin: 1rem 0 0;
+        padding: 0;
+        display: grid;
+        gap: 0.6rem;
       }
-      ul {
-        padding-left: 1.2rem;
-      }
-      li {
-        margin: 0.45rem 0;
+      .manual-list a {
+        display: block;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0.65rem 0.8rem;
+        font-weight: 600;
       }
     </style>
   </head>
   <body>
-    <h1>ESP32 MicroCycles Groovebox User Manual</h1>
-    <p>Use the links below to read the full manual.</p>
-    <ul>
-      <li><a href="./README.md">Manual Home</a></li>
-      <li><a href="./01-getting-started.md">1. Getting Started</a></li>
-      <li><a href="./02-hardware-and-wiring.md">2. Hardware and Wiring</a></li>
-      <li><a href="./03-controls-and-ui.md">3. Controls and UI Operation</a></li>
-      <li><a href="./04-system-settings-and-wifi.md">4. System Settings and WiFi</a></li>
-      <li><a href="./05-samples-and-filesystem.md">5. Samples and Filesystem</a></li>
-      <li><a href="./06-performance-and-behavior.md">6. Runtime Behavior and Performance</a></li>
-      <li><a href="./07-troubleshooting.md">7. Troubleshooting</a></li>
-    </ul>
+    <div class="page">
+      <section class="hero">
+        <h1>ESP32 MicroCycles Groovebox User Manual</h1>
+        <p>Browser-ready HTML manual with a light theme.</p>
+        <ul class="manual-list">
+          <li><a href="./README.html">1. Manual Home</a></li>
+          <li><a href="./01-getting-started.html">2. Getting Started</a></li>
+          <li><a href="./02-hardware-and-wiring.html">3. Hardware and Wiring</a></li>
+          <li><a href="./03-controls-and-ui.html">4. Controls and UI Operation</a></li>
+          <li><a href="./04-system-settings-and-wifi.html">5. System Settings and WiFi</a></li>
+          <li><a href="./05-samples-and-filesystem.html">6. Samples and Filesystem</a></li>
+          <li><a href="./06-performance-and-behavior.html">7. Runtime Behavior and Performance</a></li>
+          <li><a href="./07-troubleshooting.html">8. Troubleshooting</a></li>
+        </ul>
+      </section>
+    </div>
   </body>
 </html>

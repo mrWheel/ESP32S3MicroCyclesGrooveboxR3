@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>7. Troubleshooting | ESP32 MicroCycles Groovebox Manual</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages"><a href="./README.html">Manual Home</a> <a href="./01-getting-started.html">Getting Started</a> <a href="./02-hardware-and-wiring.html">Hardware and Wiring</a> <a href="./03-controls-and-ui.html">Controls and UI Operation</a> <a href="./04-system-settings-and-wifi.html">System Settings and WiFi</a> <a href="./05-samples-and-filesystem.html">Samples and Filesystem</a> <a href="./06-performance-and-behavior.html">Runtime Behavior and Performance</a> <a href="./07-troubleshooting.html">Troubleshooting</a></nav>
+      </header>
+      <main class="content">
+        <h1>7. Troubleshooting</h1>
+<h2>7.1 No Sound</h2>
+<p>Check:</p>
+<ul>
+<li>DAC wiring for BCLK/WS/DOUT</li>
+<li>DAC power and amplifier path</li>
+<li><code>NO_DAC_HARDWARE</code> flag is disabled when real audio hardware is connected</li>
+<li>Sample files are present in LittleFS (<code>/samples/*.wav</code>)</li>
+</ul>
+<h2>7.2 Distorted or Incorrect Samples</h2>
+<p>Re-export WAV files as:</p>
+<ul>
+<li>PCM</li>
+<li>16-bit or 24-bit</li>
+<li>22050 or 44100 Hz</li>
+<li>mono preferred</li>
+</ul>
+<p>Avoid unsupported compressed WAV variants.</p>
+<h2>7.3 WiFi Portal Not Appearing</h2>
+<p>Verify:</p>
+<ul>
+<li>Open <code>System Settings</code> and run <code>Start WiFi Manager</code></li>
+<li>Confirm <code>Yes</code> in confirmation prompt</li>
+<li>Connect to the AP shown on screen (<code>&lt;base&gt;-xxyyzz</code>)</li>
+<li>Enter credentials and wait for auto-restart</li>
+</ul>
+<h2>7.4 Settings Not Persisting</h2>
+<p>Persistence requires LittleFS mount success.</p>
+<p>If settings reset every boot:</p>
+<ul>
+<li>Re-upload filesystem image</li>
+<li>Check flash partition config (<code>partitions_4MB_littlefs.csv</code>)</li>
+</ul>
+<h2>7.5 Display Orientation Wrong</h2>
+<p>Use:</p>
+<ul>
+<li><code>System Settings -&gt; Rotate Display</code></li>
+</ul>
+<p>The firmware toggles between rotation 1 and 3 and saves this value.</p>
+<h2>7.6 Controls Feel Reversed</h2>
+<p>Use:</p>
+<ul>
+<li><code>System Settings -&gt; Encoder Order</code></li>
+</ul>
+<p>This toggles A-B / B-A and persists the choice.</p>
+        <div class="footer-nav"><a href="./06-performance-and-behavior.html">← Runtime Behavior and Performance</a><span></span></div>
+      </main>
+    </div>
+  </body>
+</html>

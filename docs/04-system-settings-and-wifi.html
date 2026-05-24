@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>4. System Settings and WiFi | ESP32 MicroCycles Groovebox Manual</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages"><a href="./README.html">Manual Home</a> <a href="./01-getting-started.html">Getting Started</a> <a href="./02-hardware-and-wiring.html">Hardware and Wiring</a> <a href="./03-controls-and-ui.html">Controls and UI Operation</a> <a href="./04-system-settings-and-wifi.html">System Settings and WiFi</a> <a href="./05-samples-and-filesystem.html">Samples and Filesystem</a> <a href="./06-performance-and-behavior.html">Runtime Behavior and Performance</a> <a href="./07-troubleshooting.html">Troubleshooting</a></nav>
+      </header>
+      <main class="content">
+        <h1>4. System Settings and WiFi</h1>
+<h2>4.1 Opening System Settings</h2>
+<ul>
+<li>Use <strong>encoder long press</strong> to open or close the menu.</li>
+<li>Menu title: <code>System Settings</code>.</li>
+</ul>
+<h2>4.2 Menu Entries</h2>
+<p>Read-only status entries:</p>
+<ol>
+<li><code>SSID: ...</code></li>
+<li><code>IP: ...</code></li>
+<li><code>MAC: ...</code></li>
+</ol>
+<p>Action entries:</p>
+<ol start="4">
+<li><code>Erase WiFi Credentials</code></li>
+<li><code>Start WiFi Manager</code></li>
+<li><code>Set Theme (...)</code></li>
+<li><code>Rotate Display (...)</code></li>
+<li><code>Encoder Order (...)</code></li>
+<li><code>Exit</code></li>
+</ol>
+<h2>4.3 Menu Navigation</h2>
+<ul>
+<li>Encoder left/right: move selection</li>
+<li>Encoder short/medium press: execute selected action</li>
+<li>KEY0 short press: close menu (or close confirmation dialog)</li>
+</ul>
+<h2>4.4 WiFi Manager Flow</h2>
+<p><code>Start WiFi Manager</code> behavior:</p>
+<ol>
+<li>Opens confirmation dialog (<code>No</code> / <code>Yes</code>)</li>
+<li>On <code>Yes</code>, starts captive portal mode</li>
+<li>UI shows waiting screen with AP name</li>
+<li>After credentials are entered and station connects, credentials are saved and device restarts</li>
+</ol>
+<p>Portal AP identity format:</p>
+<ul>
+<li><code>&lt;base&gt;-xxyyzz</code></li>
+<li><code>xxyyzz</code> = last 3 bytes of device MAC</li>
+</ul>
+<h2>4.5 Erase WiFi Credentials</h2>
+<p><code>Erase WiFi Credentials</code> behavior:</p>
+<ol>
+<li>Opens confirmation dialog</li>
+<li>On <code>Yes</code>, shows restart message</li>
+<li>Triggers credential erase + reboot path</li>
+</ol>
+<h2>4.6 Runtime Settings Persistence</h2>
+<p>The following values are persisted in <code>/settings.json</code>:</p>
+<ul>
+<li>Display rotation</li>
+<li>Theme color index</li>
+<li>Encoder direction reversal (A-B/B-A)</li>
+</ul>
+<p>Stored WiFi information is persisted in <code>/wifiSettings.json</code>.</p>
+        <div class="footer-nav"><a href="./03-controls-and-ui.html">← Controls and UI Operation</a><a href="./05-samples-and-filesystem.html">Samples and Filesystem →</a></div>
+      </main>
+    </div>
+  </body>
+</html>

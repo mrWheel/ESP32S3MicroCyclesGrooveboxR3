@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>1. Getting Started | ESP32 MicroCycles Groovebox Manual</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages"><a href="./README.html">Manual Home</a> <a href="./01-getting-started.html">Getting Started</a> <a href="./02-hardware-and-wiring.html">Hardware and Wiring</a> <a href="./03-controls-and-ui.html">Controls and UI Operation</a> <a href="./04-system-settings-and-wifi.html">System Settings and WiFi</a> <a href="./05-samples-and-filesystem.html">Samples and Filesystem</a> <a href="./06-performance-and-behavior.html">Runtime Behavior and Performance</a> <a href="./07-troubleshooting.html">Troubleshooting</a></nav>
+      </header>
+      <main class="content">
+        <h1>1. Getting Started</h1>
+<h2>1.1 What You Need</h2>
+<ul>
+<li>ESP32 board target: <strong>ESP32-WROVER</strong> (with PSRAM recommended)</li>
+<li>TFT_LCD_DISPLAY_EC11_BOARD-compatible wiring</li>
+<li>ST7789 display (320x240)</li>
+<li>Rotary encoder with pushbutton</li>
+<li>KEY0 button</li>
+<li>Optional I2S DAC (MAX98357A or PCM5102A)</li>
+<li>USB cable and host computer with PlatformIO</li>
+</ul>
+<h2>1.2 Build Environment</h2>
+<p>Project configuration is defined in:</p>
+<ul>
+<li><code>platformio.ini</code></li>
+</ul>
+<p>Main environment:</p>
+<ul>
+<li><code>env:ESP32Groovebox</code></li>
+<li>Framework: Arduino</li>
+<li>Platform: espressif32</li>
+</ul>
+<h2>1.3 First Flash</h2>
+<ol>
+<li>Build and flash the firmware with PlatformIO.</li>
+<li>Upload the <code>data/</code> folder to LittleFS (contains default sample files).</li>
+<li>Open serial monitor at 115200 baud.</li>
+<li>Confirm boot log reports Groovebox startup and pin mapping.</li>
+</ol>
+<h2>1.4 First Boot Behavior</h2>
+<p>On boot, the firmware:</p>
+<ol>
+<li>Initializes input and display</li>
+<li>Initializes sequencer state</li>
+<li>Mounts LittleFS and loads six sample slots</li>
+<li>Loads persisted runtime settings (<code>/settings.json</code>) if available</li>
+<li>Initializes audio engine</li>
+<li>Initializes system manager (WiFi disabled by default at startup)</li>
+<li>Starts FreeRTOS tasks</li>
+</ol>
+<h2>1.5 No DAC Hardware Mode</h2>
+<p>If <code>NO_DAC_HARDWARE</code> is enabled in build flags:</p>
+<ul>
+<li>I2S/DAC init is skipped</li>
+<li>System still runs UI and sequencer logic</li>
+<li>Useful for control/UI testing without audio output hardware</li>
+</ul>
+        <div class="footer-nav"><a href="./README.html">← Manual Home</a><a href="./02-hardware-and-wiring.html">Hardware and Wiring →</a></div>
+      </main>
+    </div>
+  </body>
+</html>
