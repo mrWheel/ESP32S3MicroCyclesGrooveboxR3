@@ -130,6 +130,8 @@ jobs:
           versionParseError="${{ steps.getVersion.outputs.VERSION_PARSE_ERROR }}"
           latest="${{ steps.latestTag.outputs.LATEST }}"
 
+          echo "SKIP_TAG_CREATE=false" >> $GITHUB_ENV
+
           echo "Comparing source version $version with latest tag $latest"
 
           if [ -n "$versionParseError" ]; then
@@ -150,8 +152,11 @@ jobs:
             echo "MAKE_RELEASE=true" >> $GITHUB_ENV
             echo "RELEASE_KIND=initial" >> $GITHUB_ENV
           elif [ "$version" = "$latest" ]; then
-            echo "::warning::Version $version already exists. Skipping."
-            echo "PROCEED=false" >> $GITHUB_ENV
+            echo "::warning::Version $version tag already exists. Ensuring release exists/updates."
+            echo "PROCEED=true" >> $GITHUB_ENV
+            echo "MAKE_RELEASE=true" >> $GITHUB_ENV
+            echo "RELEASE_KIND=patch" >> $GITHUB_ENV
+            echo "SKIP_TAG_CREATE=true" >> $GITHUB_ENV
           elif [ "$(printf '%s\n' "$latest" "$version" | sort -V | head -n 1)" = "$version" ]; then
             echo "::warning::Version $version is not greater than $latest. Skipping."
             echo "PROCEED=false" >> $GITHUB_ENV
@@ -182,7 +187,7 @@ jobs:
           fi
 
       - name: Create and push tag
-        if: env.PROCEED == 'true' && env.VERSION != ''
+        if: env.PROCEED == 'true' && env.VERSION != '' && env.SKIP_TAG_CREATE != 'true'
         run: |
           echo "Creating and pushing tag $VERSION"
           git config user.name "GitHub Actions"
