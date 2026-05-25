@@ -30,3 +30,10 @@
 - Use Load Pattern to refresh the list.
 - Create a New Pattern and Save Pattern once.
 - Check that flash partition and filesystem are not corrupted.
+
+## A Sample Falls Back On Boot
+
+1. Check boot log for `Out of memory for SD sample` or WAV format warnings.
+2. Confirm boot log shows `PSRAM: available` on WROVER builds.
+3. Verify the sample file in `/samples` is valid PCM WAV (16-bit or 24-bit, 22050 or 44100 Hz).
+4. Shorten or downsample very large WAV files if memory is still insufficient.

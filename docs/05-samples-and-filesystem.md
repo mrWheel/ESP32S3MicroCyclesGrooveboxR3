@@ -20,11 +20,15 @@ Required paths on SD card:
 - `/samples/tone.wav`
 - `/samples/metal.wav`
 
+At startup, firmware logs a full SD root listing before sample loading.
+
+If a sample cannot be loaded (missing file, unsupported WAV format, or insufficient memory), firmware uses a fallback waveform for that track.
+
 ## Pattern Storage
 
 User patterns are saved in internal flash filesystem.
 
-- Pattern folder: `/sequences`
+- Pattern folder: `/patterns`
 - Naming format: `Pnnn` (example: `P014`)
 
 ## If a Sample Sounds Wrong

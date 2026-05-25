@@ -90,6 +90,9 @@ The firmware expects these exact files:
 
 If one or more files are missing, firmware falls back to internal generated waveforms for missing slots.
 
+WAV decode is streamed from SD into the final sample buffer.
+This reduces peak RAM usage compared to full-file staging in RAM during boot.
+
 ## 6. Build Flags You Should Know
 
 In platformio.ini, env:ESP32GrooveboxR3:
@@ -98,6 +101,9 @@ In platformio.ini, env:ESP32GrooveboxR3:
 - TEST_TONE_FREQUENCY_HZ: frequency used in TEST_TONE mode
 - AUDIO_MASTER_GAIN_PERCENT: final software output gain
 - SD_SMOKE_TEST: isolated SD diagnostics mode at boot
+- board_build.psram = enabled
+- BOARD_HAS_PSRAM
+- -mfix-esp32-psram-cache-issue
 
 Keep TEST_TONE disabled for normal groovebox usage.
 
@@ -116,8 +122,12 @@ Upload is done by the developer on hardware (do not automate upload unless expli
 Open serial monitor at 115200 and verify:
 
 1. Boot log shows R3 pin mapping.
-2. Audio engine initializes without pin conflict errors.
-3. Sample manager reports SD status and sample load result.
+2. Sample manager reports PSRAM availability.
+3. Sample manager prints a full SD root listing before any sample load attempt.
+4. Sample manager reports per-sample allocation request and load result.
+5. Audio engine initializes without pin conflict errors.
+
+If a sample cannot be allocated, the log includes requested bytes and internal/PSRAM free and largest block sizes.
 
 ## 9. SD Smoke Test Workflow
 
@@ -241,7 +251,7 @@ Important:
 
 Normal step editing MUST happen inside Track Edit Mode.
 
-Shift + rotate should NOT be required for standard sequencing workflow.
+EDIT mode + rotate should NOT be required for standard sequencing workflow.
 
 ## 11. Common Failure Modes And Fast Checks
 

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 10:44 ***/
+/*** Last Changed: 2026-05-25 - 13:45 ***/
 #ifndef SETTINGS_STORE_H
 #define SETTINGS_STORE_H
 
@@ -24,6 +24,9 @@ void settingsStoreLoadRuntimeSettings(RuntimeSettings& settings);
 
 //-- Save runtime settings.
 bool settingsStoreSaveRuntimeSettings(const RuntimeSettings& settings);
+
+//-- Initialize pattern storage directory.
+bool settingsStoreInitPatternStorage();
 
 //-- List available pattern names without extension.
 bool settingsStoreListPatterns(String patternNames[], size_t maxCount, size_t& outCount);

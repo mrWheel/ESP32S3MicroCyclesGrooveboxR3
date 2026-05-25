@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 10:44 ***/
+/*** Last Changed: 2026-05-25 - 13:45 ***/
 #include "settingsStore.h"
 #include "appConfig.h"
 
@@ -9,9 +9,9 @@
 //-- Logging tag.
 static const char* logTag = "SettingsStore";
 
-//-- Settings file path.
+//-- Settings and pattern paths.
 static const char* settingsPath = "/settings.json";
-static const char* patternDirectoryPath = "/sequences";
+static const char* patternDirectoryPath = "/patterns";
 static const char* patternFileExtension = ".json";
 static const char* trackJsonNames[sequencerTrackCount] = {"KICK", "SNARE", "CH", "OH", "TONE", "METAL"};
 static const char* trackSampleNames[sequencerTrackCount] = {"kick", "snare", "ch", "oh", "tone", "metal"};
@@ -63,11 +63,40 @@ static bool ensurePatternDirectory()
 
   if (LittleFS.exists(patternDirectoryPath))
   {
-    return true;
+    File patternPathEntry = LittleFS.open(patternDirectoryPath, "r");
+
+    if (patternPathEntry && patternPathEntry.isDirectory())
+    {
+      patternPathEntry.close();
+      return true;
+    }
+
+    patternPathEntry.close();
+
+    ESP_LOGW(logTag, "%s exists but is not a directory; removing", patternDirectoryPath);
+
+    if (!LittleFS.remove(patternDirectoryPath))
+    {
+      ESP_LOGW(logTag, "Failed to remove conflicting file %s", patternDirectoryPath);
+      return false;
+    }
   }
 
   if (!LittleFS.mkdir(patternDirectoryPath))
   {
+    File patternPathEntry = LittleFS.open(patternDirectoryPath, "r");
+    bool directoryExists = (patternPathEntry && patternPathEntry.isDirectory());
+
+    if (patternPathEntry)
+    {
+      patternPathEntry.close();
+    }
+
+    if (directoryExists)
+    {
+      return true;
+    }
+
     ESP_LOGW(logTag, "Failed to create %s", patternDirectoryPath);
     return false;
   }
@@ -227,6 +256,13 @@ bool settingsStoreSaveRuntimeSettings(const RuntimeSettings& settings)
   return success;
 
 } //   settingsStoreSaveRuntimeSettings()
+
+//-- Create pattern storage directory early during boot.
+bool settingsStoreInitPatternStorage()
+{
+  return ensurePatternDirectory();
+
+} //   settingsStoreInitPatternStorage()
 
 //-- List available pattern names in sorted order.
 bool settingsStoreListPatterns(String patternNames[], size_t maxCount, size_t& outCount)

@@ -10,6 +10,9 @@
         },
         "git tag": true,
         "git remote": true,
-        "git ls-remote": true
+        "git ls-remote": true,
+        "xtensa-esp32-elf-addr2line": true,
+        "~/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-addr2line": true,
+        "git rev-list": true
     }
 }

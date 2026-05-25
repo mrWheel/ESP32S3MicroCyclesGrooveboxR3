@@ -22,13 +22,14 @@
 At startup the Groovebox:
 
 1. Starts the screen and controls
-2. Loads saved settings
-3. Initializes audio output
-4. Loads the built-in drum/sample set
-5. Shows the main sequencer screen
+2. Initializes SD card and prints the SD root listing
+3. Loads drum/sample tracks from SD card
+4. Loads saved settings and pattern storage
+5. Initializes audio output and shows the main sequencer screen
 
 ## Good To Know
 
 - Samples are loaded from SD card files in `/samples`.
 - Required files are: `kick.wav`, `snare.wav`, `ch.wav`, `oh.wav`, `tone.wav`, `metal.wav`.
+- If a sample is missing, invalid, or too large for available memory, that track uses a fallback waveform.
 - If `TEST_TONE` is enabled, you will hear a test sine tone instead of drums.

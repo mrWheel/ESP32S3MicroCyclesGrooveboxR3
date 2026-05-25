@@ -1,7 +1,8 @@
-/*** Last Changed: 2026-05-25 - 10:44 ***/
+/*** Last Changed: 2026-05-25 - 13:45 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
+#include <LittleFS.h>
 #include <SD.h>
 #include <SPI.h>
 
@@ -17,7 +18,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v0.3.4";
+const char* PROG_VERSION = "v0.4.0";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -39,6 +40,87 @@ static bool audioTaskStarted = false;
 static bool uiTaskStarted = false;
 static bool inputTaskStarted = false;
 static bool systemTaskStarted = false;
+
+//-- Build absolute child path for recursive filesystem traversal.
+static String buildFilesystemChildPath(const char* parentPath, const char* entryName)
+{
+  String childPath = String(entryName);
+
+  if (childPath.startsWith("/"))
+  {
+    return childPath;
+  }
+
+  if (strcmp(parentPath, "/") == 0)
+  {
+    return String("/") + childPath;
+  }
+
+  return String(parentPath) + "/" + childPath;
+
+} //   buildFilesystemChildPath()
+
+//-- Recursively log directory contents for a filesystem.
+static void logFilesystemDirectoryRecursive(fs::FS& filesystem, const char* filesystemName, const char* directoryPath, uint8_t depth)
+{
+  File directory = filesystem.open(directoryPath, "r");
+
+  if (!directory)
+  {
+    ESP_LOGW(logTag, "%s open failed for %s", filesystemName, directoryPath);
+    return;
+  }
+
+  if (!directory.isDirectory())
+  {
+    ESP_LOGW(logTag, "%s path is not a directory: %s", filesystemName, directoryPath);
+    directory.close();
+    return;
+  }
+
+  while (true)
+  {
+    File entry = directory.openNextFile();
+
+    if (!entry)
+    {
+      break;
+    }
+
+    String entryPath = buildFilesystemChildPath(directoryPath, entry.name());
+    String indent = "";
+
+    for (uint8_t level = 0; level < depth; level++)
+    {
+      indent += "  ";
+    }
+
+    ESP_LOGI(logTag,
+             "%s%s (%s, %lu bytes)",
+             indent.c_str(),
+             entryPath.c_str(),
+             entry.isDirectory() ? "dir" : "file",
+             static_cast<unsigned long>(entry.size()));
+
+    if (entry.isDirectory())
+    {
+      logFilesystemDirectoryRecursive(filesystem, filesystemName, entryPath.c_str(), static_cast<uint8_t>(depth + 1));
+    }
+
+    entry.close();
+  }
+
+  directory.close();
+
+} //   logFilesystemDirectoryRecursive()
+
+//-- Log filesystem root and all nested entries.
+static void logFilesystemRoot(fs::FS& filesystem, const char* filesystemName)
+{
+  ESP_LOGI(logTag, "%s root listing:", filesystemName);
+  logFilesystemDirectoryRecursive(filesystem, filesystemName, "/", 1);
+
+} //   logFilesystemRoot()
 
 //-- Run isolated SD smoke test and stop firmware startup.
 #ifdef SD_SMOKE_TEST
@@ -218,18 +300,19 @@ static void audioTask(void* parameter)
   (void)parameter;
   uint8_t stepIndex = 0;
   uint8_t trackMask = 0;
+  uint8_t trackLevels[sequencerTrackCount] = {0};
 
   for (;;)
   {
     uint64_t nowUs = static_cast<uint64_t>(esp_timer_get_time());
 
-    if (sequencerConsumeDueStep(nowUs, stepIndex, trackMask))
+    if (sequencerConsumeDueStep(nowUs, stepIndex, trackMask, trackLevels))
     {
       for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
       {
         if ((trackMask & static_cast<uint8_t>(1U << trackIndex)) != 0)
         {
-          audioEngineTriggerSample(static_cast<SampleId>(trackIndex), 255);
+          audioEngineTriggerSample(static_cast<SampleId>(trackIndex), trackLevels[trackIndex]);
         }
       }
     }
@@ -362,6 +445,13 @@ void setup()
            static_cast<unsigned>(runtimeSettings.displayRotation),
            runtimeSettings.themeColorIndex,
            runtimeSettings.encoderDirectionReversed ? "B-A" : "A-B");
+
+  if (!settingsStoreInitPatternStorage())
+  {
+    ESP_LOGW(logTag, "Pattern storage init failed");
+  }
+
+  logFilesystemRoot(LittleFS, "LittleFS");
 
   if (!audioEngineInit())
   {

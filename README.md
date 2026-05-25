@@ -6,7 +6,7 @@ This repository contains firmware for the ESP32 MicroCycles Groovebox on the R3 
 
 For a full from-scratch developer setup and rebuild workflow, read:
 
-- [DEVELOPER_FROM_SCRATCH.md](DEVELOPER_FROM_SCRATCH.md)
+- [developerBuildGuide.md](developerBuildGuide.md)
 
 ## User Manual
 
@@ -20,7 +20,7 @@ The end-user manual is in the docs folder.
 - Hardware focus: R3 only
 - 6 drum/sample tracks
 - 16-step sequencer
-- Per-step velocity and probability in the active sequencer model
+- Per-step velocity and probability active in playback
 - Track mute and swing playback controls
 - Pattern load/save/new/delete from System Settings
 - Optional Wi-Fi setup from System Settings
@@ -36,3 +36,4 @@ Use PlatformIO environment:
 
 - `TEST_TONE` is for audio-path testing and disables normal sample playback while active.
 - `AUDIO_MASTER_GAIN_PERCENT` controls final software output volume.
+- R3 build enables PSRAM (`board_build.psram = enabled`, `BOARD_HAS_PSRAM`) and logs PSRAM availability at boot.

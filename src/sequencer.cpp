@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 10:44 ***/
+/*** Last Changed: 2026-05-25 - 13:45 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -109,12 +109,17 @@ void sequencerInit()
 
 } //   sequencerInit()
 
-//-- Advance timing from AudioTask clock and return track trigger bitmask.
-bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& outTrackMask)
+//-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels.
+bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& outTrackMask, uint8_t outTrackLevels[sequencerTrackCount])
 {
   bool stepDue = false;
   outTrackMask = 0;
   outStepIndex = 0;
+
+  for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
+  {
+    outTrackLevels[trackIndex] = 0;
+  }
 
   portENTER_CRITICAL(&sequencerMux);
 
@@ -148,6 +153,7 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
           if (step.probability >= 100U || (esp_random() % 100U) < step.probability)
           {
             outTrackMask |= static_cast<uint8_t>(1U << trackIndex);
+            outTrackLevels[trackIndex] = step.velocity;
           }
         }
       }

@@ -26,4 +26,4 @@ This manual is intentionally practical and user-focused.
 
 For full developer setup and rebuild instructions, see:
 
-- [../DEVELOPER_FROM_SCRATCH.md](../DEVELOPER_FROM_SCRATCH.md)
+- [../developerBuildGuide.md](../developerBuildGuide.md)
