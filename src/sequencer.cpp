@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 13:45 ***/
+/*** Last Changed: 2026-05-25 - 18:06 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -17,13 +17,40 @@ struct SequencerState
   uint8_t cursorStep;
   uint8_t selectedTrack;
   uint8_t activePatternIndex;
+  uint8_t chainLength;
   bool playing;
   bool editMode;
+  bool chainEnabled;
   uint64_t nextStepDueUs;
 };
 
 //-- Runtime state storage.
 static SequencerState state;
+
+//-- Clamp integer into uint8_t range.
+static uint8_t clampToByte(int32_t value, uint8_t minimumValue, uint8_t maximumValue)
+{
+  if (value < static_cast<int32_t>(minimumValue))
+  {
+    return minimumValue;
+  }
+
+  if (value > static_cast<int32_t>(maximumValue))
+  {
+    return maximumValue;
+  }
+
+  return static_cast<uint8_t>(value);
+
+} //   clampToByte()
+
+//-- Return selected step in active pattern.
+static Step& getSelectedStep()
+{
+  Pattern& activePattern = state.patterns[state.activePatternIndex];
+  return activePattern.tracks[state.selectedTrack].steps[state.cursorStep];
+
+} //   getSelectedStep()
 
 //-- Apply fixed startup pattern for immediate playback testing.
 static void loadDefaultPattern(Pattern& pattern)
@@ -37,6 +64,9 @@ static void loadDefaultPattern(Pattern& pattern)
       pattern.tracks[trackIndex].steps[stepIndex].trigger = false;
       pattern.tracks[trackIndex].steps[stepIndex].velocity = 255;
       pattern.tracks[trackIndex].steps[stepIndex].probability = 100;
+      pattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
+      pattern.tracks[trackIndex].steps[stepIndex].lockPitch = 0;
+      pattern.tracks[trackIndex].steps[stepIndex].lockDecay = 100;
     }
   }
 
@@ -96,8 +126,10 @@ void sequencerInit()
   state.cursorStep = 0;
   state.selectedTrack = 0;
   state.activePatternIndex = 0;
+  state.chainLength = 1;
   state.playing = false;
   state.editMode = false;
+  state.chainEnabled = false;
   state.nextStepDueUs = 0;
 
   for (uint8_t patternIndex = 0; patternIndex < sequencerPatternCount; patternIndex++)
@@ -152,8 +184,22 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
 
           if (step.probability >= 100U || (esp_random() % 100U) < step.probability)
           {
+            uint8_t outputLevel = step.velocity;
+
+            if (step.lockEnabled)
+            {
+              uint32_t scaledLevel = (static_cast<uint32_t>(step.velocity) * static_cast<uint32_t>(step.lockDecay)) / 100U;
+
+              if (scaledLevel > 255U)
+              {
+                scaledLevel = 255U;
+              }
+
+              outputLevel = static_cast<uint8_t>(scaledLevel);
+            }
+
             outTrackMask |= static_cast<uint8_t>(1U << trackIndex);
-            outTrackLevels[trackIndex] = step.velocity;
+            outTrackLevels[trackIndex] = outputLevel;
           }
         }
       }
@@ -161,6 +207,11 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
       uint32_t intervalUs = getStepIntervalUs(state.bpm, state.swingPercent, state.currentStep);
       state.nextStepDueUs += intervalUs;
       state.currentStep = static_cast<uint8_t>((state.currentStep + 1U) % sequencerStepCount);
+
+      if (state.currentStep == 0 && state.chainEnabled && state.chainLength > 1U)
+      {
+        state.activePatternIndex = static_cast<uint8_t>((state.activePatternIndex + 1U) % state.chainLength);
+      }
     }
   }
 
@@ -236,14 +287,94 @@ void sequencerToggleCurrentStep()
 {
   portENTER_CRITICAL(&sequencerMux);
 
-  Pattern& activePattern = state.patterns[state.activePatternIndex];
-  Step& selectedStep = activePattern.tracks[state.selectedTrack].steps[state.cursorStep];
+  Step& selectedStep = getSelectedStep();
 
   selectedStep.trigger = !selectedStep.trigger;
 
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerToggleCurrentStep()
+
+//-- Adjust velocity at selected step.
+void sequencerAdjustCurrentStepVelocity(int delta)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  Step& selectedStep = getSelectedStep();
+  selectedStep.velocity = clampToByte(static_cast<int32_t>(selectedStep.velocity) + delta, 1, 255);
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerAdjustCurrentStepVelocity()
+
+//-- Adjust probability at selected step.
+void sequencerAdjustCurrentStepProbability(int delta)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  Step& selectedStep = getSelectedStep();
+  selectedStep.probability = clampToByte(static_cast<int32_t>(selectedStep.probability) + delta, 0, 100);
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerAdjustCurrentStepProbability()
+
+//-- Adjust lock pitch at selected step.
+void sequencerAdjustCurrentStepLockPitch(int delta)
+{
+  int32_t nextPitch;
+
+  portENTER_CRITICAL(&sequencerMux);
+
+  Step& selectedStep = getSelectedStep();
+
+  nextPitch = static_cast<int32_t>(selectedStep.lockPitch) + delta;
+
+  if (nextPitch < -24)
+  {
+    nextPitch = -24;
+  }
+  else if (nextPitch > 24)
+  {
+    nextPitch = 24;
+  }
+
+  selectedStep.lockPitch = static_cast<int8_t>(nextPitch);
+  selectedStep.lockEnabled = true;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerAdjustCurrentStepLockPitch()
+
+//-- Adjust lock decay at selected step.
+void sequencerAdjustCurrentStepLockDecay(int delta)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  Step& selectedStep = getSelectedStep();
+  selectedStep.lockDecay = clampToByte(static_cast<int32_t>(selectedStep.lockDecay) + delta, 10, 200);
+  selectedStep.lockEnabled = true;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerAdjustCurrentStepLockDecay()
+
+//-- Toggle lock state at selected step.
+void sequencerToggleCurrentStepLock()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  Step& selectedStep = getSelectedStep();
+  selectedStep.lockEnabled = !selectedStep.lockEnabled;
+
+  if (selectedStep.lockEnabled && selectedStep.lockDecay == 0)
+  {
+    selectedStep.lockDecay = 100;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerToggleCurrentStepLock()
 
 //-- Adjust BPM in safe realtime range.
 void sequencerAdjustBpm(int delta)
@@ -299,6 +430,45 @@ void sequencerToggleMuteForSelectedTrack()
 
 } //   sequencerToggleMuteForSelectedTrack()
 
+//-- Adjust pattern chain length.
+void sequencerAdjustChainLength(int delta)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  state.chainLength = clampToByte(static_cast<int32_t>(state.chainLength) + delta, 1, sequencerPatternCount);
+
+  if (state.activePatternIndex >= state.chainLength)
+  {
+    state.activePatternIndex = static_cast<uint8_t>(state.chainLength - 1U);
+  }
+
+  if (state.chainLength <= 1U)
+  {
+    state.chainEnabled = false;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerAdjustChainLength()
+
+//-- Toggle chain playback mode.
+void sequencerToggleChainEnabled()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (state.chainLength <= 1U)
+  {
+    state.chainEnabled = false;
+  }
+  else
+  {
+    state.chainEnabled = !state.chainEnabled;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerToggleChainEnabled()
+
 //-- Copy current pattern into memory slot.
 void sequencerStorePattern(uint8_t slotIndex)
 {
@@ -336,6 +506,8 @@ void sequencerExportPattern(PatternData& outData)
   outData.pattern = state.patterns[state.activePatternIndex];
   outData.bpm = state.bpm;
   outData.swingPercent = state.swingPercent;
+  outData.chainEnabled = state.chainEnabled;
+  outData.chainLength = state.chainLength;
 
   portEXIT_CRITICAL(&sequencerMux);
 
@@ -349,6 +521,19 @@ void sequencerImportPattern(const PatternData& patternData)
   state.patterns[state.activePatternIndex] = patternData.pattern;
   state.bpm = patternData.bpm;
   state.swingPercent = patternData.swingPercent;
+  state.chainEnabled = patternData.chainEnabled;
+  state.chainLength = clampToByte(static_cast<int32_t>(patternData.chainLength), 1, sequencerPatternCount);
+
+  if (state.chainLength <= 1U)
+  {
+    state.chainEnabled = false;
+  }
+
+  if (state.activePatternIndex >= state.chainLength)
+  {
+    state.activePatternIndex = static_cast<uint8_t>(state.chainLength - 1U);
+  }
+
   state.currentStep = 0;
   state.cursorStep = 0;
   state.nextStepDueUs = 0;
@@ -373,6 +558,9 @@ void sequencerClearActivePattern()
       activePattern.tracks[trackIndex].steps[stepIndex].trigger = false;
       activePattern.tracks[trackIndex].steps[stepIndex].velocity = 255;
       activePattern.tracks[trackIndex].steps[stepIndex].probability = 100;
+      activePattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
+      activePattern.tracks[trackIndex].steps[stepIndex].lockPitch = 0;
+      activePattern.tracks[trackIndex].steps[stepIndex].lockDecay = 100;
     }
   }
 
@@ -396,8 +584,10 @@ void sequencerGetView(SequencerView& outView)
   outView.selectedTrack = state.selectedTrack;
   outView.cursorStep = state.cursorStep;
   outView.activePatternIndex = state.activePatternIndex;
+  outView.chainLength = state.chainLength;
   outView.playing = state.playing;
   outView.editMode = state.editMode;
+  outView.chainEnabled = state.chainEnabled;
 
   portEXIT_CRITICAL(&sequencerMux);
 

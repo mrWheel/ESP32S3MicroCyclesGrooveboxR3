@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 13:45 ***/
+/*** Last Changed: 2026-05-25 - 18:06 ***/
 #ifndef SAMPLE_MANAGER_H
 #define SAMPLE_MANAGER_H
 
@@ -23,11 +23,16 @@ struct SampleSlot
   const int16_t* data;
   uint32_t frameCount;
   bool valid;
+  bool fromSd;
+  bool storedInPsram;
   char name[16];
 };
 
 //-- Initialize SD card and load samples.
 bool sampleManagerInit();
+
+//-- True when SD card is mounted and usable.
+bool sampleManagerIsSdCardReady();
 
 //-- Get sample slot by identifier.
 const SampleSlot& sampleManagerGetSample(SampleId sampleId);

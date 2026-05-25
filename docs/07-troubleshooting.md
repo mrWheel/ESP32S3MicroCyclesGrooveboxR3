@@ -37,3 +37,20 @@
 2. Confirm boot log shows `PSRAM: available` on WROVER builds.
 3. Verify the sample file in `/samples` is valid PCM WAV (16-bit or 24-bit, 22050 or 44100 Hz).
 4. Shorten or downsample very large WAV files if memory is still insufficient.
+
+## SD Mount Fails Or Is Intermittent
+
+1. Enable `SD_SMOKE_TEST` in `platformio.ini`.
+2. Build and flash diagnostics firmware.
+3. Verify mount attempts, root listing, and required `/samples/*.wav` files in serial log.
+4. Fix wiring/card issues found by diagnostics.
+5. Disable `SD_SMOKE_TEST` and rebuild normal firmware.
+
+Note: `SD_SMOKE_TEST` intentionally halts firmware after diagnostics.
+
+## Chain Or Lock Behavior Is Unexpected
+
+1. Open EDIT mode and verify active contextual page (CHAIN, PITCH, or DECAY).
+2. On CHAIN page, verify chain length is greater than 1 before enabling chain.
+3. On PITCH/DECAY pages, verify lock state is ON for the selected step.
+4. Save the pattern after edits so chain/lock settings persist.

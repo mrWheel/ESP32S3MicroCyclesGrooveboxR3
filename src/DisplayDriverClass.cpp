@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 10:44 ***/
+/*** Last Changed: 2026-05-25 - 18:06 ***/
 #include "DisplayDriverClass.h"
 #include "appConfig.h"
 #include "colorSettings.h"
@@ -1551,6 +1551,101 @@ void DisplayDriver::drawTempoOverlay(uint16_t bpm, uint8_t swingPercent, bool bp
   tft.print(swingText);
 
 } //   DisplayDriver::drawTempoOverlay()
+
+//--- Draw generic selection popup card over the active screen.
+void DisplayDriver::drawSelectionOverlay(const char* title, const String options[], size_t optionCount, int selectedIndex)
+{
+  const int shadowX = 20;
+  const int shadowY = 36;
+  const int shadowW = 284;
+  const int maxPanelH = 188;
+  const int panelX = 28;
+  const int panelY = 44;
+  const int panelW = 268;
+  const int rowX = panelX + 10;
+  const int rowW = panelW - 20;
+  const int rowH = 22;
+  const int titleY = panelY + 8;
+  const int listTopY = panelY + 34;
+  const int maxVisibleRows = 6;
+  const uint16_t shadowColor = PANEL_COLOR(0x2104);
+  const uint16_t panelFillColor = getUiInactiveFillColor();
+  const uint16_t panelBorderColor = getUiInactiveBorderColor();
+  const size_t maxOptionChars = 20;
+  int visibleRows;
+  int panelH;
+  int firstVisibleIndex = 0;
+
+  if (optionCount == 0)
+  {
+    return;
+  }
+
+  if (selectedIndex < 0)
+  {
+    selectedIndex = 0;
+  }
+  else if (selectedIndex >= static_cast<int>(optionCount))
+  {
+    selectedIndex = static_cast<int>(optionCount) - 1;
+  }
+
+  visibleRows = static_cast<int>(optionCount);
+
+  if (visibleRows > maxVisibleRows)
+  {
+    visibleRows = maxVisibleRows;
+    firstVisibleIndex = selectedIndex - (maxVisibleRows / 2);
+
+    if (firstVisibleIndex < 0)
+    {
+      firstVisibleIndex = 0;
+    }
+
+    if (firstVisibleIndex > (static_cast<int>(optionCount) - maxVisibleRows))
+    {
+      firstVisibleIndex = static_cast<int>(optionCount) - maxVisibleRows;
+    }
+  }
+
+  panelH = 42 + (visibleRows * rowH);
+
+  if (panelH > maxPanelH)
+  {
+    panelH = maxPanelH;
+  }
+
+  tft.fillRoundRect(shadowX, shadowY, shadowW, panelH + 8, 10, shadowColor);
+  tft.fillRoundRect(panelX, panelY, panelW, panelH, 10, panelFillColor);
+  tft.drawRoundRect(panelX, panelY, panelW, panelH, 10, panelBorderColor);
+
+  tft.setTextSize(2);
+  tft.setTextColor(getUiInactiveTextColor(), panelFillColor);
+  tft.setCursor(panelX + 10, titleY);
+  tft.print(title != nullptr ? title : "Select");
+
+  for (int rowIndex = 0; rowIndex < visibleRows; rowIndex++)
+  {
+    int optionIndex = firstVisibleIndex + rowIndex;
+    int rowY = listTopY + (rowIndex * rowH);
+    bool rowSelected = (optionIndex == selectedIndex);
+    String optionText = options[optionIndex];
+
+    if (optionText.length() > maxOptionChars)
+    {
+      optionText = optionText.substring(0, maxOptionChars);
+    }
+
+    tft.fillRoundRect(rowX, rowY, rowW, rowH - 2, 5, rowSelected ? getUiSelectedFillColor() : panelFillColor);
+    tft.drawRoundRect(rowX, rowY, rowW, rowH - 2, 5, rowSelected ? getUiSelectedBorderColor() : panelBorderColor);
+
+    tft.setTextColor(rowSelected ? getUiSelectedTextColor() : getUiInactiveTextColor(), rowSelected ? getUiSelectedFillColor() : panelFillColor);
+    tft.setCursor(rowX + 8, rowY + 4);
+
+    tft.print(optionText);
+  }
+
+} //   DisplayDriver::drawSelectionOverlay()
 
 //--- Add a generic tile to the registry
 int DisplayDriver::addTile(const char* name, int row, int column, int size, const std::string& text, DisplayTextAlign align)

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 13:45 ***/
+/*** Last Changed: 2026-05-25 - 18:06 ***/
 #include "sampleManager.h"
 #include "appConfig.h"
 
@@ -608,6 +608,8 @@ static bool loadSampleFromSd(uint8_t sampleIndex)
   sampleSlots[sampleIndex].data = sampleData;
   sampleSlots[sampleIndex].frameCount = outputFrameCount;
   sampleSlots[sampleIndex].valid = true;
+  sampleSlots[sampleIndex].fromSd = true;
+  sampleSlots[sampleIndex].storedInPsram = !sampleStoredInInternalRam;
   strncpy(sampleSlots[sampleIndex].name, source.name, sizeof(sampleSlots[sampleIndex].name) - 1);
   sampleSlots[sampleIndex].name[sizeof(sampleSlots[sampleIndex].name) - 1] = '\0';
 
@@ -646,6 +648,8 @@ bool sampleManagerInit()
     sampleSlots[sampleIndex].data = fallbackSamples[sampleIndex];
     sampleSlots[sampleIndex].frameCount = 512;
     sampleSlots[sampleIndex].valid = true;
+    sampleSlots[sampleIndex].fromSd = false;
+    sampleSlots[sampleIndex].storedInPsram = false;
     strncpy(sampleSlots[sampleIndex].name, sampleSources[sampleIndex].name, sizeof(sampleSlots[sampleIndex].name) - 1);
     sampleSlots[sampleIndex].name[sizeof(sampleSlots[sampleIndex].name) - 1] = '\0';
     buildFallbackSample(sampleIndex);
@@ -659,6 +663,13 @@ bool sampleManagerInit()
   return true;
 
 } //   sampleManagerInit()
+
+//-- True when SD card is mounted and usable.
+bool sampleManagerIsSdCardReady()
+{
+  return sdCardReady;
+
+} //   sampleManagerIsSdCardReady()
 
 //-- Return one sample slot by fixed identifier.
 const SampleSlot& sampleManagerGetSample(SampleId sampleId)

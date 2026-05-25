@@ -1,10 +1,11 @@
-/*** Last Changed: 2026-05-25 - 13:45 ***/
+/*** Last Changed: 2026-05-25 - 18:06 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
 #include <LittleFS.h>
 #include <SD.h>
 #include <SPI.h>
+#include <WiFi.h>
 
 #include "DisplayDriverClass.h"
 #include "InputClass.h"
@@ -18,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v0.4.0";
+const char* PROG_VERSION = "v0.4.3";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -40,6 +41,69 @@ static bool audioTaskStarted = false;
 static bool uiTaskStarted = false;
 static bool inputTaskStarted = false;
 static bool systemTaskStarted = false;
+
+//-- Boot status scroller state.
+static const int bootStatusVisibleLines = 9;
+static String bootStatusLines[bootStatusVisibleLines];
+static bool bootStatusDisplayReady = false;
+
+//-- Draw the current boot status line buffer.
+static void bootStatusDraw()
+{
+  if (!bootStatusDisplayReady)
+  {
+    return;
+  }
+
+  display.drawListScreen("Startup", bootStatusLines, bootStatusVisibleLines, -1, 0, PROG_VERSION);
+
+} //   bootStatusDraw()
+
+//-- Keep only the tail of long lines so right edge remains visible.
+static String compactBootStatusLine(const String& line)
+{
+  const int maxChars = 26;
+
+  if (line.length() <= maxChars)
+  {
+    return line;
+  }
+
+  return String("...") + line.substring(line.length() - (maxChars - 3));
+
+} //   compactBootStatusLine()
+
+//-- Append one startup status line at the bottom and scroll older lines upward.
+static void bootStatusPush(const String& rawLine)
+{
+  if (!bootStatusDisplayReady)
+  {
+    return;
+  }
+
+  for (int lineIndex = 0; lineIndex < (bootStatusVisibleLines - 1); lineIndex++)
+  {
+    bootStatusLines[lineIndex] = bootStatusLines[lineIndex + 1];
+  }
+
+  bootStatusLines[bootStatusVisibleLines - 1] = compactBootStatusLine(rawLine);
+  bootStatusDraw();
+
+} //   bootStatusPush()
+
+//-- Prepare the display for boot status scrolling.
+static void bootStatusInit()
+{
+  for (int lineIndex = 0; lineIndex < bootStatusVisibleLines; lineIndex++)
+  {
+    bootStatusLines[lineIndex] = "";
+  }
+
+  displayInit();
+  bootStatusDisplayReady = true;
+  bootStatusDraw();
+
+} //   bootStatusInit()
 
 //-- Build absolute child path for recursive filesystem traversal.
 static String buildFilesystemChildPath(const char* parentPath, const char* entryName)
@@ -122,6 +186,52 @@ static void logFilesystemRoot(fs::FS& filesystem, const char* filesystemName)
 
 } //   logFilesystemRoot()
 
+//-- Show recursive filesystem listing on the startup display.
+static void displayFilesystemDirectoryRecursive(fs::FS& filesystem, const char* directoryPath)
+{
+  File directory = filesystem.open(directoryPath, "r");
+
+  if (!directory)
+  {
+    bootStatusPush(String("open failed ") + directoryPath);
+    return;
+  }
+
+  if (!directory.isDirectory())
+  {
+    bootStatusPush(String("not a dir ") + directoryPath);
+    directory.close();
+    return;
+  }
+
+  while (true)
+  {
+    File entry = directory.openNextFile();
+
+    if (!entry)
+    {
+      break;
+    }
+
+    String entryPath = buildFilesystemChildPath(directoryPath, entry.name());
+
+    if (entry.isDirectory())
+    {
+      bootStatusPush(String("SD ") + entryPath + "/");
+      displayFilesystemDirectoryRecursive(filesystem, entryPath.c_str());
+    }
+    else
+    {
+      bootStatusPush(String("SD ") + entryPath);
+    }
+
+    entry.close();
+  }
+
+  directory.close();
+
+} //   displayFilesystemDirectoryRecursive()
+
 //-- Run isolated SD smoke test and stop firmware startup.
 #ifdef SD_SMOKE_TEST
 static void runSdSmokeTestAndHalt()
@@ -159,6 +269,7 @@ static void runSdSmokeTestAndHalt()
   for (size_t attemptIndex = 0; attemptIndex < (sizeof(initFrequenciesHz) / sizeof(initFrequenciesHz[0])); attemptIndex++)
   {
     uint32_t initFrequency = initFrequenciesHz[attemptIndex];
+
     ESP_LOGI(logTag,
              "SD smoke init attempt %u at %luHz",
              static_cast<unsigned>(attemptIndex + 1),
@@ -404,6 +515,8 @@ static void systemTask(void* parameter)
 void setup()
 {
   RuntimeSettings runtimeSettings;
+  String patternNames[32];
+  size_t patternCount = 0;
 
   Serial.begin(115200);
   delay(100);
@@ -425,17 +538,54 @@ void setup()
 
   inputQueue = xQueueCreateStatic(24, sizeof(InputEventMessage), inputQueueStorage, &inputQueueStruct);
 
-  input.begin();
-
   if (!sampleManagerInit())
   {
     ESP_LOGW(logTag, "Sample manager init failed, using fallback waveforms");
   }
 
-  displayInit();
-  display.drawMessage("ESP32 Groovebox", PROG_VERSION);
+  input.begin();
+
+  //-- Keep SD initialization first on shared SPI bus for reliable SD mount.
+  bootStatusInit();
+  bootStatusPush(String("Boot ") + PROG_VERSION);
+  bootStatusPush(sampleManagerIsSdCardReady() ? "Sample manager ready" : "Sample init failed");
+  bootStatusPush("Input ready");
+
+  if (sampleManagerIsSdCardReady())
+  {
+    bootStatusPush("SD listing /");
+    displayFilesystemDirectoryRecursive(SD, "/");
+  }
+  else
+  {
+    bootStatusPush("SD unavailable");
+  }
+
+  for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+  {
+    const SampleSlot& slot = sampleManagerGetSample(static_cast<SampleId>(sampleIndex));
+    String sampleLine = String("SMP ") + slot.name + " ";
+
+    if (!slot.valid)
+    {
+      sampleLine += "invalid";
+    }
+    else if (!slot.fromSd)
+    {
+      sampleLine += "fallback";
+    }
+    else
+    {
+      sampleLine += slot.storedInPsram ? "PSRAM" : "RAM";
+    }
+
+    bootStatusPush(sampleLine);
+  }
+
+  bootStatusPush("Init sequencer");
   sequencerInit();
 
+  bootStatusPush("Load settings");
   settingsStoreLoadRuntimeSettings(runtimeSettings);
   displaySetRotation(static_cast<int>(runtimeSettings.displayRotation));
   displaySetThemeColorIndex(runtimeSettings.themeColorIndex);
@@ -446,19 +596,57 @@ void setup()
            runtimeSettings.themeColorIndex,
            runtimeSettings.encoderDirectionReversed ? "B-A" : "A-B");
 
+  bootStatusPush("Init LittleFS patterns");
   if (!settingsStoreInitPatternStorage())
   {
     ESP_LOGW(logTag, "Pattern storage init failed");
+    bootStatusPush("LittleFS init failed");
+  }
+  else if (!settingsStoreListPatterns(patternNames, sizeof(patternNames) / sizeof(patternNames[0]), patternCount))
+  {
+    bootStatusPush("LittleFS list failed");
+  }
+  else if (patternCount == 0)
+  {
+    bootStatusPush("LittleFS no patterns");
+  }
+  else
+  {
+    bootStatusPush("LittleFS patterns");
+
+    for (size_t patternIndex = 0; patternIndex < patternCount; patternIndex++)
+    {
+      bootStatusPush(String("PAT ") + patternNames[patternIndex]);
+    }
   }
 
   logFilesystemRoot(LittleFS, "LittleFS");
 
+  bootStatusPush("Init audio engine");
   if (!audioEngineInit())
   {
     ESP_LOGE(logTag, "Audio engine init failed");
+    bootStatusPush("Audio init failed");
+  }
+  else
+  {
+    bootStatusPush("Audio engine ready");
   }
 
+  bootStatusPush("WiFi action");
   systemManagerInit();
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    bootStatusPush(String("WiFi ") + WiFi.SSID() + " " + WiFi.localIP().toString());
+  }
+  else
+  {
+    bootStatusPush("WiFi standby");
+  }
+
+  bootStatusPush("System manager ready");
+  bootStatusPush("Open Groovebox UI");
   uiManagerInit();
 
   //-- Draw first full UI frame directly from setup.

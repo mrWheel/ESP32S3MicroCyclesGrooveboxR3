@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 13:45 ***/
+/*** Last Changed: 2026-05-25 - 18:06 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -14,6 +14,9 @@ struct Step
   bool trigger;
   uint8_t velocity;
   uint8_t probability;
+  bool lockEnabled;
+  int8_t lockPitch;
+  uint8_t lockDecay;
 };
 
 //-- One sequencer track.
@@ -39,8 +42,10 @@ struct SequencerView
   uint8_t selectedTrack;
   uint8_t cursorStep;
   uint8_t activePatternIndex;
+  uint8_t chainLength;
   bool playing;
   bool editMode;
+  bool chainEnabled;
 };
 
 //-- Persistable pattern payload.
@@ -49,6 +54,8 @@ struct PatternData
   Pattern pattern;
   uint16_t bpm;
   uint8_t swingPercent;
+  bool chainEnabled;
+  uint8_t chainLength;
 };
 
 //-- Initialize deterministic sequencer state.
@@ -63,9 +70,16 @@ void sequencerToggleEditMode();
 void sequencerMoveCursor(int delta);
 void sequencerMoveTrack(int delta);
 void sequencerToggleCurrentStep();
+void sequencerAdjustCurrentStepVelocity(int delta);
+void sequencerAdjustCurrentStepProbability(int delta);
+void sequencerAdjustCurrentStepLockPitch(int delta);
+void sequencerAdjustCurrentStepLockDecay(int delta);
+void sequencerToggleCurrentStepLock();
 void sequencerAdjustBpm(int delta);
 void sequencerAdjustSwing(int delta);
 void sequencerToggleMuteForSelectedTrack();
+void sequencerAdjustChainLength(int delta);
+void sequencerToggleChainEnabled();
 
 //-- Pattern memory actions.
 void sequencerStorePattern(uint8_t slotIndex);

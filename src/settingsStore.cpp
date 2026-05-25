@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 13:45 ***/
+/*** Last Changed: 2026-05-25 - 18:06 ***/
 #include "settingsStore.h"
 #include "appConfig.h"
 
@@ -373,10 +373,12 @@ bool settingsStoreSavePattern(const String& patternName, const PatternData& patt
   JsonDocument jsonDocument;
   JsonArray tracks = jsonDocument["tracks"].to<JsonArray>();
 
-  jsonDocument["version"] = 2;
+  jsonDocument["version"] = 3;
   jsonDocument["name"] = normalizedName;
   jsonDocument["bpm"] = patternData.bpm;
   jsonDocument["swing"] = patternData.swingPercent;
+  jsonDocument["chainEnabled"] = patternData.chainEnabled;
+  jsonDocument["chainLength"] = patternData.chainLength;
   jsonDocument["masterLevel"] = 100;
 
   for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
@@ -400,7 +402,11 @@ bool settingsStoreSavePattern(const String& patternName, const PatternData& patt
       stepObject["trig"] = step.trigger;
       stepObject["velocity"] = step.velocity;
       stepObject["probability"] = step.probability;
-      (void)stepObject["locks"].to<JsonObject>();
+
+      JsonObject locksObject = stepObject["locks"].to<JsonObject>();
+      locksObject["enabled"] = step.lockEnabled;
+      locksObject["pitch"] = step.lockPitch;
+      locksObject["decay"] = step.lockDecay;
     }
   }
 
@@ -448,6 +454,22 @@ bool settingsStoreLoadPattern(const String& patternName, PatternData& patternDat
 
   patternData.bpm = static_cast<uint16_t>(jsonDocument["bpm"] | 120);
   patternData.swingPercent = static_cast<uint8_t>(jsonDocument["swing"] | 8);
+  patternData.chainEnabled = static_cast<bool>(jsonDocument["chainEnabled"] | false);
+  patternData.chainLength = static_cast<uint8_t>(jsonDocument["chainLength"] | 1);
+
+  if (patternData.chainLength < 1)
+  {
+    patternData.chainLength = 1;
+  }
+  else if (patternData.chainLength > sequencerPatternCount)
+  {
+    patternData.chainLength = sequencerPatternCount;
+  }
+
+  if (patternData.chainLength <= 1)
+  {
+    patternData.chainEnabled = false;
+  }
 
   JsonArray tracks = jsonDocument["tracks"].as<JsonArray>();
 
@@ -478,6 +500,42 @@ bool settingsStoreLoadPattern(const String& patternName, PatternData& patternDat
       step.trigger = static_cast<bool>(stepObject["trig"] | false);
       step.velocity = static_cast<uint8_t>(stepObject["velocity"] | 255);
       step.probability = static_cast<uint8_t>(stepObject["probability"] | 100);
+
+      JsonObject locksObject = stepObject["locks"].as<JsonObject>();
+
+      if (locksObject.isNull())
+      {
+        step.lockEnabled = false;
+        step.lockPitch = 0;
+        step.lockDecay = 100;
+      }
+      else
+      {
+        int lockPitchValue = static_cast<int>(locksObject["pitch"] | 0);
+        int lockDecayValue = static_cast<int>(locksObject["decay"] | 100);
+
+        if (lockPitchValue < -24)
+        {
+          lockPitchValue = -24;
+        }
+        else if (lockPitchValue > 24)
+        {
+          lockPitchValue = 24;
+        }
+
+        if (lockDecayValue < 10)
+        {
+          lockDecayValue = 10;
+        }
+        else if (lockDecayValue > 200)
+        {
+          lockDecayValue = 200;
+        }
+
+        step.lockEnabled = static_cast<bool>(locksObject["enabled"] | false);
+        step.lockPitch = static_cast<int8_t>(lockPitchValue);
+        step.lockDecay = static_cast<uint8_t>(lockDecayValue);
+      }
     }
   }
 

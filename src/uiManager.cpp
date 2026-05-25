@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 10:44 ***/
+/*** Last Changed: 2026-05-25 - 18:06 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -18,6 +18,19 @@ static const char* logTag = "UiManager";
 
 //-- UI refresh cadence.
 static const uint32_t uiRefreshIntervalMs = 50;
+
+//-- Contextual step parameter pages.
+enum ParameterPage : uint8_t
+{
+  parameterPageTrig = 0,
+  parameterPageVelocity,
+  parameterPagePitch,
+  parameterPageDecay,
+  parameterPageProbability,
+  parameterPageMute,
+  parameterPageChain,
+  parameterPageCount
+};
 
 //-- Settings menu entries.
 static const int settingsEntryCount = 14;
@@ -40,7 +53,11 @@ struct UiState
 {
   bool menuOpen;
   bool tempoEditOpen;
+  bool editPopupOpen;
+  bool editPopupValueEdit;
+  bool editPopupChainLengthEdit;
   int tempoEditSelection;
+  int editPopupSelection;
   bool wifiManagerConfirmOpen;
   bool eraseWifiConfirmOpen;
   bool patternListOpen;
@@ -58,6 +75,7 @@ struct UiState
   uint32_t eraseWifiRestartAtMs;
   uint32_t lastDrawMs;
   bool dirty;
+  uint8_t parameterPageIndex;
   String activePatternName;
   String patternNames[patternListMaxEntries];
 };
@@ -76,6 +94,241 @@ static const size_t listRowContentChars = 24;
 
 //-- Maximum footer text length drawn directly on screen.
 static const size_t footerLineChars = 26;
+
+//-- Edit popup entries mapped 1:1 to ParameterPage values.
+static const uint8_t editPopupPageMap[] =
+    {
+        parameterPageVelocity,
+        parameterPagePitch,
+        parameterPageDecay,
+        parameterPageProbability,
+        parameterPageMute,
+        parameterPageChain};
+
+static const int editPopupEntryCount = static_cast<int>(sizeof(editPopupPageMap) / sizeof(editPopupPageMap[0]));
+
+static const char* editPopupEntries[editPopupEntryCount] =
+    {
+        "VELOCITY",
+        "PITCH",
+        "DECAY",
+        "PROBABILITY",
+        "MUTE",
+        "CHAIN"};
+
+//-- Map current parameter page to popup selection index.
+static int popupSelectionFromParameterPage(uint8_t parameterPage)
+{
+  for (int popupIndex = 0; popupIndex < editPopupEntryCount; popupIndex++)
+  {
+    if (editPopupPageMap[popupIndex] == parameterPage)
+    {
+      return popupIndex;
+    }
+  }
+
+  return 0;
+
+} //   popupSelectionFromParameterPage()
+
+//-- Resolve popup selection index to parameter page.
+static uint8_t popupSelectionToParameterPage(int popupSelection)
+{
+  if (popupSelection < 0 || popupSelection >= editPopupEntryCount)
+  {
+    return parameterPageVelocity;
+  }
+
+  return editPopupPageMap[popupSelection];
+
+} //   popupSelectionToParameterPage()
+
+//-- Build compact value text for one edit popup page.
+static String buildEditPopupValueText(uint8_t pageIndex, const SequencerView& view)
+{
+  const Track& selectedTrack = view.pattern.tracks[view.selectedTrack];
+  const Step& selectedStep = selectedTrack.steps[view.cursorStep];
+  char valueBuffer[28];
+
+  if (pageIndex == parameterPageTrig)
+  {
+    snprintf(valueBuffer,
+             sizeof(valueBuffer),
+             "S%02u %s",
+             static_cast<unsigned>(view.cursorStep + 1U),
+             selectedStep.trigger ? "ON" : "OFF");
+  }
+  else if (pageIndex == parameterPageVelocity)
+  {
+    snprintf(valueBuffer,
+             sizeof(valueBuffer),
+             "%03u",
+             static_cast<unsigned>(selectedStep.velocity));
+  }
+  else if (pageIndex == parameterPagePitch)
+  {
+    snprintf(valueBuffer,
+             sizeof(valueBuffer),
+             "%+03d",
+             static_cast<int>(selectedStep.lockPitch));
+  }
+  else if (pageIndex == parameterPageDecay)
+  {
+    snprintf(valueBuffer,
+             sizeof(valueBuffer),
+             "%03u%%",
+             static_cast<unsigned>(selectedStep.lockDecay));
+  }
+  else if (pageIndex == parameterPageProbability)
+  {
+    snprintf(valueBuffer,
+             sizeof(valueBuffer),
+             "%03u%%",
+             static_cast<unsigned>(selectedStep.probability));
+  }
+  else if (pageIndex == parameterPageMute)
+  {
+    snprintf(valueBuffer,
+             sizeof(valueBuffer),
+             "%s",
+             selectedTrack.mute ? "ON" : "OFF");
+  }
+  else
+  {
+    snprintf(valueBuffer,
+             sizeof(valueBuffer),
+             "%s L%u",
+             view.chainEnabled ? "ON" : "OFF",
+             static_cast<unsigned>(view.chainLength));
+  }
+
+  return String(valueBuffer);
+
+} //   buildEditPopupValueText()
+
+//-- Build popup rows with selected-row label/value edit markers.
+static void buildEditPopupRows(const SequencerView& view, String rows[editPopupEntryCount])
+{
+  for (int rowIndex = 0; rowIndex < editPopupEntryCount; rowIndex++)
+  {
+    uint8_t pageIndex = editPopupPageMap[rowIndex];
+    String label = String(editPopupEntries[rowIndex]);
+    String valueText = buildEditPopupValueText(pageIndex, view);
+
+    if (pageIndex == parameterPageChain)
+    {
+      char chainLengthText[8];
+
+      snprintf(chainLengthText,
+               sizeof(chainLengthText),
+               "L%u",
+               static_cast<unsigned>(view.chainLength));
+
+      if (rowIndex == uiState.editPopupSelection)
+      {
+        if (uiState.editPopupValueEdit)
+        {
+          if (uiState.editPopupChainLengthEdit)
+          {
+            rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " >" + String(chainLengthText) + "<";
+          }
+          else
+          {
+            rows[rowIndex] = " CHAIN >" + String(view.chainEnabled ? "ON" : "OFF") + "< " + String(chainLengthText);
+          }
+        }
+        else
+        {
+          rows[rowIndex] = ">" + label + "< " + String(view.chainEnabled ? "ON" : "OFF") + " " + String(chainLengthText);
+        }
+      }
+      else
+      {
+        rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " " + String(chainLengthText);
+      }
+
+      continue;
+    }
+
+    if (rowIndex == uiState.editPopupSelection)
+    {
+      if (uiState.editPopupValueEdit)
+      {
+        rows[rowIndex] = " " + label + " >" + valueText + "<";
+      }
+      else
+      {
+        rows[rowIndex] = ">" + label + "< " + valueText;
+      }
+    }
+    else
+    {
+      rows[rowIndex] = " " + label + " " + valueText;
+    }
+  }
+
+} //   buildEditPopupRows()
+
+//-- Apply encoder delta to selected popup value while value-edit mode is active.
+static void applyEditPopupValueDelta(int delta)
+{
+  uint8_t pageIndex;
+  SequencerView view;
+
+  if (delta == 0)
+  {
+    return;
+  }
+
+  pageIndex = popupSelectionToParameterPage(uiState.editPopupSelection);
+
+  if (pageIndex == parameterPageVelocity)
+  {
+    sequencerAdjustCurrentStepVelocity(delta > 0 ? 8 : -8);
+  }
+  else if (pageIndex == parameterPagePitch)
+  {
+    sequencerAdjustCurrentStepLockPitch(delta > 0 ? 1 : -1);
+  }
+  else if (pageIndex == parameterPageDecay)
+  {
+    sequencerAdjustCurrentStepLockDecay(delta > 0 ? 5 : -5);
+  }
+  else if (pageIndex == parameterPageProbability)
+  {
+    sequencerAdjustCurrentStepProbability(delta > 0 ? 5 : -5);
+  }
+  else if (pageIndex == parameterPageMute)
+  {
+    sequencerToggleMuteForSelectedTrack();
+  }
+  else
+  {
+    sequencerGetView(view);
+
+    if (uiState.editPopupChainLengthEdit)
+    {
+      sequencerAdjustChainLength(delta > 0 ? 1 : -1);
+    }
+    else
+    {
+      if (view.chainEnabled)
+      {
+        sequencerToggleChainEnabled();
+      }
+      else
+      {
+        if (view.chainLength <= 1U)
+        {
+          sequencerAdjustChainLength(1);
+        }
+
+        sequencerToggleChainEnabled();
+      }
+    }
+  }
+
+} //   applyEditPopupValueDelta()
 
 //-- Build 16-step trigger string for one track.
 static String buildTrackStepText(const Track& track)
@@ -380,6 +633,67 @@ static String buildSequencerFooterLine(const SequencerView& view, const AudioEng
 
 } //   buildSequencerFooterLine()
 
+//-- Build contextual parameter overlay text for the selected step.
+static String buildParameterOverlayLine(const SequencerView& view)
+{
+  const Track& selectedTrack = view.pattern.tracks[view.selectedTrack];
+  const Step& selectedStep = selectedTrack.steps[view.cursorStep];
+  char lineBuffer[72];
+
+  if (uiState.parameterPageIndex == parameterPageTrig)
+  {
+    return "";
+  }
+  else if (uiState.parameterPageIndex == parameterPageVelocity)
+  {
+    snprintf(lineBuffer,
+             sizeof(lineBuffer),
+             "VEL   %03u",
+             static_cast<unsigned>(selectedStep.velocity));
+  }
+  else if (uiState.parameterPageIndex == parameterPagePitch)
+  {
+    snprintf(lineBuffer,
+             sizeof(lineBuffer),
+             "PITCH %+03d  LOCK %s",
+             static_cast<int>(selectedStep.lockPitch),
+             selectedStep.lockEnabled ? "ON" : "OFF");
+  }
+  else if (uiState.parameterPageIndex == parameterPageDecay)
+  {
+    snprintf(lineBuffer,
+             sizeof(lineBuffer),
+             "DECAY %03u%% LOCK %s",
+             static_cast<unsigned>(selectedStep.lockDecay),
+             selectedStep.lockEnabled ? "ON" : "OFF");
+  }
+  else if (uiState.parameterPageIndex == parameterPageProbability)
+  {
+    snprintf(lineBuffer,
+             sizeof(lineBuffer),
+             "PROB  %03u%%",
+             static_cast<unsigned>(selectedStep.probability));
+  }
+  else if (uiState.parameterPageIndex == parameterPageMute)
+  {
+    snprintf(lineBuffer,
+             sizeof(lineBuffer),
+             "MUTE  %s",
+             selectedTrack.mute ? "ON" : "OFF");
+  }
+  else
+  {
+    snprintf(lineBuffer,
+             sizeof(lineBuffer),
+             "CHAIN %s L%u",
+             view.chainEnabled ? "ON" : "OFF",
+             static_cast<unsigned>(view.chainLength));
+  }
+
+  return String(lineBuffer);
+
+} //   buildParameterOverlayLine()
+
 //-- Draw generic Are-you-sure submenu with No/Yes choices.
 static void drawConfirmationScreen(const char* title, int selection)
 {
@@ -503,7 +817,9 @@ static void drawSystemSettingsScreen()
 static void drawSequencerScreen()
 {
   SequencerView view;
-  String lines[8];
+  String lines[9];
+  String popupRows[editPopupEntryCount];
+  String parameterLine;
   int selectedLine = 1;
   char headerLine[40];
   AudioEngineStats audioStats;
@@ -524,17 +840,30 @@ static void drawSequencerScreen()
     lines[trackIndex + 1] = fitListRowText(buildTrackRowText(trackNames[trackIndex], view.pattern.tracks[trackIndex]));
   }
 
-  lines[7] = fitListRowText(buildSequencerFooterLine(view, audioStats));
+  parameterLine = "";
+
+  if (!uiState.tempoEditOpen && !uiState.editPopupOpen && view.editMode)
+  {
+    parameterLine = buildParameterOverlayLine(view);
+  }
+
+  lines[7] = parameterLine.isEmpty() ? String("") : fitListRowText(parameterLine);
+  lines[8] = fitListRowText(buildSequencerFooterLine(view, audioStats));
 
   selectedLine = static_cast<int>(view.selectedTrack) + 1;
-  display.drawListScreen("Groovebox", lines, 8, selectedLine, 0, PROG_VERSION);
+  display.drawListScreen("Groovebox", lines, 9, selectedLine, 0, PROG_VERSION);
 
   if (uiState.tempoEditOpen)
   {
     display.drawTempoOverlay(view.bpm, view.swingPercent, uiState.tempoEditSelection == 0);
   }
+  else if (uiState.editPopupOpen)
+  {
+    buildEditPopupRows(view, popupRows);
+    display.drawSelectionOverlay("Edit Track", popupRows, editPopupEntryCount, uiState.editPopupSelection);
+  }
 
-  if (view.editMode && !uiState.tempoEditOpen)
+  if (view.editMode && !uiState.tempoEditOpen && !uiState.editPopupOpen)
   {
     int stepCharIndex = 7 + static_cast<int>(view.cursorStep);
 
@@ -544,10 +873,22 @@ static void drawSequencerScreen()
     }
   }
 
-  lastSequencerFooterLine = lines[7];
+  lastSequencerFooterLine = lines[8];
   sequencerScreenDrawn = true;
 
 } //   drawSequencerScreen()
+
+//-- Redraw only the edit popup card for smoother interaction.
+static void drawEditPopupOverlayOnly()
+{
+  SequencerView view;
+  String popupRows[editPopupEntryCount];
+
+  sequencerGetView(view);
+  buildEditPopupRows(view, popupRows);
+  display.drawSelectionOverlay("Edit Track", popupRows, editPopupEntryCount, uiState.editPopupSelection);
+
+} //   drawEditPopupOverlayOnly()
 
 //-- Update only the dynamic Groovebox footer row while running.
 static void drawSequencerFooterUpdate(const SequencerView& view, const AudioEngineStats& audioStats)
@@ -559,7 +900,7 @@ static void drawSequencerFooterUpdate(const SequencerView& view, const AudioEngi
     return;
   }
 
-  display.drawListLine(7, footerLine, false);
+  display.drawListLine(8, footerLine, false);
   lastSequencerFooterLine = footerLine;
 
 } //   drawSequencerFooterUpdate()
@@ -639,7 +980,11 @@ void uiManagerInit()
 {
   uiState.menuOpen = false;
   uiState.tempoEditOpen = false;
+  uiState.editPopupOpen = false;
+  uiState.editPopupValueEdit = false;
+  uiState.editPopupChainLengthEdit = false;
   uiState.tempoEditSelection = 0;
+  uiState.editPopupSelection = 0;
   uiState.wifiManagerConfirmOpen = false;
   uiState.eraseWifiConfirmOpen = false;
   uiState.patternListOpen = false;
@@ -657,6 +1002,7 @@ void uiManagerInit()
   uiState.menuSelection = settingsEntryCount - 1;
   uiState.lastDrawMs = 0;
   uiState.dirty = true;
+  uiState.parameterPageIndex = parameterPageTrig;
   uiState.activePatternName = "";
   lastSequencerStep = 0xFF;
   lastSequencerCursor = 0xFF;
@@ -722,7 +1068,7 @@ void uiManagerUpdate()
     }
   }
 
-  if (!uiState.dirty && !uiState.menuOpen && view.playing && footerStateChanged && sequencerScreenDrawn)
+  if (!uiState.dirty && !uiState.menuOpen && !uiState.tempoEditOpen && !uiState.editPopupOpen && view.playing && footerStateChanged && sequencerScreenDrawn)
   {
     if (nowMs - uiState.lastDrawMs < uiRefreshIntervalMs)
     {
@@ -746,6 +1092,14 @@ void uiManagerUpdate()
 
   if (nowMs - uiState.lastDrawMs < uiRefreshIntervalMs)
   {
+    return;
+  }
+
+  if (uiState.editPopupOpen && !uiState.menuOpen && !uiState.tempoEditOpen)
+  {
+    uiState.lastDrawMs = nowMs;
+    drawEditPopupOverlayOnly();
+    uiState.dirty = false;
     return;
   }
 
@@ -781,10 +1135,37 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     return;
   }
 
+  SequencerView view;
+  sequencerGetView(view);
+
   ESP_LOGI(logTag, "Encoder event=%d, menuOpen=%d", static_cast<int>(encoderEvent), uiState.menuOpen ? 1 : 0);
 
   if (encoderEvent == ENCODER_EVENT_LONG_PRESS)
   {
+    if (uiState.editPopupOpen)
+    {
+      uiState.editPopupOpen = false;
+      uiState.editPopupValueEdit = false;
+      uiState.editPopupChainLengthEdit = false;
+      uiState.dirty = true;
+      return;
+    }
+
+    if (!uiState.menuOpen && !uiState.tempoEditOpen && view.editMode)
+    {
+      if (uiState.parameterPageIndex == 0)
+      {
+        uiState.parameterPageIndex = parameterPageCount - 1;
+      }
+      else
+      {
+        uiState.parameterPageIndex--;
+      }
+
+      uiState.dirty = true;
+      return;
+    }
+
     if (uiState.wifiManagerWaitingForCredentials)
     {
       systemManagerQueueCommand(SystemCommand::restartNow);
@@ -978,14 +1359,107 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     return;
   }
 
-  SequencerView view;
-  sequencerGetView(view);
+  if (uiState.editPopupOpen)
+  {
+    if (encoderEvent == ENCODER_EVENT_LEFT)
+    {
+      if (uiState.editPopupValueEdit)
+      {
+        applyEditPopupValueDelta(-1);
+      }
+      else
+      {
+        uiState.editPopupSelection--;
+
+        if (uiState.editPopupSelection < 0)
+        {
+          uiState.editPopupSelection = editPopupEntryCount - 1;
+        }
+
+        uiState.editPopupChainLengthEdit = false;
+        uiState.parameterPageIndex = popupSelectionToParameterPage(uiState.editPopupSelection);
+      }
+    }
+    else if (encoderEvent == ENCODER_EVENT_RIGHT)
+    {
+      if (uiState.editPopupValueEdit)
+      {
+        applyEditPopupValueDelta(1);
+      }
+      else
+      {
+        uiState.editPopupSelection++;
+
+        if (uiState.editPopupSelection >= editPopupEntryCount)
+        {
+          uiState.editPopupSelection = 0;
+        }
+
+        uiState.editPopupChainLengthEdit = false;
+        uiState.parameterPageIndex = popupSelectionToParameterPage(uiState.editPopupSelection);
+      }
+    }
+    else if (encoderEvent == ENCODER_EVENT_SHORT_PRESS)
+    {
+      uiState.parameterPageIndex = popupSelectionToParameterPage(uiState.editPopupSelection);
+
+      if (!uiState.editPopupValueEdit)
+      {
+        uiState.editPopupValueEdit = true;
+        uiState.editPopupChainLengthEdit = false;
+      }
+      else if (uiState.parameterPageIndex == parameterPageChain)
+      {
+        uiState.editPopupChainLengthEdit = !uiState.editPopupChainLengthEdit;
+      }
+      else
+      {
+        uiState.editPopupValueEdit = false;
+      }
+    }
+    else if (encoderEvent == ENCODER_EVENT_MEDIUM_PRESS)
+    {
+      uiState.parameterPageIndex = popupSelectionToParameterPage(uiState.editPopupSelection);
+      uiState.editPopupValueEdit = false;
+      uiState.editPopupChainLengthEdit = false;
+    }
+
+    uiState.dirty = true;
+    return;
+  }
 
   if (encoderEvent == ENCODER_EVENT_LEFT)
   {
     if (view.editMode)
     {
-      sequencerMoveCursor(-1);
+      if (uiState.parameterPageIndex == parameterPageTrig)
+      {
+        sequencerMoveCursor(-1);
+      }
+      else if (uiState.parameterPageIndex == parameterPageVelocity)
+      {
+        sequencerAdjustCurrentStepVelocity(-8);
+      }
+      else if (uiState.parameterPageIndex == parameterPagePitch)
+      {
+        sequencerAdjustCurrentStepLockPitch(-1);
+      }
+      else if (uiState.parameterPageIndex == parameterPageDecay)
+      {
+        sequencerAdjustCurrentStepLockDecay(-5);
+      }
+      else if (uiState.parameterPageIndex == parameterPageProbability)
+      {
+        sequencerAdjustCurrentStepProbability(-5);
+      }
+      else if (uiState.parameterPageIndex == parameterPageMute)
+      {
+        sequencerMoveTrack(-1);
+      }
+      else
+      {
+        sequencerAdjustChainLength(-1);
+      }
     }
     else
     {
@@ -996,7 +1470,34 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
   {
     if (view.editMode)
     {
-      sequencerMoveCursor(1);
+      if (uiState.parameterPageIndex == parameterPageTrig)
+      {
+        sequencerMoveCursor(1);
+      }
+      else if (uiState.parameterPageIndex == parameterPageVelocity)
+      {
+        sequencerAdjustCurrentStepVelocity(8);
+      }
+      else if (uiState.parameterPageIndex == parameterPagePitch)
+      {
+        sequencerAdjustCurrentStepLockPitch(1);
+      }
+      else if (uiState.parameterPageIndex == parameterPageDecay)
+      {
+        sequencerAdjustCurrentStepLockDecay(5);
+      }
+      else if (uiState.parameterPageIndex == parameterPageProbability)
+      {
+        sequencerAdjustCurrentStepProbability(5);
+      }
+      else if (uiState.parameterPageIndex == parameterPageMute)
+      {
+        sequencerMoveTrack(1);
+      }
+      else
+      {
+        sequencerAdjustChainLength(1);
+      }
     }
     else
     {
@@ -1011,14 +1512,36 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     }
     else
     {
-      sequencerToggleCurrentStep();
+      if (uiState.parameterPageIndex == parameterPageTrig)
+      {
+        sequencerToggleCurrentStep();
+      }
+      else if (uiState.parameterPageIndex == parameterPageMute)
+      {
+        sequencerToggleMuteForSelectedTrack();
+      }
+      else if (uiState.parameterPageIndex == parameterPagePitch || uiState.parameterPageIndex == parameterPageDecay)
+      {
+        sequencerToggleCurrentStepLock();
+      }
+      else if (uiState.parameterPageIndex == parameterPageChain)
+      {
+        sequencerToggleChainEnabled();
+      }
+      else
+      {
+        sequencerToggleCurrentStep();
+      }
     }
   }
   else if (encoderEvent == ENCODER_EVENT_MEDIUM_PRESS)
   {
     if (view.editMode)
     {
-      sequencerToggleMuteForSelectedTrack();
+      uiState.editPopupSelection = popupSelectionFromParameterPage(uiState.parameterPageIndex);
+      uiState.editPopupOpen = true;
+      uiState.editPopupValueEdit = false;
+      uiState.editPopupChainLengthEdit = false;
     }
     else
     {
@@ -1065,6 +1588,9 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
       {
         uiState.menuOpen = false;
         uiState.tempoEditOpen = false;
+        uiState.editPopupOpen = false;
+        uiState.editPopupValueEdit = false;
+        uiState.editPopupChainLengthEdit = false;
         uiState.tempoEditSelection = 0;
       }
 
@@ -1086,6 +1612,19 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
     return;
   }
 
+  if (uiState.editPopupOpen)
+  {
+    if (buttonEvent == BUTTON_EVENT_SHORT_PRESS || buttonEvent == BUTTON_EVENT_MEDIUM_PRESS || buttonEvent == BUTTON_EVENT_LONG_PRESS)
+    {
+      uiState.editPopupOpen = false;
+      uiState.editPopupValueEdit = false;
+      uiState.editPopupChainLengthEdit = false;
+      uiState.dirty = true;
+    }
+
+    return;
+  }
+
   if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
   {
     SequencerView view;
@@ -1094,6 +1633,10 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
     if (view.editMode)
     {
       sequencerToggleEditMode();
+      uiState.parameterPageIndex = parameterPageTrig;
+      uiState.editPopupOpen = false;
+      uiState.editPopupValueEdit = false;
+      uiState.editPopupChainLengthEdit = false;
     }
     else
     {

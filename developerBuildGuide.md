@@ -100,7 +100,7 @@ In platformio.ini, env:ESP32GrooveboxR3:
 - TEST_TONE: optional audio path test mode (disables normal sample playback)
 - TEST_TONE_FREQUENCY_HZ: frequency used in TEST_TONE mode
 - AUDIO_MASTER_GAIN_PERCENT: final software output gain
-- SD_SMOKE_TEST: isolated SD diagnostics mode at boot
+- SD_SMOKE_TEST: isolated SD diagnostics mode at boot (firmware halts after diagnostics)
 - board_build.psram = enabled
 - BOARD_HAS_PSRAM
 - -mfix-esp32-psram-cache-issue
@@ -144,6 +144,7 @@ Use this when SD card behavior is uncertain.
 5. Disable SD_SMOKE_TEST after diagnostics.
 
 In SD smoke test mode, firmware intentionally halts after diagnostics.
+This mode is a diagnostics path only and must not be left enabled for normal usage.
 
 ## 10. Runtime Architecture (Quick Orientation)
 
@@ -183,75 +184,86 @@ The groovebox should always feel performance-oriented.
 
 ## 10.2 Main Groovebox Screen
 
-The groovebox should always return to the main sequencer screen.
+The groovebox always returns to the main sequencer list view:
 
-Example:
-```
-BPM120 PAT:A01 PLAY
+- Header: BPM, swing, transport state, version
+- Six track rows: KICK, SNARE, CH, OH, TONE, METAL
+- Parameter/info row above footer (contextual page text in edit mode)
+- Footer: current step, cursor step, active voices
 
->KICK   x---x---x-------
- SNARE  ----x-----------
- CH     x-x-x-x-x-------
- OH     ------x---------
+This screen remains the primary interaction surface during playback and editing.
 
-STEP:05
-```
+## 10.3 Encoder And KEY0 Model
 
-This screen is the primary interaction surface.
+Controls are centered around:
 
-The user must never become lost inside deep menu structures.
+- rotary encoder rotation
+- encoder button (EN_BTN)
+- auxiliary button (KEY0)
 
-## 10.3 Encoder Interaction Model
+Normal mode behavior:
 
-The groovebox uses:
+- Encoder rotate: select track
+- Encoder short: enter edit mode
+- Encoder medium: open Tempo Edit popup
+- Encoder long: open/close System Settings
+- KEY0 short: play/stop
+- KEY0 medium: open Tempo Edit popup (BPM selected)
+- KEY0 long: open Tempo Edit popup (SW selected)
 
-- one rotary encoder
-- encoder push button (EN_BTN)
-- one auxiliary button (KEY0)
+## 10.4 Main-Screen Contextual Edit Pages
 
-The interaction model must remain extremely predictable and consistent.
+In edit mode, the main screen cycles contextual pages:
 
-The same gestures should always perform the same logical operation.
+1. TRIG
+2. VEL
+3. PITCH
+4. DECAY
+5. PROB
+6. MUTE
+7. CHAIN
 
-## 10.4 Groovebox Cursor Mode
+Main edit-mode behavior:
 
-### Encoder rotate:
+- TRIG: rotate moves cursor, short toggles step
+- VEL: rotate changes velocity
+- PITCH: rotate changes lock pitch, short toggles lock
+- DECAY: rotate changes lock decay, short toggles lock
+- PROB: rotate changes probability
+- MUTE: rotate changes selected track, short toggles mute
+- CHAIN: rotate changes chain length, short toggles chain on/off
 
-select track
+## 10.5 Edit Track Popup
 
-### Encoder short press:
+The Edit Track popup is opened with encoder medium press while already in edit mode.
 
-enter track edit mode
+Popup entries:
 
-### KEY0 short press:
+1. VELOCITY
+2. PITCH
+3. DECAY
+4. PROBABILITY
+5. MUTE
+6. CHAIN
 
-play/stop
+TRIG is intentionally excluded from the popup because TRIG editing is already fast on the main screen.
 
-## 10.5 Track Edit Mode
+Popup states:
 
-Track Edit Mode edits the currently selected track.
+- Selection state:
+  - rotate: move popup selection
+  - short: enter value-edit
+  - medium: leave value-edit and stay in popup
+  - long: close popup
+- Value-edit state:
+  - VELOCITY/PITCH/DECAY/PROB: rotate edits value
+  - MUTE: rotate toggles ON/OFF
+  - CHAIN: short switches focus between ON/OFF and Lx, rotate edits focused field
 
-### Encoder rotate:
+Popup rendering behavior:
 
-move step cursor
-
-### Encoder short press:
-
-toggle step on/off
-
-### KEY0 mid press:
-
-exit track edit mode
-
-### KEY0 long press:
-
-exit track edit mode
-
-Important:
-
-Normal step editing MUST happen inside Track Edit Mode.
-
-EDIT mode + rotate should NOT be required for standard sequencing workflow.
+- While popup is open, redraw is partial (popup area only)
+- Full-screen redraw on every encoder tick is intentionally avoided for calmer visuals
 
 ## 11. Common Failure Modes And Fast Checks
 
@@ -260,7 +272,8 @@ EDIT mode + rotate should NOT be required for standard sequencing workflow.
 - Verify CS/SCK/MISO/MOSI wiring exactly
 - Verify shared SPI lines with TFT are stable
 - Verify card format (FAT16 or FAT32)
-- Run SD_SMOKE_TEST and inspect missing file names
+- Run SD_SMOKE_TEST (diagnostics path) and inspect mount attempts plus missing file names
+- Disable SD_SMOKE_TEST again after diagnostics
 
 ## 11.2 No Sound
 
@@ -282,7 +295,7 @@ EDIT mode + rotate should NOT be required for standard sequencing workflow.
 3. Prepare SD card with required /samples/*.wav files
 4. Build with pio run -e ESP32GrooveboxR3
 5. If SD issues appear, enable SD_SMOKE_TEST and diagnose
-6. Disable diagnostic flags
+6. Disable SD_SMOKE_TEST and any other diagnostic flags
 7. Rebuild and run normal firmware
 
 ## 13. Pattern JSON Schema (Current)
@@ -297,6 +310,8 @@ Top-level fields:
 - name
 - bpm
 - swing
+- chainEnabled
+- chainLength
 - masterLevel
 - tracks
 
@@ -315,28 +330,32 @@ Each step contains:
 
 - trig
 - velocity
+- probability
 - locks (object)
+
+Current locks object fields:
+
+- enabled
+- pitch
+- decay
 
 The loader now expects this schema directly.
 Backward conversion from older pattern schemas is intentionally not used.
 
-## 13.1 Future Pattern Expansion Strategy
+## 13.1 Pattern Expansion Strategy
 
 The current JSON schema is intentionally designed for future expansion.
 
-Future Phase 3 and Phase 4 features must extend the existing schema instead
+Future Phase 4 features must extend the existing schema instead
 of replacing it.
 
-The following future properties are expected:
+The following extension properties remain available for future phases:
 
 ### Step-Level Future Parameters
 
-- probability
 - microTiming
 - retrig
 - trigCondition
-- pitch
-- decay
 - filter
 - locks
 
@@ -373,14 +392,15 @@ Primary goals:
 - contextual parameter editing
 - low-latency workflow
 
-The current firmware already implements the first Phase 3 playback pieces:
+The current firmware implements these Phase 3 items:
 
 - per-step velocity
 - swing
 - mute per track
 - per-step probability gating
-
-Future Phase 3 UI work should build on that base instead of reworking the step schema.
+- pattern chaining (chain length + enable)
+- step parameter locks (pitch/decay lock data)
+- contextual parameter editing pages
 
 ---
 
@@ -427,6 +447,7 @@ PITCH
 DECAY
 PROB
 MUTE
+CHAIN
 
 The UI should prioritize:
 
@@ -441,19 +462,19 @@ NOT deep navigation trees.
 
 ## 14.3 Recommended Phase 3 Implementation Order
 
-Recommended order:
+Implementation status:
 
-1. mute per track
-2. velocity per step
-3. swing
-4. probability
-5. pattern chaining
-6. parameter locks
+1. mute per track - done
+2. velocity per step - done
+3. swing - done
+4. probability - done
+5. pattern chaining - done
+6. parameter locks - done
 
-Reason:
+Current lock behavior:
 
-This order provides the largest musical improvement
-while keeping implementation complexity manageable.
+- lock decay scales output trigger level per step
+- lock pitch is stored and editable for upcoming DSP features
 
 ---
 
