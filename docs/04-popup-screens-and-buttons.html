@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Popup Screens and Their Buttons | Groovebox R3</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages">
+          <a href="./index.html">Manual Home</a>
+          <a href="./01-first-steps.html">First Steps</a>
+          <a href="./02-control-basics.html">Control Basics</a>
+          <a href="./03-groovebox-screen-and-terms.html">Groovebox Screen</a>
+          <a href="./04-popup-screens-and-buttons.html">Popups</a>
+          <a href="./05-pattern-saving-loading-and-chain.html">Patterns</a>
+          <a href="./06-parameter-musical-use.html">Musical Use</a>
+          <a href="./07-beginner-troubleshooting.html">Help</a>
+        </nav>
+      </header>
+      <main class="content">
+        <h1>4. Popup Screens and Their Buttons</h1>
+        <p>This page explains every popup you can open from the Groovebox screen.</p>
+
+        <h2>Tempo Edit Popup</h2>
+        <p>Open with encoder medium (normal mode), Knop2 medium, or Knop2 long.</p>
+        <ul>
+          <li>Rotate encoder: change selected value.</li>
+          <li>Short press encoder: switch selection between BPM and SW.</li>
+          <li>Medium press encoder: close popup.</li>
+          <li>Knop2 short/medium/long: close popup.</li>
+        </ul>
+
+        <h3>Character Preview: Tempo Edit Popup</h3>
+          <pre><code>        +------------------------+
+        | TEMPO EDIT             |
+        | BPM &gt;120&lt;              |
+        | SW   08                |
+        | rotate = change.       |
+        | short  = switch BPM/SW |
+        +------------------------+</code></pre>
+
+        <h2>Edit Track Popup</h2>
+        <p>Open with encoder medium while already in edit mode.</p>
+        <p>Entries: VELOCITY, PITCH, DECAY, PROBABILITY, MUTE, CHAIN.</p>
+
+        <h3>Character Preview: Edit Track Popup (Selection)</h3>
+          <pre><code>        +------------------------+
+        | EDIT TRACK             |
+        | &gt;VELOCITY&lt; 127         |
+        |  PITCH      +00        |
+        |  DECAY      100%       |
+        |  PROBABILITY 100%      |
+        |  MUTE       OFF        |
+        |  CHAIN      ON L3 P2   |
+        +------------------------+</code></pre>
+
+        <h3>Selection State</h3>
+        <ul>
+          <li>Rotate encoder: move popup selection.</li>
+          <li>Short press encoder: enter value-edit for selected entry.</li>
+          <li>Medium press encoder: leave value-edit and remain in popup.</li>
+          <li>Long press encoder: close popup.</li>
+        </ul>
+
+        <h3>Value-Edit State</h3>
+        <ul>
+          <li>VELOCITY/PITCH/DECAY/PROBABILITY: rotate to edit value.</li>
+          <li>MUTE: rotate toggles ON/OFF.</li>
+          <li>CHAIN: short press cycles focus ON/OFF -> Lx -> Px, rotate edits focused field.</li>
+        </ul>
+
+        <h3>Character Preview: CHAIN Focus In Value-Edit</h3>
+          <pre><code>        +----------------------+
+        | F1: CHAIN &gt;ON&lt; L3 P2 |
+        | F2: CHAIN ON &gt;L3&lt; P2 |
+        | F3: CHAIN ON L3 &gt;P2&lt; |
+        |                      |
+        | short  = next focus  |
+        | rotate = edit field  |
+        +----------------------+</code></pre>
+
+        <h3>CHAIN Fields In Popup</h3>
+        <ul>
+          <li>ON/OFF: enables or disables chain playback.</li>
+          <li>Lx: chain length (how many pattern slots are in the chain).</li>
+          <li>Px: active chain slot (which slot you are editing now).</li>
+        </ul>
+
+        <h2>System Settings Screen</h2>
+        <p>Open or close with encoder long press.</p>
+        <ul>
+          <li>Rotate encoder: move selection in the list.</li>
+          <li>Short or medium press encoder: open or execute selected item.</li>
+          <li>Knop2 short: back/close current settings layer.</li>
+        </ul>
+
+        <h3>Character Preview: System Settings</h3>
+          <pre><code>        +-------------------------+
+        | SYSTEM SETTINGS         |
+        | SSID: MyWifi            |
+        | IP: 192.168.1.44        |
+        |&gt;Load Pattern&lt;           |
+        | Save Pattern            |
+        | New Pattern             |
+        | Delete Pattern          |
+        | Exit                    |
+        +-------------------------+</code></pre>
+
+        <h3>Pattern List Popup (Load/Delete)</h3>
+        <ul>
+          <li>Rotate encoder: choose a pattern name.</li>
+          <li>Load mode: short or medium press loads selected pattern.</li>
+          <li>Delete mode: medium press deletes selected pattern.</li>
+          <li>Knop2 short: back to System Settings.</li>
+        </ul>
+
+        <h3>Confirmation Popups (Yes/No)</h3>
+        <ul>
+          <li>Rotate encoder: switch between No and Yes.</li>
+          <li>Short or medium press encoder: confirm selected choice.</li>
+          <li>Knop2 short: cancel and go back.</li>
+        </ul>
+
+        <div class="footer-nav"><a href="./03-groovebox-screen-and-terms.html"><- Groovebox Screen and Terms</a><a href="./05-pattern-saving-loading-and-chain.html">Pattern Saving, Loading, and CHAIN -></a></div>
+      </main>
+    </div>
+  </body>
+</html>

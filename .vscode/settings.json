@@ -13,6 +13,19 @@
         "git ls-remote": true,
         "xtensa-esp32-elf-addr2line": true,
         "~/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-addr2line": true,
-        "git rev-list": true
+        "git rev-list": true,
+        "/^perl -pi -e 's/>Getting Started</>First Steps</g; s/>Hardware</>Control Basics</g; s/>Controls</>Groovebox Screen</g; s/>Settings</>Popups</g; s/>Samples</>Patterns</g; s/>Playback</>Musical Use</g; s/>Troubleshooting</>Help</g' docs/\\*\\.html$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^perl -pi -e 's/Getting Started \\\\\\| Groovebox R3/First Steps \\| Groovebox R3/g; s/System Settings and Wi-Fi \\\\\\| Groovebox R3/Popup Screens \\| Groovebox R3/g; s/Samples and Patterns \\\\\\| Groovebox R3/Patterns and CHAIN \\| Groovebox R3/g; s/Playback Behavior \\\\\\| Groovebox R3/Musical Use \\| Groovebox R3/g; s/Troubleshooting \\\\\\| Groovebox R3/Help \\| Groovebox R3/g; s/Hardware and Wiring ->/Control Basics ->/g; s/<- Hardware and Wiring/<- Control Basics/g; s/Controls and Screen ->/Groovebox Screen and Terms ->/g; s/<- Getting Started/<- First Steps/g; s/System Settings and Wi-Fi ->/Popup Screens and Their Buttons ->/g; s/<- System Settings and Wi-Fi/<- Popup Screens and Their Buttons/g; s/Samples and Patterns ->/Pattern Saving, Loading, and CHAIN ->/g; s/<- Samples and Patterns/<- Pattern Saving, Loading, and CHAIN/g; s/Playback Behavior ->/How to Use Parameters Musically ->/g; s/<- Playback Behavior/<- How to Use Parameters Musically/g; s/Troubleshooting ->/Beginner Troubleshooting ->/g; s/Getting Started ->/First Steps ->/g' docs/\\*\\.html$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^perl -pi -e 's/KEY0/Knop2/g' docs/\\*\\.html$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "mv": true
     }
 }

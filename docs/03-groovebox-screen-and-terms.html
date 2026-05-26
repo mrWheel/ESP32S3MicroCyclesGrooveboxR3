@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Groovebox Screen and Terms | Groovebox R3</title>
+    <link rel="stylesheet" href="./manual-light.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
+        <nav class="nav" aria-label="Manual pages">
+          <a href="./index.html">Manual Home</a>
+          <a href="./01-first-steps.html">First Steps</a>
+          <a href="./02-control-basics.html">Control Basics</a>
+          <a href="./03-groovebox-screen-and-terms.html">Groovebox Screen</a>
+          <a href="./04-popup-screens-and-buttons.html">Popups</a>
+          <a href="./05-pattern-saving-loading-and-chain.html">Patterns</a>
+          <a href="./06-parameter-musical-use.html">Musical Use</a>
+          <a href="./07-beginner-troubleshooting.html">Help</a>
+        </nav>
+      </header>
+      <main class="content">
+        <h1>3. Groovebox Screen and Terms</h1>
+        <p>The [Groovebox] screen is your main working screen. Most music-making happens here.</p>
+
+        <h2>What You See On The Groovebox Screen</h2>
+        <ul>
+          <li>Header: BPM, SW, and transport state (PLAY or STOP).</li>
+          <li>Track rows: KICK, SNARE, CH, OH, TONE, METAL.</li>
+          <li>Parameter/info row: context text in edit mode.</li>
+          <li>Footer: current playing step, cursor step, active pattern slot, and voice activity.</li>
+        </ul>
+
+        <h3>Character Preview: Groovebox Main Screen</h3>
+          <pre><code>        +--------------------------+
+        | GROOVEBOX                |
+        | BPM 120  SW 08  PLAY     |
+        |&gt;KICK   x---x---x---x--- &lt;|
+        | SNARE  ----x-------x---  |
+        | CH     x-x-x-x-x-x-x-x-  |
+        | OH     -------x--------  |
+        | TONE   ----------------  |
+        | METAL  ----------------  |
+        | VEL 127                  |
+        | STEP 05 CUR 05 P1 V2     |
+        +--------------------------+</code></pre>
+
+        <h2>Buttons On This Screen (Normal Mode)</h2>
+        <ul>
+          <li>Encoder rotate: select another track.</li>
+          <li>Encoder short: enter edit mode for the selected track.</li>
+          <li>Encoder medium: open Tempo Edit popup.</li>
+          <li>Encoder long: open/close System Settings.</li>
+          <li>Knop2 short: Play/Stop.</li>
+          <li>Knop2 medium: open Tempo Edit popup with BPM selected.</li>
+          <li>Knop2 long: open Tempo Edit popup with SW selected.</li>
+        </ul>
+
+        <h2>Buttons On This Screen (Edit Mode)</h2>
+        <ul>
+          <li>Encoder rotate: action depends on the selected page (TRIG, VEL, PITCH, DECAY, PROB, MUTE, CHAIN).</li>
+          <li>Encoder short: toggle or confirm action for current page.</li>
+          <li>Encoder medium: open Edit Track popup.</li>
+          <li>Encoder long: move to previous parameter page.</li>
+          <li>Knop2 short: leave edit mode.</li>
+        </ul>
+
+        <h3>Character Preview: TRIG Editing</h3>
+        <pre><code>        +---------------------------+
+        | TRIG page active          |
+        |&gt;KICK   x---[x]---x---x---&lt;|
+        | rotate = move cursor      |
+        | short  = toggle step      |
+        +---------------------------+</code></pre>
+
+        <h2>Main Edit Pages (What They Mean)</h2>
+        <h3>TRIG</h3>
+        <ul>
+          <li>What it is: step on/off pattern for the selected track.</li>
+          <li>What it does: decides where the sound is played.</li>
+          <li>How to use: rotate to move cursor, short press to toggle step.</li>
+        </ul>
+
+        <h3>VEL (VELOCITY)</h3>
+        <ul>
+          <li>What it is: step volume strength (how hard a step hits).</li>
+          <li>What it does: higher VELOCITY sounds stronger; lower VELOCITY sounds softer.</li>
+          <li>How to use: in VEL page, rotate to change VELOCITY for the cursor step.</li>
+        </ul>
+
+        <h3>PITCH</h3>
+        <ul>
+          <li>What it is: per-step pitch lock value.</li>
+          <li>What it does: stores tonal offset for that step.</li>
+          <li>How to use: rotate to change PITCH value, short press to toggle lock on/off.</li>
+        </ul>
+
+        <h3>DECAY</h3>
+        <ul>
+          <li>What it is: per-step decay lock amount.</li>
+          <li>What it does: DECAY lock changes the strength of that step.</li>
+          <li>How to use: rotate to change DECAY percentage, short press to toggle lock on/off.</li>
+        </ul>
+
+        <h3>PROB (PROBABILITY)</h3>
+        <ul>
+          <li>What it is: chance (0% to 100%) that a step will trigger.</li>
+          <li>What it does: creates variation and less repetitive loops.</li>
+          <li>How to use: rotate to set PROBABILITY for the cursor step.</li>
+        </ul>
+
+        <h3>MUTE</h3>
+        <ul>
+          <li>What it is: track mute state.</li>
+          <li>What it does: muted track stays in pattern but makes no sound.</li>
+          <li>How to use: rotate to select track, short press to toggle MUTE.</li>
+        </ul>
+
+        <h3>CHAIN</h3>
+        <ul>
+          <li>What it is: pattern chaining controls.</li>
+          <li>What it does: plays multiple pattern slots in sequence.</li>
+          <li>How to use: rotate to change chain length, short press to toggle CHAIN on/off.</li>
+        </ul>
+
+        <h2>Header Terms Explained</h2>
+        <ul>
+          <li>BPM: Beats Per Minute. Higher BPM means faster tempo.</li>
+          <li>SW: Swing amount. It shifts timing feel between straight and shuffled groove.</li>
+        </ul>
+
+        <h2>Practical Beginner Example</h2>
+        <ol>
+          <li>Start with BPM 120 and SW 0 for a straight rhythm.</li>
+          <li>Add TRIG steps first.</li>
+          <li>Then use VELOCITY and PROBABILITY for groove.</li>
+          <li>Use MUTE for live arrangement changes.</li>
+          <li>Use CHAIN to play multiple pattern slots automatically.</li>
+        </ol>
+        <div class="footer-nav"><a href="./02-control-basics.html"><- Control Basics</a><a href="./04-popup-screens-and-buttons.html">Popup Screens and Their Buttons -></a></div>
+      </main>
+    </div>
+  </body>
+</html>
