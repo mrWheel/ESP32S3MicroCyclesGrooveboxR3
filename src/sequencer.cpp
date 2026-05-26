@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 18:06 ***/
+/*** Last Changed: 2026-05-26 - 09:27 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -281,6 +281,65 @@ void sequencerMoveTrack(int delta)
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerMoveTrack()
+
+//-- Move active pattern slot selection within current chain length.
+void sequencerAdjustActivePatternIndex(int delta)
+{
+  int32_t nextPattern;
+  int32_t chainLimit;
+
+  portENTER_CRITICAL(&sequencerMux);
+
+  chainLimit = static_cast<int32_t>(state.chainLength);
+
+  if (chainLimit < 1)
+  {
+    chainLimit = 1;
+  }
+
+  nextPattern = static_cast<int32_t>(state.activePatternIndex) + delta;
+
+  while (nextPattern < 0)
+  {
+    nextPattern += chainLimit;
+  }
+
+  state.activePatternIndex = static_cast<uint8_t>(nextPattern % chainLimit);
+  state.currentStep = 0;
+  state.cursorStep = 0;
+  state.nextStepDueUs = 0;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerAdjustActivePatternIndex()
+
+//-- Set active pattern slot directly, clamped to current chain length.
+void sequencerSetActivePatternIndex(uint8_t slotIndex)
+{
+  uint8_t chainLimit;
+
+  portENTER_CRITICAL(&sequencerMux);
+
+  chainLimit = state.chainLength;
+
+  if (chainLimit < 1)
+  {
+    chainLimit = 1;
+  }
+
+  if (slotIndex >= chainLimit)
+  {
+    slotIndex = static_cast<uint8_t>(chainLimit - 1U);
+  }
+
+  state.activePatternIndex = slotIndex;
+  state.currentStep = 0;
+  state.cursorStep = 0;
+  state.nextStepDueUs = 0;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerSetActivePatternIndex()
 
 //-- Toggle trigger state at selected track and cursor step.
 void sequencerToggleCurrentStep()

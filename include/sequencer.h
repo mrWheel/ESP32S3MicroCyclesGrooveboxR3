@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 18:06 ***/
+/*** Last Changed: 2026-05-26 - 09:27 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -69,6 +69,8 @@ void sequencerTogglePlay();
 void sequencerToggleEditMode();
 void sequencerMoveCursor(int delta);
 void sequencerMoveTrack(int delta);
+void sequencerAdjustActivePatternIndex(int delta);
+void sequencerSetActivePatternIndex(uint8_t slotIndex);
 void sequencerToggleCurrentStep();
 void sequencerAdjustCurrentStepVelocity(int delta);
 void sequencerAdjustCurrentStepProbability(int delta);

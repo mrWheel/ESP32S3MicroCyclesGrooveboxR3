@@ -258,7 +258,13 @@ Popup states:
 - Value-edit state:
   - VELOCITY/PITCH/DECAY/PROB: rotate edits value
   - MUTE: rotate toggles ON/OFF
-  - CHAIN: short switches focus between ON/OFF and Lx, rotate edits focused field
+  - CHAIN: short cycles focus between ON/OFF, Lx, and Px, rotate edits focused field
+
+Where:
+
+- ON/OFF toggles chain playback
+- Lx edits chain length
+- Px selects active chain slot (pattern slot in the current chain range)
 
 Popup rendering behavior:
 

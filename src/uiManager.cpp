@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 18:06 ***/
+/*** Last Changed: 2026-05-26 - 09:27 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -55,7 +55,7 @@ struct UiState
   bool tempoEditOpen;
   bool editPopupOpen;
   bool editPopupValueEdit;
-  bool editPopupChainLengthEdit;
+  uint8_t editPopupChainFocus;
   int tempoEditSelection;
   int editPopupSelection;
   bool wifiManagerConfirmOpen;
@@ -115,6 +115,11 @@ static const char* editPopupEntries[editPopupEntryCount] =
         "PROBABILITY",
         "MUTE",
         "CHAIN"};
+
+//-- CHAIN value-edit focus fields.
+static const uint8_t chainPopupFocusEnable = 0;
+static const uint8_t chainPopupFocusLength = 1;
+static const uint8_t chainPopupFocusPattern = 2;
 
 //-- Map current parameter page to popup selection index.
 static int popupSelectionFromParameterPage(uint8_t parameterPage)
@@ -197,9 +202,10 @@ static String buildEditPopupValueText(uint8_t pageIndex, const SequencerView& vi
   {
     snprintf(valueBuffer,
              sizeof(valueBuffer),
-             "%s L%u",
+             "%s L%u P%u",
              view.chainEnabled ? "ON" : "OFF",
-             static_cast<unsigned>(view.chainLength));
+             static_cast<unsigned>(view.chainLength),
+             static_cast<unsigned>(view.activePatternIndex + 1U));
   }
 
   return String(valueBuffer);
@@ -218,33 +224,43 @@ static void buildEditPopupRows(const SequencerView& view, String rows[editPopupE
     if (pageIndex == parameterPageChain)
     {
       char chainLengthText[8];
+      char chainPatternText[8];
 
       snprintf(chainLengthText,
                sizeof(chainLengthText),
                "L%u",
                static_cast<unsigned>(view.chainLength));
 
+      snprintf(chainPatternText,
+               sizeof(chainPatternText),
+               "P%u",
+               static_cast<unsigned>(view.activePatternIndex + 1U));
+
       if (rowIndex == uiState.editPopupSelection)
       {
         if (uiState.editPopupValueEdit)
         {
-          if (uiState.editPopupChainLengthEdit)
+          if (uiState.editPopupChainFocus == chainPopupFocusLength)
           {
-            rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " >" + String(chainLengthText) + "<";
+            rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " >" + String(chainLengthText) + "< " + String(chainPatternText);
+          }
+          else if (uiState.editPopupChainFocus == chainPopupFocusPattern)
+          {
+            rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " " + String(chainLengthText) + " >" + String(chainPatternText) + "<";
           }
           else
           {
-            rows[rowIndex] = " CHAIN >" + String(view.chainEnabled ? "ON" : "OFF") + "< " + String(chainLengthText);
+            rows[rowIndex] = " CHAIN >" + String(view.chainEnabled ? "ON" : "OFF") + "< " + String(chainLengthText) + " " + String(chainPatternText);
           }
         }
         else
         {
-          rows[rowIndex] = ">" + label + "< " + String(view.chainEnabled ? "ON" : "OFF") + " " + String(chainLengthText);
+          rows[rowIndex] = ">" + label + "< " + String(view.chainEnabled ? "ON" : "OFF") + " " + String(chainLengthText) + " " + String(chainPatternText);
         }
       }
       else
       {
-        rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " " + String(chainLengthText);
+        rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " " + String(chainLengthText) + " " + String(chainPatternText);
       }
 
       continue;
@@ -306,9 +322,13 @@ static void applyEditPopupValueDelta(int delta)
   {
     sequencerGetView(view);
 
-    if (uiState.editPopupChainLengthEdit)
+    if (uiState.editPopupChainFocus == chainPopupFocusLength)
     {
       sequencerAdjustChainLength(delta > 0 ? 1 : -1);
+    }
+    else if (uiState.editPopupChainFocus == chainPopupFocusPattern)
+    {
+      sequencerAdjustActivePatternIndex(delta > 0 ? 1 : -1);
     }
     else
     {
@@ -624,9 +644,10 @@ static String buildSequencerFooterLine(const SequencerView& view, const AudioEng
 
   snprintf(footerLine,
            sizeof(footerLine),
-           "STEP %02u  CUR %02u  V%lu",
+           "STEP %02u CUR %02u P%u V%lu",
            static_cast<unsigned>(view.currentStep + 1U),
            static_cast<unsigned>(view.cursorStep + 1U),
+           static_cast<unsigned>(view.activePatternIndex + 1U),
            static_cast<unsigned long>(audioStats.activeVoiceCount));
 
   return String(footerLine);
@@ -685,9 +706,10 @@ static String buildParameterOverlayLine(const SequencerView& view)
   {
     snprintf(lineBuffer,
              sizeof(lineBuffer),
-             "CHAIN %s L%u",
+             "CHAIN %s L%u P%u",
              view.chainEnabled ? "ON" : "OFF",
-             static_cast<unsigned>(view.chainLength));
+             static_cast<unsigned>(view.chainLength),
+             static_cast<unsigned>(view.activePatternIndex + 1U));
   }
 
   return String(lineBuffer);
@@ -982,7 +1004,7 @@ void uiManagerInit()
   uiState.tempoEditOpen = false;
   uiState.editPopupOpen = false;
   uiState.editPopupValueEdit = false;
-  uiState.editPopupChainLengthEdit = false;
+  uiState.editPopupChainFocus = chainPopupFocusEnable;
   uiState.tempoEditSelection = 0;
   uiState.editPopupSelection = 0;
   uiState.wifiManagerConfirmOpen = false;
@@ -1146,7 +1168,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     {
       uiState.editPopupOpen = false;
       uiState.editPopupValueEdit = false;
-      uiState.editPopupChainLengthEdit = false;
+      uiState.editPopupChainFocus = chainPopupFocusEnable;
       uiState.dirty = true;
       return;
     }
@@ -1376,7 +1398,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
           uiState.editPopupSelection = editPopupEntryCount - 1;
         }
 
-        uiState.editPopupChainLengthEdit = false;
+        uiState.editPopupChainFocus = chainPopupFocusEnable;
         uiState.parameterPageIndex = popupSelectionToParameterPage(uiState.editPopupSelection);
       }
     }
@@ -1395,7 +1417,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
           uiState.editPopupSelection = 0;
         }
 
-        uiState.editPopupChainLengthEdit = false;
+        uiState.editPopupChainFocus = chainPopupFocusEnable;
         uiState.parameterPageIndex = popupSelectionToParameterPage(uiState.editPopupSelection);
       }
     }
@@ -1406,11 +1428,11 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
       if (!uiState.editPopupValueEdit)
       {
         uiState.editPopupValueEdit = true;
-        uiState.editPopupChainLengthEdit = false;
+        uiState.editPopupChainFocus = chainPopupFocusEnable;
       }
       else if (uiState.parameterPageIndex == parameterPageChain)
       {
-        uiState.editPopupChainLengthEdit = !uiState.editPopupChainLengthEdit;
+        uiState.editPopupChainFocus = static_cast<uint8_t>((uiState.editPopupChainFocus + 1U) % 3U);
       }
       else
       {
@@ -1421,7 +1443,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     {
       uiState.parameterPageIndex = popupSelectionToParameterPage(uiState.editPopupSelection);
       uiState.editPopupValueEdit = false;
-      uiState.editPopupChainLengthEdit = false;
+      uiState.editPopupChainFocus = chainPopupFocusEnable;
     }
 
     uiState.dirty = true;
@@ -1541,7 +1563,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
       uiState.editPopupSelection = popupSelectionFromParameterPage(uiState.parameterPageIndex);
       uiState.editPopupOpen = true;
       uiState.editPopupValueEdit = false;
-      uiState.editPopupChainLengthEdit = false;
+      uiState.editPopupChainFocus = chainPopupFocusEnable;
     }
     else
     {
@@ -1590,7 +1612,7 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
         uiState.tempoEditOpen = false;
         uiState.editPopupOpen = false;
         uiState.editPopupValueEdit = false;
-        uiState.editPopupChainLengthEdit = false;
+        uiState.editPopupChainFocus = chainPopupFocusEnable;
         uiState.tempoEditSelection = 0;
       }
 
@@ -1618,7 +1640,7 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
     {
       uiState.editPopupOpen = false;
       uiState.editPopupValueEdit = false;
-      uiState.editPopupChainLengthEdit = false;
+      uiState.editPopupChainFocus = chainPopupFocusEnable;
       uiState.dirty = true;
     }
 
@@ -1636,7 +1658,7 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
       uiState.parameterPageIndex = parameterPageTrig;
       uiState.editPopupOpen = false;
       uiState.editPopupValueEdit = false;
-      uiState.editPopupChainLengthEdit = false;
+      uiState.editPopupChainFocus = chainPopupFocusEnable;
     }
     else
     {
