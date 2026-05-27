@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-26 - 09:27 ***/
+/*** Last Changed: 2026-05-27 - 18:42 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -636,7 +636,7 @@ void sequencerGetView(SequencerView& outView)
 {
   portENTER_CRITICAL(&sequencerMux);
 
-  outView.pattern = state.patterns[state.activePatternIndex];
+  outView.pattern = &state.patterns[state.activePatternIndex];
   outView.bpm = state.bpm;
   outView.swingPercent = state.swingPercent;
   outView.currentStep = state.currentStep;

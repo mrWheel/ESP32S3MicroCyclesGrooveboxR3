@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-27 - 17:20 ***/
+/*** Last Changed: 2026-05-27 - 18:42 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -275,7 +275,7 @@ static uint8_t popupSelectionToParameterPage(int popupSelection)
 //-- Build compact value text for one edit popup page.
 static String buildEditPopupValueText(uint8_t pageIndex, const SequencerView& view)
 {
-  const Track& selectedTrack = view.pattern.tracks[view.selectedTrack];
+  const Track& selectedTrack = view.pattern->tracks[view.selectedTrack];
   const Step& selectedStep = selectedTrack.steps[view.cursorStep];
   char valueBuffer[28];
 
@@ -1442,7 +1442,7 @@ static String formatGrooveboxFooter(const SequencerView& view)
 //-- Build contextual parameter overlay text for the selected step.
 static String buildParameterOverlayLine(const SequencerView& view)
 {
-  const Track& selectedTrack = view.pattern.tracks[view.selectedTrack];
+  const Track& selectedTrack = view.pattern->tracks[view.selectedTrack];
   const Step& selectedStep = selectedTrack.steps[view.cursorStep];
   char lineBuffer[72];
 
@@ -1682,7 +1682,7 @@ static void drawSequencerScreen()
 
   for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
   {
-    lines[trackIndex + 1] = fitListRowText(buildTrackRowText(trackNames[trackIndex], view.pattern.tracks[trackIndex]));
+    lines[trackIndex + 1] = fitListRowText(buildTrackRowText(trackNames[trackIndex], view.pattern->tracks[trackIndex]));
   }
 
   parameterLine = "";

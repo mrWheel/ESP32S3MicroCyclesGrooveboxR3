@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-27 - 17:49 ***/
+/*** Last Changed: 2026-05-27 - 18:42 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -19,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v0.6.1";
+const char* PROG_VERSION = "v0.6.4";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -76,8 +76,6 @@ static String compactBootStatusLine(const String& line)
 //-- Append one startup status line at the bottom and scroll older lines upward.
 static void bootStatusPush(const String& rawLine)
 {
-  Serial.println(rawLine); // Altijd naar serial log
-
   if (!bootStatusDisplayReady)
   {
     return;
