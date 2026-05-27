@@ -508,106 +508,544 @@ Current lock behavior:
 - lock decay scales output trigger level per step
 - lock pitch is stored and editable for upcoming DSP features
 
+
+---
+# 15. Phase 4 Design Goals
+
+## Phase 4 Audio + DSP Architecture
+
+This document defines the intended Phase 4 audio engine and DSP architecture.
+
+This phase is intentionally focused on:
+
+- audio quality
+- polyphony
+- realtime stability
+- mixer quality
+- natural sample behavior
+- DSP expansion
+
+This document is intended as a direct implementation guide for the Developer.
+
 ---
 
-# 15. Phase 4 Design Goals
-## DO NOT IMPLEMENT YET
+# 15.1. Primary Goal
 
-Phase 4 introduces sound design and DSP functionality.
+Phase 4 transforms the groovebox from:
 
-Planned concepts:
+- simple sample retrigger playback
 
-- pitch shifting
-- decay envelopes
-- filter processing
-- overdrive/distortion
+into:
+
+- a realtime polyphonic groovebox audio engine
+
+The most important improvement is:
+
+- overlapping sample playback
+- proper voice allocation
+- natural sample decay
+- smoother hats/cymbals
+- stereo image
+- better perceived audio quality
+
+The current engine behavior likely uses:
+
+- one playback slot per track
+
+This causes:
+
+- abrupt sample cutoff
+- unnatural cymbal behavior
+- unnatural open/closed hat interaction
+- thin soundstage
+
+Phase 4 replaces this with:
+
+- a shared polyphonic voice pool
+
+---
+
+# 15.2 Core Audio Architecture
+
+Target architecture:
+
+SD samples
+→ decoded sample buffers
+→ voice allocator
+→ polyphonic mixer
+→ DSP chain
+→ limiter
+→ stereo output
+→ I2S DMA
+→ PCM5102A
+
+The PCM5102A DAC is fully capable of supporting this architecture.
+
+The ESP32-WROVER with PSRAM is capable of supporting this architecture when implemented efficiently.
+
+---
+
+# 16. Voice Pool Architecture
+
+## 16.1 Fixed Voice Pool
+
+The engine must use a fixed-size voice array.
+
+Dynamic allocation during playback is forbidden.
+
+Example:
+
+```cpp
+#define MAX_VOICES 8
+
+struct Voice
+{
+  bool active;
+
+  const int16_t *sampleData;
+
+  uint32_t position;
+  uint32_t length;
+
+  uint16_t gain;
+
+  int8_t pan;
+
+  uint8_t chokeGroup;
+
+  bool releaseActive;
+
+  uint16_t releaseCounter;
+};
+```
+
+Recommended initial value:
+
+```cpp
+MAX_VOICES = 8
+```
+
+Eight voices are sufficient for:
+
+- drum overlap
+- open hats
+- cymbal tails
+- tom overlap
+- future DSP expansion
+
+without excessive CPU usage.
+
+---
+
+## 16.2 Voice Allocation
+
+A new trigger MUST allocate a new voice.
+
+The engine must NOT:
+
+- replace track playback directly
+- hard-cut samples unnecessarily
+
+Preferred allocation order:
+
+1. inactive voice
+2. released voice
+3. quietest active voice
+4. oldest active voice
+
+Hard cutoff should only happen when all voices are exhausted.
+
+---
+
+## 16.3 Voice Stealing
+
+If all voices are busy:
+
+- steal the quietest or oldest voice
+- apply a short release fade
+- avoid hard discontinuities
+
+Hard sample stops should be avoided whenever possible.
+
+---
+
+# 17. Choke Groups
+
+## 17.1 Purpose
+
+Choke groups simulate real drum behavior.
+
+Example:
+
+- closed hat cuts open hat
+- muted percussion interrupts ringing percussion
+
+This is essential for realistic groovebox behavior.
+
+---
+
+## 17.2 Initial Choke Group Design
+
+Recommended groups:
+
+0 = none
+1 = hats
+2 = cymbals
+
+Suggested mapping:
+
+| Track | Group |
+|---|---|
+| CH | 1 |
+| OH | 1 |
+| Ride | 2 |
+| Cymbal | 2 |
+
+---
+
+## 17.3 Choke Behavior
+
+When a trigger occurs:
+
+- scan active voices
+- find voices in same choke group
+- initiate release fade
+
+DO NOT:
+
+- abruptly zero the sample
+
+Use short fade release instead.
+
+Recommended fade time:
+
+5-15 ms
+
+This significantly improves perceived audio quality.
+
+---
+
+# 18. Mixer Architecture
+
+## 18.1 Internal Mixer Precision
+
+The mixer must use:
+
+```cpp
+int32_t
+```
+
+for accumulation.
+
+Do NOT mix directly into int16_t.
+
+Example:
+
+```cpp
+int32_t mixL;
+int32_t mixR;
+```
+
+Reason:
+
+- prevents clipping during summing
+- improves headroom
+- improves limiter behavior
+
+---
+
+## 18.2 Gain Structure
+
+Recommended gain stages:
+
+1. sample gain
+2. track gain
+3. velocity scaling
+4. master gain
+5. limiter
+6. final int16 conversion
+
+All gain processing should use fixed-point integer math.
+
+Avoid floating-point DSP inside the realtime mixer unless strictly required.
+
+Preferred scaling example:
+
+```cpp
+sample = (sample * gain) >> 8;
+```
+
+---
+
+## 18.3 Headroom
+
+The mixer should intentionally reserve headroom.
+
+Avoid:
+
+- full-scale normalization
+- aggressive clipping
+
+Recommended initial master headroom:
+
+-6 dB
+
+This greatly improves perceived sound quality.
+
+---
+
+# 19. Stereo Architecture
+
+## 19.1 Stereo Output
+
+The PCM5102A supports stereo output.
+
+The engine should evolve toward true stereo mixing.
+
+Initial stereo strategy:
+
+- duplicate mono samples to stereo
+- apply pan offsets later
+
+---
+
+## 19.2 Panning
+
+Track-level panning should become active in Phase 4.
+
+Recommended range:
+
+-64 .. +64
+
+Example:
+
+| Track | Pan |
+|---|---|
+| CH | -20 |
+| OH | +20 |
+| Tone | -10 |
+| Metal | +15 |
+
+This immediately improves spatial perception.
+
+---
+
+# 20. Soft Limiter
+
+## 20.1 Purpose
+
+Without limiting:
+
+- multiple voices clip harshly
+- digital distortion becomes unpleasant
+
+A soft limiter is strongly recommended.
+
+---
+
+## 20.2 Initial Limiter Strategy
+
+Initial limiter may remain simple.
+
+Example:
+
+```cpp
+if (mix > limit)
+{
+  mix = limit + ((mix - limit) >> 2);
+}
+```
+
+This is sufficient for:
+
+- smoother overload
+- less harsh clipping
+- warmer perceived output
+
+---
+
+# 21. Sample Playback Improvements
+
+## 21.1 Natural Decay
+
+Samples should continue naturally beyond step boundaries.
+
+The engine should NOT automatically stop playback on next sequencer step.
+
+This is especially important for:
+
+- OH
+- cymbals
+- rides
+- long toms
+
+---
+
+## 21.2 Release Envelopes
+
+Voices should support short release fades.
+
+Recommended minimum:
+
+2-5 ms
+
+Recommended choke release:
+
+5-15 ms
+
+This removes:
+
+- clicks
+- pops
+- abrupt transitions
+
+---
+
+# 22. DSP Expansion Hooks
+
+The architecture should already support future DSP blocks.
+
+Planned DSP modules:
+
+- filter
+- overdrive
 - delay
 - reverb
-- compressor/limiter
-- stereo panning
-- synth voices
-- FM percussion engine
-- live recording
-- performance macros
-- scene morphing
+- compressor
+- saturation
+- EQ
+- sidechain
+
+DSP blocks should remain isolated and modular.
+
+Preferred chain model:
+
+voices
+→ mixer
+→ inserts
+→ sends
+→ limiter
+→ output
 
 ---
 
-## 15.1 DSP Architecture Requirements
+# 23. CPU And Memory Strategy
 
-DSP processing must remain modular.
+## 23.1 Internal RAM Usage
 
-Effects should eventually operate as isolated DSP blocks.
+Use internal RAM for:
 
-The mixer architecture should already anticipate:
-
-- insert effects
-- send effects
-- stereo routing
-- future buses
+- DMA buffers
+- active voices
+- mixer accumulators
+- realtime DSP state
 
 ---
 
-## 15.2 Audio Priority Rules
+## 23.2 PSRAM Usage
 
-Realtime audio stability always has priority over UI rendering.
+Use PSRAM for:
 
-Audio tasks must NEVER:
-
-- allocate memory dynamically
-- wait on filesystem access
-- block on WiFi operations
-- stall on display updates
-
-UI rendering must always yield to audio timing requirements.
+- sample storage
+- large lookup tables
+- future waveform tables
 
 ---
 
-## 15.3 Rendering Philosophy
+## 23.3 Audio Task Rules
 
-The display system should use:
+Audio task MUST NEVER:
 
-- partial redraws
-- dirty rectangles
-- minimal redraw regions
-- sprite-based updates only where useful
+- allocate memory
+- access filesystem
+- access WiFi
+- block on mutexes
+- redraw display
+- perform logging continuously
 
-Fullscreen redraws during playback should be avoided.
+---
 
-Target UI refresh rate:
+# 24. Rendering Philosophy
+
+Audio quality has priority over graphics.
+
+The UI must:
+
+- use partial redraws
+- redraw only dirty regions
+- avoid fullscreen updates during playback
+
+Target UI refresh:
 
 20 FPS maximum
 
-Audio stability is more important than UI smoothness.
+The UI must always yield to audio timing.
 
 ---
 
-## 15.4 Long-Term Instrument Direction
+# 24. Recommended Implementation Order
 
-The final long-term direction is:
+Recommended Phase 4 order:
 
-Elektron-inspired realtime groovebox
-optimized for embedded hardware
-and live performance workflow
+1. fixed voice pool
+2. polyphonic mixer
+3. voice allocation
+4. release fades
+5. choke groups
+6. int32 mixer
+7. soft limiter
+8. stereo output
+9. panning
+10. DSP effects
 
-The groovebox should always prioritize:
+This order gives the largest audible improvements earliest.
+
+---
+
+# 25. Expected Audible Improvements
+
+After implementing Phase 4 correctly, the groovebox should sound:
+
+- fuller
+- wider
+- more natural
+- less digital
+- less harsh
+- more professional
+
+Most audible improvements will come from:
+
+- overlapping voices
+- smoother releases
+- headroom
+- limiter behavior
+- stereo placement
+
+NOT from larger samples.
+
+---
+
+# 26. Long-Term Goal
+
+The final goal is:
+
+Elektron-inspired embedded groovebox
+with stable realtime audio
+and natural musical playback behavior
+
+The system should prioritize:
 
 1. audio stability
 2. deterministic timing
-3. workflow speed
-4. tactile interaction
-5. low cognitive load
+3. musical feel
+4. natural overlap
+5. low latency
 6. live usability
 
-The system should favor:
+The groovebox should behave like a musical instrument,
+NOT like a sample-trigger demo application.
 
-instrument feel
-
-over:
-
-feature quantity
-
-## 16. Related Documentation
+## 27. Related Documentation
 
 - User manual home: docs/README.md
 - Browser manual index: docs/index.html
