@@ -90,6 +90,13 @@ The firmware expects these exact files:
 
 If one or more files are missing, firmware falls back to internal generated waveforms for missing slots.
 
+Accepted WAV format for sample files:
+
+- PCM (audioFormat=1)
+- 44.1 kHz only
+- 16-bit or 24-bit
+- mono or stereo
+
 WAV decode is streamed from SD into the final sample buffer.
 This reduces peak RAM usage compared to full-file staging in RAM during boot.
 
@@ -292,7 +299,7 @@ Popup rendering behavior:
 
 - Lower AUDIO_MASTER_GAIN_PERCENT
 - Verify DAC power and grounding
-- Verify sample WAV files are valid PCM WAV
+- Verify sample WAV files are PCM, 44.1 kHz, 16/24-bit, mono/stereo
 
 ## 12. Rebuild Checklist For A New Developer
 
@@ -308,7 +315,26 @@ Popup rendering behavior:
 
 Pattern files are stored in:
 
-- /patterns/Pnnn.json
+- Local: LittleFS `/patterns/<NAME>.json`
+- SD card: `/patterns/<NAME>.json`
+
+Pattern name format is strict:
+
+- `<LETTER><DIGIT><DIGIT>`
+- Examples: `A01`, `H24`, `I01`, `Z99`
+
+Storage routing by pattern letter is fixed in firmware:
+
+- `A..H` -> Local (LittleFS)
+- `I..Z` -> SD card
+
+System Settings behavior (current):
+
+- `New Pattern`: select letter `A..Z`; create on encoder short or medium press
+- `New Pattern` cancel: `KEY0` short cancels create
+- `Save Pattern`: writes to Local or SD based on active pattern letter (`A..H`/`I..Z`)
+- `Load Pattern` and `Delete Pattern`: show merged Local + SD lists with source labels
+- Save/Delete/Create/Cancel status messages are shown in popup overlays with auto-close (~2s)
 
 Top-level fields:
 

@@ -26,7 +26,9 @@ The end-user manual is in the docs folder.
 - Step parameter locks (pitch/decay)
 - Pattern load/save/new/delete from System Settings
 - Optional Wi-Fi setup from System Settings
-- SD card sample set from `/samples/*.wav`
+- SD card sample set from `/samples/*.wav` (PCM, 44.1 kHz, 16/24-bit, mono/stereo)
+- Pattern naming/storage model: `A01..H99` always Local (LittleFS), `I01..Z99` always SD card
+- Load/Delete pattern lists merge Local + SD sources with source labels
 
 ## Build Environment
 

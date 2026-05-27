@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-26 - 09:27 ***/
+/*** Last Changed: 2026-05-27 - 15:16 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -11,6 +11,7 @@
 #include "progVersion.h"
 
 #include <Arduino.h>
+#include <ctype.h>
 #include <esp_log.h>
 
 //-- Logging tag.
@@ -35,8 +36,14 @@ enum ParameterPage : uint8_t
 //-- Settings menu entries.
 static const int settingsEntryCount = 14;
 static const int settingsFirstActionIndex = 3;
-static const int patternListMaxEntries = static_cast<int>(patternStoreMaxEntries);
+static const int patternListMaxEntries = static_cast<int>(patternStoreMaxEntries * 2U);
 static const int menuVisibleLineCount = 9;
+
+enum class PatternEntrySource : uint8_t
+{
+  Local = 0,
+  Card = 1
+};
 
 //-- Track labels for sequencer page.
 static const char* trackNames[sequencerTrackCount] =
@@ -62,6 +69,8 @@ struct UiState
   bool eraseWifiConfirmOpen;
   bool patternListOpen;
   bool patternDeleteMode;
+  bool newPatternLetterPickerOpen;
+  bool patternStatusOpen;
   bool wifiManagerWaitingForCredentials;
   bool wifiManagerPortalSeenActive;
   bool eraseWifiRestartPending;
@@ -71,13 +80,21 @@ struct UiState
   int menuFirstVisibleIndex;
   int patternListSelection;
   int patternListFirstVisibleIndex;
+  int newPatternLetterSelection;
+  int newPatternStorageSelection;
+  int newPatternFieldSelection;
   int patternCount;
+  bool newPatternFieldValueEdit;
+  uint32_t patternStatusUntilMs;
   uint32_t eraseWifiRestartAtMs;
   uint32_t lastDrawMs;
   bool dirty;
   uint8_t parameterPageIndex;
   String activePatternName;
+  String patternStatusText;
   String patternNames[patternListMaxEntries];
+  PatternEntrySource patternSources[patternListMaxEntries];
+  String chainSlotPatternNames[sequencerPatternCount];
 };
 
 //-- Runtime state.
@@ -85,6 +102,7 @@ static UiState uiState;
 static uint8_t lastSequencerStep = 0xFF;
 static uint8_t lastSequencerCursor = 0xFF;
 static bool lastSequencerPlaying = false;
+static uint8_t lastSequencerActivePatternIndex = 0xFF;
 static uint32_t lastSequencerVoiceCount = 0xFFFFFFFFUL;
 static bool sequencerScreenDrawn = false;
 static String lastSequencerFooterLine;
@@ -94,6 +112,9 @@ static const size_t listRowContentChars = 24;
 
 //-- Maximum footer text length drawn directly on screen.
 static const size_t footerLineChars = 26;
+
+//-- Conservative estimate used to map LittleFS free bytes to writable patterns.
+static const size_t estimatedPatternBytes = 9957;
 
 //-- Edit popup entries mapped 1:1 to ParameterPage values.
 static const uint8_t editPopupPageMap[] =
@@ -120,6 +141,81 @@ static const char* editPopupEntries[editPopupEntryCount] =
 static const uint8_t chainPopupFocusEnable = 0;
 static const uint8_t chainPopupFocusLength = 1;
 static const uint8_t chainPopupFocusPattern = 2;
+
+//-- Select next/previous chain slot while keeping the same pattern letter group.
+static void adjustChainPatternSlotWithLetterConstraint(int delta);
+
+//-- Rotate selected New Pattern letter in full A..Z range.
+static void cycleNewPatternLetter(int delta)
+{
+  if (delta < 0)
+  {
+    uiState.newPatternLetterSelection--;
+
+    if (uiState.newPatternLetterSelection < 0)
+    {
+      uiState.newPatternLetterSelection = 25;
+    }
+  }
+  else if (delta > 0)
+  {
+    uiState.newPatternLetterSelection++;
+
+    if (uiState.newPatternLetterSelection > 25)
+    {
+      uiState.newPatternLetterSelection = 0;
+    }
+  }
+
+} //   cycleNewPatternLetter()
+
+//-- Format free-byte value as B, KB or MB depending on magnitude.
+static String formatBytesAdaptive(size_t bytes)
+{
+  char buffer[32];
+
+  if (bytes > (1024U * 1024U))
+  {
+    snprintf(buffer, sizeof(buffer), "%lu MB", static_cast<unsigned long>(bytes / (1024U * 1024U)));
+  }
+  else if (bytes > 1024U)
+  {
+    snprintf(buffer, sizeof(buffer), "%lu KB", static_cast<unsigned long>(bytes / 1024U));
+  }
+  else
+  {
+    snprintf(buffer, sizeof(buffer), "%lu B", static_cast<unsigned long>(bytes));
+  }
+
+  return String(buffer);
+
+} //   formatBytesAdaptive()
+
+//-- Resolve storage target directly from pattern letter: A-H Local, I-Z Card.
+static PatternStorageTarget storageTargetFromPatternLetter(char patternLetter)
+{
+  char normalizedLetter = static_cast<char>(toupper(static_cast<unsigned char>(patternLetter)));
+
+  if (normalizedLetter >= 'I' && normalizedLetter <= 'Z')
+  {
+    return PatternStorageTarget::Card;
+  }
+
+  return PatternStorageTarget::Local;
+
+} //   storageTargetFromPatternLetter()
+
+//-- Resolve storage target from full pattern name.
+static PatternStorageTarget storageTargetFromPatternName(const String& patternName)
+{
+  if (patternName.length() > 0)
+  {
+    return storageTargetFromPatternLetter(patternName[0]);
+  }
+
+  return PatternStorageTarget::Local;
+
+} //   storageTargetFromPatternName()
 
 //-- Map current parameter page to popup selection index.
 static int popupSelectionFromParameterPage(uint8_t parameterPage)
@@ -328,7 +424,7 @@ static void applyEditPopupValueDelta(int delta)
     }
     else if (uiState.editPopupChainFocus == chainPopupFocusPattern)
     {
-      sequencerAdjustActivePatternIndex(delta > 0 ? 1 : -1);
+      adjustChainPatternSlotWithLetterConstraint(delta > 0 ? 1 : -1);
     }
     else
     {
@@ -409,6 +505,274 @@ static String fitListRowText(const String& text)
 
 } //   fitListRowText()
 
+//-- Return uppercase pattern letter from strict <LETTER><DIGIT><DIGIT> name.
+static char patternLetterFromName(const String& patternName)
+{
+  char patternLetter;
+
+  if (patternName.length() != 3)
+  {
+    return '\0';
+  }
+
+  patternLetter = patternName[0];
+
+  if (patternLetter >= 'a' && patternLetter <= 'z')
+  {
+    patternLetter = static_cast<char>(patternLetter - ('a' - 'A'));
+  }
+
+  if (patternLetter < 'A' || patternLetter > 'Z')
+  {
+    return '\0';
+  }
+
+  if (patternName[1] < '0' || patternName[1] > '9' || patternName[2] < '0' || patternName[2] > '9')
+  {
+    return '\0';
+  }
+
+  return patternLetter;
+
+} //   patternLetterFromName()
+
+//-- Persist the currently active pattern name for one in-memory chain slot.
+static void assignActivePatternNameToCurrentSlot()
+{
+  SequencerView view;
+
+  sequencerGetView(view);
+
+  if (view.activePatternIndex < sequencerPatternCount)
+  {
+    uiState.chainSlotPatternNames[view.activePatternIndex] = uiState.activePatternName;
+  }
+
+} //   assignActivePatternNameToCurrentSlot()
+
+//-- Apply slot name back to active pattern label when known.
+static void syncActivePatternNameFromSlot(uint8_t slotIndex)
+{
+  if (slotIndex >= sequencerPatternCount)
+  {
+    return;
+  }
+
+  if (!uiState.chainSlotPatternNames[slotIndex].isEmpty())
+  {
+    uiState.activePatternName = uiState.chainSlotPatternNames[slotIndex];
+  }
+
+} //   syncActivePatternNameFromSlot()
+
+//-- Select next/previous chain slot while keeping the same pattern letter group.
+static void adjustChainPatternSlotWithLetterConstraint(int delta)
+{
+  SequencerView view;
+  int chainLimit;
+  int direction;
+  int candidateSlot;
+  char activeLetter;
+
+  if (delta == 0)
+  {
+    return;
+  }
+
+  sequencerGetView(view);
+
+  chainLimit = static_cast<int>(view.chainLength);
+
+  if (chainLimit < 1)
+  {
+    chainLimit = 1;
+  }
+
+  if (chainLimit == 1)
+  {
+    sequencerSetActivePatternIndex(0);
+    return;
+  }
+
+  activeLetter = patternLetterFromName(uiState.activePatternName);
+
+  if (activeLetter == '\0')
+  {
+    sequencerAdjustActivePatternIndex(delta > 0 ? 1 : -1);
+    return;
+  }
+
+  direction = (delta > 0) ? 1 : -1;
+  candidateSlot = static_cast<int>(view.activePatternIndex);
+
+  for (int attempt = 0; attempt < chainLimit; attempt++)
+  {
+    char candidateLetter;
+
+    candidateSlot += direction;
+
+    if (candidateSlot < 0)
+    {
+      candidateSlot = chainLimit - 1;
+    }
+    else if (candidateSlot >= chainLimit)
+    {
+      candidateSlot = 0;
+    }
+
+    candidateLetter = patternLetterFromName(uiState.chainSlotPatternNames[candidateSlot]);
+
+    if (candidateLetter == activeLetter)
+    {
+      sequencerSetActivePatternIndex(static_cast<uint8_t>(candidateSlot));
+      syncActivePatternNameFromSlot(static_cast<uint8_t>(candidateSlot));
+      return;
+    }
+  }
+
+} //   adjustChainPatternSlotWithLetterConstraint()
+
+//-- Draw letter picker popup overlay for New Pattern action.
+static void drawNewPatternLetterPickerOverlay()
+{
+  char selectedLetter = static_cast<char>('A' + uiState.newPatternLetterSelection);
+  String nextPatternName = "(No slots)";
+  String options[4];
+  char popupTitle[32];
+  char nameLine[32];
+  char freeLine[32];
+  char bytesLine[32];
+  String freeText;
+  int byteBasedSlots = -1;
+  int nameBasedSlots = -1;
+  int freeSlots = -1;
+  size_t totalBytes = 0;
+  size_t usedBytes = 0;
+  size_t freeBytes = 0;
+  bool usageAvailable = false;
+  PatternStorageTarget storageTarget = storageTargetFromPatternLetter(selectedLetter);
+  const char* storageLabel = (storageTarget == PatternStorageTarget::Card) ? "Card" : "Local";
+
+  if (storageTarget == PatternStorageTarget::Card)
+  {
+    settingsStoreFindNextPatternNameForLetterOnCard(selectedLetter, nextPatternName);
+    settingsStoreCountAvailablePatternSlotsForLetterOnCard(selectedLetter, nameBasedSlots);
+    usageAvailable = settingsStoreGetSdUsage(totalBytes, usedBytes, freeBytes);
+  }
+  else
+  {
+    settingsStoreFindNextPatternNameForLetter(selectedLetter, nextPatternName);
+    settingsStoreCountAvailablePatternSlotsForLetter(selectedLetter, nameBasedSlots);
+    usageAvailable = settingsStoreGetLittleFsUsage(totalBytes, usedBytes, freeBytes);
+  }
+
+  if (nextPatternName != "(No slots)")
+  {
+    snprintf(popupTitle, sizeof(popupTitle), "New Pattern %s", nextPatternName.c_str());
+  }
+  else
+  {
+    snprintf(popupTitle, sizeof(popupTitle), "New Pattern (full)");
+  }
+
+  snprintf(nameLine, sizeof(nameLine), "Pattern Name >%c<", selectedLetter);
+
+  if (usageAvailable)
+  {
+    byteBasedSlots = static_cast<int>(freeBytes / estimatedPatternBytes);
+    freeText = formatBytesAdaptive(freeBytes);
+    snprintf(bytesLine, sizeof(bytesLine), "%s free: %s", storageLabel, freeText.c_str());
+  }
+  else
+  {
+    snprintf(bytesLine, sizeof(bytesLine), "%s free: ?", storageLabel);
+  }
+
+  if (nameBasedSlots >= 0 && byteBasedSlots >= 0)
+  {
+    freeSlots = (nameBasedSlots < byteBasedSlots) ? nameBasedSlots : byteBasedSlots;
+  }
+  else if (nameBasedSlots >= 0)
+  {
+    freeSlots = nameBasedSlots;
+  }
+  else if (byteBasedSlots >= 0)
+  {
+    freeSlots = byteBasedSlots;
+  }
+
+  if (freeSlots >= 0)
+  {
+    snprintf(freeLine, sizeof(freeLine), "Free slots: %d", freeSlots);
+  }
+  else
+  {
+    snprintf(freeLine, sizeof(freeLine), "Free slots: ?");
+  }
+
+  options[0] = nameLine;
+  options[1] = freeLine;
+  options[2] = bytesLine;
+  options[3] = "Medium=create";
+
+  display.drawSelectionOverlay(popupTitle, options, 4, 0);
+
+} //   drawNewPatternLetterPickerOverlay()
+
+//-- Redraw only New Pattern popup overlay for smooth encoder interaction.
+static void drawNewPatternPopupOverlayOnly()
+{
+  drawNewPatternLetterPickerOverlay();
+
+} //   drawNewPatternPopupOverlayOnly()
+
+//-- Draw status popup overlay with up to 3 wrapped lines split by '\n'.
+static void drawPatternStatusPopupOverlay()
+{
+  String popupLines[3];
+  int lineCount = 0;
+  int cursorStart = 0;
+
+  while (lineCount < 3)
+  {
+    int newLineIndex = uiState.patternStatusText.indexOf('\n', cursorStart);
+
+    if (newLineIndex < 0)
+    {
+      String tail = uiState.patternStatusText.substring(cursorStart);
+
+      if (tail.length() > 0)
+      {
+        popupLines[lineCount++] = fitListRowText(tail);
+      }
+
+      break;
+    }
+
+    String segment = uiState.patternStatusText.substring(cursorStart, newLineIndex);
+    popupLines[lineCount++] = fitListRowText(segment);
+    cursorStart = newLineIndex + 1;
+  }
+
+  if (lineCount == 0)
+  {
+    popupLines[0] = "Done";
+    lineCount = 1;
+  }
+
+  display.drawSelectionOverlay("Status", popupLines, static_cast<size_t>(lineCount), 0);
+
+} //   drawPatternStatusPopupOverlay()
+
+//-- Show temporary status and return to settings menu after timeout.
+static void showPatternStatus(const String& statusText, uint32_t durationMs)
+{
+  uiState.patternStatusText = statusText;
+  uiState.patternStatusOpen = true;
+  uiState.patternStatusUntilMs = millis() + durationMs;
+
+} //   showPatternStatus()
+
 //-- Persist currently active editable system settings.
 static void saveRuntimeSettingsFromCurrentState()
 {
@@ -417,6 +781,7 @@ static void saveRuntimeSettingsFromCurrentState()
   settings.displayRotation = static_cast<uint8_t>(displayGetRotation());
   settings.themeColorIndex = displayGetThemeColorIndex();
   settings.encoderDirectionReversed = input.getEncoderDirectionReversed();
+  settings.activePatternName = uiState.activePatternName;
 
   if (!settingsStoreSaveRuntimeSettings(settings))
   {
@@ -511,21 +876,60 @@ static void updateListFirstVisibleIndex(int selectedIndex, int itemCount, int& f
 //-- Refresh cached pattern names from LittleFS.
 static void refreshPatternList()
 {
-  size_t foundCount = 0;
+  size_t localCount = 0;
+  size_t cardCount = 0;
+  String localPatterns[patternStoreMaxEntries];
+  String cardPatterns[patternStoreMaxEntries];
 
   uiState.patternCount = 0;
 
-  if (!settingsStoreListPatterns(uiState.patternNames, patternListMaxEntries, foundCount))
+  if (settingsStoreListPatterns(localPatterns, patternStoreMaxEntries, localCount))
   {
-    return;
+    for (size_t index = 0; index < localCount && uiState.patternCount < patternListMaxEntries; index++)
+    {
+      uiState.patternNames[uiState.patternCount] = localPatterns[index];
+      uiState.patternSources[uiState.patternCount] = PatternEntrySource::Local;
+      uiState.patternCount++;
+    }
   }
 
-  if (foundCount > static_cast<size_t>(patternListMaxEntries))
+  if (settingsStoreListPatternsOnCard(cardPatterns, patternStoreMaxEntries, cardCount))
   {
-    foundCount = static_cast<size_t>(patternListMaxEntries);
+    for (size_t index = 0; index < cardCount && uiState.patternCount < patternListMaxEntries; index++)
+    {
+      uiState.patternNames[uiState.patternCount] = cardPatterns[index];
+      uiState.patternSources[uiState.patternCount] = PatternEntrySource::Card;
+      uiState.patternCount++;
+    }
   }
 
-  uiState.patternCount = static_cast<int>(foundCount);
+  for (int leftIndex = 0; leftIndex < uiState.patternCount; leftIndex++)
+  {
+    for (int rightIndex = leftIndex + 1; rightIndex < uiState.patternCount; rightIndex++)
+    {
+      bool shouldSwap = false;
+
+      if (uiState.patternNames[rightIndex].compareTo(uiState.patternNames[leftIndex]) < 0)
+      {
+        shouldSwap = true;
+      }
+      else if (uiState.patternNames[rightIndex] == uiState.patternNames[leftIndex] && uiState.patternSources[rightIndex] < uiState.patternSources[leftIndex])
+      {
+        shouldSwap = true;
+      }
+
+      if (shouldSwap)
+      {
+        String temporaryName = uiState.patternNames[leftIndex];
+        PatternEntrySource temporarySource = uiState.patternSources[leftIndex];
+
+        uiState.patternNames[leftIndex] = uiState.patternNames[rightIndex];
+        uiState.patternSources[leftIndex] = uiState.patternSources[rightIndex];
+        uiState.patternNames[rightIndex] = temporaryName;
+        uiState.patternSources[rightIndex] = temporarySource;
+      }
+    }
+  }
 
   if (uiState.patternListSelection >= uiState.patternCount)
   {
@@ -535,10 +939,11 @@ static void refreshPatternList()
 } //   refreshPatternList()
 
 //-- Save current sequencer state under active pattern name.
-static bool saveActivePattern()
+static bool saveActivePattern(PatternStorageTarget* outStorageTarget = nullptr)
 {
   PatternData patternData;
   String targetName = uiState.activePatternName;
+  PatternStorageTarget storageTarget;
 
   if (targetName.isEmpty())
   {
@@ -548,14 +953,30 @@ static bool saveActivePattern()
     }
   }
 
+  storageTarget = storageTargetFromPatternName(targetName);
+
+  if (outStorageTarget != nullptr)
+  {
+    *outStorageTarget = storageTarget;
+  }
+
   sequencerExportPattern(patternData);
 
-  if (!settingsStoreSavePattern(targetName, patternData))
+  if (storageTarget == PatternStorageTarget::Card)
+  {
+    if (!settingsStoreSavePatternToCard(targetName, patternData))
+    {
+      return false;
+    }
+  }
+  else if (!settingsStoreSavePattern(targetName, patternData))
   {
     return false;
   }
 
   uiState.activePatternName = targetName;
+  assignActivePatternNameToCurrentSlot();
+  saveRuntimeSettingsFromCurrentState();
   refreshPatternList();
 
   return true;
@@ -563,34 +984,53 @@ static bool saveActivePattern()
 } //   saveActivePattern()
 
 //-- Create a new pattern copy with automatic name.
-static bool createNewPattern()
+static bool createNewPatternWithLetter(char patternLetter)
 {
   String targetName;
   PatternData patternData;
+  char normalizedLetter = static_cast<char>(toupper(static_cast<unsigned char>(patternLetter)));
+  PatternStorageTarget storageTarget = storageTargetFromPatternLetter(normalizedLetter);
 
-  if (!settingsStoreFindNextPatternName(targetName))
+  if (storageTarget == PatternStorageTarget::Card)
+  {
+    if (!settingsStoreFindNextPatternNameForLetterOnCard(normalizedLetter, targetName))
+    {
+      return false;
+    }
+  }
+  else if (!settingsStoreFindNextPatternNameForLetter(normalizedLetter, targetName))
   {
     return false;
   }
 
   sequencerExportPattern(patternData);
 
-  if (!settingsStoreSavePattern(targetName, patternData))
+  if (storageTarget == PatternStorageTarget::Card)
+  {
+    if (!settingsStoreSavePatternToCard(targetName, patternData))
+    {
+      return false;
+    }
+  }
+  else if (!settingsStoreSavePattern(targetName, patternData))
   {
     return false;
   }
 
   uiState.activePatternName = targetName;
+  assignActivePatternNameToCurrentSlot();
+  saveRuntimeSettingsFromCurrentState();
   refreshPatternList();
 
   return true;
 
-} //   createNewPattern()
+} //   createNewPatternWithLetter()
 
 //-- Load one pattern from current list selection.
 static bool loadSelectedPattern()
 {
   PatternData patternData;
+  PatternEntrySource selectedSource;
 
   if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 || uiState.patternListSelection >= uiState.patternCount)
   {
@@ -598,30 +1038,60 @@ static bool loadSelectedPattern()
   }
 
   String selectedName = uiState.patternNames[uiState.patternListSelection];
+  selectedSource = uiState.patternSources[uiState.patternListSelection];
 
-  if (!settingsStoreLoadPattern(selectedName, patternData))
+  if (selectedSource == PatternEntrySource::Card)
+  {
+    if (!settingsStoreLoadPatternFromCard(selectedName, patternData))
+    {
+      return false;
+    }
+  }
+  else if (!settingsStoreLoadPattern(selectedName, patternData))
   {
     return false;
   }
 
   sequencerImportPattern(patternData);
   uiState.activePatternName = selectedName;
+  assignActivePatternNameToCurrentSlot();
+  saveRuntimeSettingsFromCurrentState();
 
   return true;
 
 } //   loadSelectedPattern()
 
 //-- Delete one pattern from current list selection.
-static bool deleteSelectedPattern()
+static bool deleteSelectedPattern(String* outDeletedName = nullptr, PatternEntrySource* outDeletedSource = nullptr)
 {
+  PatternEntrySource selectedSource;
+
   if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 || uiState.patternListSelection >= uiState.patternCount)
   {
     return false;
   }
 
   String selectedName = uiState.patternNames[uiState.patternListSelection];
+  selectedSource = uiState.patternSources[uiState.patternListSelection];
 
-  if (!settingsStoreDeletePattern(selectedName))
+  if (outDeletedName != nullptr)
+  {
+    *outDeletedName = selectedName;
+  }
+
+  if (outDeletedSource != nullptr)
+  {
+    *outDeletedSource = selectedSource;
+  }
+
+  if (selectedSource == PatternEntrySource::Card)
+  {
+    if (!settingsStoreDeletePatternFromCard(selectedName))
+    {
+      return false;
+    }
+  }
+  else if (!settingsStoreDeletePattern(selectedName))
   {
     return false;
   }
@@ -629,6 +1099,7 @@ static bool deleteSelectedPattern()
   if (uiState.activePatternName == selectedName)
   {
     uiState.activePatternName = "";
+    saveRuntimeSettingsFromCurrentState();
   }
 
   refreshPatternList();
@@ -764,6 +1235,7 @@ static void drawSystemSettingsScreen()
   {
     String items[patternListMaxEntries];
     int itemCount = uiState.patternCount;
+    bool activeMarked = false;
     const char* title = uiState.patternDeleteMode ? "Delete Pattern" : "Load Pattern";
 
     if (itemCount <= 0)
@@ -776,11 +1248,16 @@ static void drawSystemSettingsScreen()
     {
       for (int itemIndex = 0; itemIndex < itemCount; itemIndex++)
       {
-        String lineText = uiState.patternNames[itemIndex];
+        String patternName = uiState.patternNames[itemIndex];
+        String lineText = patternName;
+        const char* sourceLabel = (uiState.patternSources[itemIndex] == PatternEntrySource::Card) ? " (On SDcard)" : " (Local)";
 
-        if (!uiState.activePatternName.isEmpty() && lineText == uiState.activePatternName)
+        lineText += sourceLabel;
+
+        if (!activeMarked && !uiState.activePatternName.isEmpty() && patternName == uiState.activePatternName)
         {
           lineText += " *";
+          activeMarked = true;
         }
 
         items[itemIndex] = fitListRowText(lineText);
@@ -790,6 +1267,12 @@ static void drawSystemSettingsScreen()
     }
 
     display.drawListScreen(title, items, static_cast<size_t>(itemCount), uiState.patternListSelection, uiState.patternListFirstVisibleIndex);
+
+    if (uiState.patternStatusOpen)
+    {
+      drawPatternStatusPopupOverlay();
+    }
+
     return;
   }
 
@@ -832,6 +1315,16 @@ static void drawSystemSettingsScreen()
 
   updateListFirstVisibleIndex(uiState.menuSelection, settingsEntryCount, uiState.menuFirstVisibleIndex);
   display.drawListScreenWithDisabledItems("System Settings", items, settingsEntryCount, uiState.menuSelection, uiState.menuFirstVisibleIndex, disabledItems);
+
+  if (uiState.newPatternLetterPickerOpen)
+  {
+    drawNewPatternLetterPickerOverlay();
+  }
+
+  if (uiState.patternStatusOpen)
+  {
+    drawPatternStatusPopupOverlay();
+  }
 
 } //   drawSystemSettingsScreen()
 
@@ -944,11 +1437,32 @@ static void executeMenuAction()
   }
   else if (uiState.menuSelection == 4)
   {
-    saveActivePattern();
+    PatternStorageTarget savedTarget = PatternStorageTarget::Local;
+
+    if (saveActivePattern(&savedTarget))
+    {
+      String targetLabel = (savedTarget == PatternStorageTarget::Card) ? "SD card" : "Local storage";
+      showPatternStatus(String("Save OK\n") + uiState.activePatternName + " -> " + targetLabel, 2000);
+    }
+    else
+    {
+      showPatternStatus("Save failed", 2000);
+    }
   }
   else if (uiState.menuSelection == 5)
   {
-    createNewPattern();
+    char activeLetter = patternLetterFromName(uiState.activePatternName);
+
+    if (activeLetter < 'A' || activeLetter > 'Z')
+    {
+      activeLetter = 'A';
+    }
+
+    uiState.newPatternLetterPickerOpen = true;
+    uiState.newPatternLetterSelection = static_cast<int>(activeLetter - 'A');
+    uiState.newPatternStorageSelection = static_cast<int>(PatternStorageTarget::Local);
+    uiState.newPatternFieldSelection = 0;
+    uiState.newPatternFieldValueEdit = true;
   }
   else if (uiState.menuSelection == 6)
   {
@@ -1000,6 +1514,10 @@ static void executeMenuAction()
 //-- Initialize splash and UI state.
 void uiManagerInit()
 {
+  RuntimeSettings runtimeSettings;
+  PatternData startupPatternData;
+  bool startupPatternLoaded = false;
+
   uiState.menuOpen = false;
   uiState.tempoEditOpen = false;
   uiState.editPopupOpen = false;
@@ -1011,6 +1529,8 @@ void uiManagerInit()
   uiState.eraseWifiConfirmOpen = false;
   uiState.patternListOpen = false;
   uiState.patternDeleteMode = false;
+  uiState.newPatternLetterPickerOpen = false;
+  uiState.patternStatusOpen = false;
   uiState.wifiManagerWaitingForCredentials = false;
   uiState.wifiManagerPortalSeenActive = false;
   uiState.eraseWifiRestartPending = false;
@@ -1019,25 +1539,53 @@ void uiManagerInit()
   uiState.patternListSelection = 0;
   uiState.menuFirstVisibleIndex = 0;
   uiState.patternListFirstVisibleIndex = 0;
+  uiState.newPatternLetterSelection = 0;
+  uiState.newPatternStorageSelection = static_cast<int>(PatternStorageTarget::Local);
+  uiState.newPatternFieldSelection = 0;
+  uiState.newPatternFieldValueEdit = false;
   uiState.patternCount = 0;
+  uiState.patternStatusUntilMs = 0;
   uiState.eraseWifiRestartAtMs = 0;
   uiState.menuSelection = settingsEntryCount - 1;
   uiState.lastDrawMs = 0;
   uiState.dirty = true;
   uiState.parameterPageIndex = parameterPageTrig;
   uiState.activePatternName = "";
+  uiState.patternStatusText = "";
   lastSequencerStep = 0xFF;
   lastSequencerCursor = 0xFF;
   lastSequencerPlaying = false;
+  lastSequencerActivePatternIndex = 0xFF;
   lastSequencerVoiceCount = 0xFFFFFFFFUL;
   sequencerScreenDrawn = false;
   lastSequencerFooterLine = "";
 
+  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
+  {
+    uiState.chainSlotPatternNames[slotIndex] = "";
+  }
+
+  settingsStoreLoadRuntimeSettings(runtimeSettings);
+
+  if (!runtimeSettings.activePatternName.isEmpty() && settingsStoreLoadPattern(runtimeSettings.activePatternName, startupPatternData))
+  {
+    sequencerImportPattern(startupPatternData);
+    uiState.activePatternName = runtimeSettings.activePatternName;
+    uiState.chainSlotPatternNames[0] = uiState.activePatternName;
+    startupPatternLoaded = true;
+  }
+
   refreshPatternList();
 
-  if (uiState.patternCount > 0)
+  if (!startupPatternLoaded && uiState.patternCount > 0)
   {
-    uiState.activePatternName = uiState.patternNames[0];
+    if (settingsStoreLoadPattern(uiState.patternNames[0], startupPatternData))
+    {
+      sequencerImportPattern(startupPatternData);
+      uiState.activePatternName = uiState.patternNames[0];
+      uiState.chainSlotPatternNames[0] = uiState.activePatternName;
+      saveRuntimeSettingsFromCurrentState();
+    }
   }
 
   display.drawMessage("ESP32 Groovebox", "Phase 1 + 2 Boot");
@@ -1074,10 +1622,23 @@ void uiManagerUpdate()
     }
   }
 
+  if (uiState.patternStatusOpen && nowMs >= uiState.patternStatusUntilMs)
+  {
+    uiState.patternStatusOpen = false;
+    uiState.patternStatusText = "";
+    uiState.dirty = true;
+  }
+
   if (!uiState.menuOpen)
   {
     sequencerGetView(view);
     audioEngineGetStats(audioStats);
+
+    if (view.activePatternIndex != lastSequencerActivePatternIndex)
+    {
+      syncActivePatternNameFromSlot(view.activePatternIndex);
+      lastSequencerActivePatternIndex = view.activePatternIndex;
+    }
 
     footerStateChanged = (view.currentStep != lastSequencerStep) ||
                          (view.cursorStep != lastSequencerCursor) ||
@@ -1125,6 +1686,14 @@ void uiManagerUpdate()
     return;
   }
 
+  if (uiState.menuOpen && uiState.newPatternLetterPickerOpen && !uiState.patternStatusOpen)
+  {
+    uiState.lastDrawMs = nowMs;
+    drawNewPatternPopupOverlayOnly();
+    uiState.dirty = false;
+    return;
+  }
+
   uiState.lastDrawMs = nowMs;
 
   if (uiState.menuOpen)
@@ -1142,6 +1711,7 @@ void uiManagerUpdate()
     lastSequencerPlaying = view.playing;
     lastSequencerStep = view.currentStep;
     lastSequencerCursor = view.cursorStep;
+    lastSequencerActivePatternIndex = view.activePatternIndex;
     lastSequencerVoiceCount = audioStats.activeVoiceCount;
   }
 
@@ -1200,6 +1770,9 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     uiState.eraseWifiConfirmOpen = false;
     uiState.patternListOpen = false;
     uiState.patternDeleteMode = false;
+    uiState.newPatternLetterPickerOpen = false;
+    uiState.patternStatusOpen = false;
+    uiState.patternStatusText = "";
 
     if (uiState.menuOpen)
     {
@@ -1222,9 +1795,19 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
 
   if (uiState.menuOpen)
   {
+    if (uiState.patternStatusOpen)
+    {
+      uiState.dirty = true;
+      return;
+    }
+
     if (encoderEvent == ENCODER_EVENT_LEFT)
     {
-      if (uiState.patternListOpen)
+      if (uiState.newPatternLetterPickerOpen)
+      {
+        cycleNewPatternLetter(-1);
+      }
+      else if (uiState.patternListOpen)
       {
         if (uiState.patternCount > 0)
         {
@@ -1255,7 +1838,11 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     }
     else if (encoderEvent == ENCODER_EVENT_RIGHT)
     {
-      if (uiState.patternListOpen)
+      if (uiState.newPatternLetterPickerOpen)
+      {
+        cycleNewPatternLetter(1);
+      }
+      else if (uiState.patternListOpen)
       {
         if (uiState.patternCount > 0)
         {
@@ -1286,7 +1873,28 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     }
     else if (encoderEvent == ENCODER_EVENT_SHORT_PRESS || encoderEvent == ENCODER_EVENT_MEDIUM_PRESS)
     {
-      if (uiState.patternListOpen)
+      if (uiState.newPatternLetterPickerOpen)
+      {
+        char selectedLetter = static_cast<char>('A' + uiState.newPatternLetterSelection);
+        PatternStorageTarget storageTarget = storageTargetFromPatternLetter(selectedLetter);
+
+        if (createNewPatternWithLetter(selectedLetter))
+        {
+          String destinationLabel = (storageTarget == PatternStorageTarget::Card) ? " on Card" : " local";
+
+          showPatternStatus(String("Created ") + uiState.activePatternName + destinationLabel, 2000);
+          uiState.newPatternLetterPickerOpen = false;
+          uiState.newPatternFieldValueEdit = false;
+          uiState.patternListOpen = false;
+          uiState.patternDeleteMode = false;
+          uiState.patternListFirstVisibleIndex = 0;
+        }
+        else
+        {
+          showPatternStatus("Create failed", 2000);
+        }
+      }
+      else if (uiState.patternListOpen)
       {
         if (uiState.patternCount > 0)
         {
@@ -1299,9 +1907,26 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
               uiState.patternListFirstVisibleIndex = 0;
             }
           }
-          else if (encoderEvent == ENCODER_EVENT_MEDIUM_PRESS)
+          else if (encoderEvent == ENCODER_EVENT_SHORT_PRESS || encoderEvent == ENCODER_EVENT_MEDIUM_PRESS)
           {
-            deleteSelectedPattern();
+            String deletedName;
+            PatternEntrySource deletedSource = PatternEntrySource::Local;
+
+            if (deleteSelectedPattern(&deletedName, &deletedSource))
+            {
+              if (deletedSource == PatternEntrySource::Card)
+              {
+                showPatternStatus(deletedName + " deleted from\nSD card", 2000);
+              }
+              else
+              {
+                showPatternStatus(deletedName + " deleted from\nLocal storage", 2000);
+              }
+            }
+            else
+            {
+              showPatternStatus("Delete failed", 2000);
+            }
 
             if (uiState.patternCount == 0)
             {
@@ -1588,7 +2213,12 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
   {
     if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
     {
-      if (uiState.patternListOpen)
+      if (uiState.newPatternLetterPickerOpen)
+      {
+        uiState.newPatternLetterPickerOpen = false;
+        showPatternStatus("Creation\nCancelled", 2000);
+      }
+      else if (uiState.patternListOpen)
       {
         uiState.patternListOpen = false;
         uiState.patternDeleteMode = false;
