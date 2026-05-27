@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-27 - 15:16 ***/
+/*** Last Changed: 2026-05-27 - 17:20 ***/
 #include "settingsStore.h"
 #include "appConfig.h"
 
@@ -48,6 +48,15 @@ static void buildPatternJsonDocument(const String& normalizedName, const Pattern
 
 //-- Parse one pattern JSON document into runtime payload.
 static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternData& patternData, const String& sourcePath);
+
+//-- Normalize strict pattern token to uppercase <LETTER><DIGIT><DIGIT>.
+static String normalizeStrictPatternToken(const String& patternName);
+
+//-- Read chain settings from JSON document with backward-compatible keys.
+static void readChainSettingsFromJson(const JsonDocument& jsonDocument, bool& outEnabled, uint8_t& outLength, String& outTarget);
+
+//-- Write chain settings into JSON document while preserving unrelated fields.
+static void writeChainSettingsToJson(JsonDocument& jsonDocument, bool enabled, uint8_t length, const String& target);
 
 //-- Build safe pattern base name.
 static String normalizePatternName(const String& patternName)
@@ -516,6 +525,76 @@ static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternDa
 
 } //   parsePatternJsonDocument()
 
+//-- Normalize strict pattern token to uppercase <LETTER><DIGIT><DIGIT>.
+static String normalizeStrictPatternToken(const String& patternName)
+{
+  char normalized[4];
+
+  if (!isPatternNameLetterNumberFormat(patternName))
+  {
+    return "";
+  }
+
+  normalized[0] = normalizePatternLetter(patternName[0]);
+  normalized[1] = patternName[1];
+  normalized[2] = patternName[2];
+  normalized[3] = '\0';
+
+  return String(normalized);
+
+} //   normalizeStrictPatternToken()
+
+//-- Read chain settings from JSON document with backward-compatible keys.
+static void readChainSettingsFromJson(const JsonDocument& jsonDocument, bool& outEnabled, uint8_t& outLength, String& outTarget)
+{
+  JsonObjectConst chainObject = jsonDocument["chain"].as<JsonObjectConst>();
+  bool chainEnabled = false;
+  uint8_t chainLength = 1;
+  String chainTarget = "";
+
+  if (!chainObject.isNull())
+  {
+    chainEnabled = static_cast<bool>(chainObject["enabled"] | false);
+    chainLength = static_cast<uint8_t>(chainObject["length"] | 1);
+    chainTarget = String(static_cast<const char*>(chainObject["target"] | ""));
+  }
+  else
+  {
+    chainEnabled = static_cast<bool>(jsonDocument["chainEnabled"] | false);
+    chainLength = static_cast<uint8_t>(jsonDocument["chainLength"] | 1);
+    chainTarget = String(static_cast<const char*>(jsonDocument["chainTarget"] | ""));
+  }
+
+  if (chainLength < 1)
+  {
+    chainLength = 1;
+  }
+  else if (chainLength > sequencerPatternCount)
+  {
+    chainLength = sequencerPatternCount;
+  }
+
+  outEnabled = chainEnabled;
+  outLength = chainLength;
+  outTarget = normalizeStrictPatternToken(chainTarget);
+
+} //   readChainSettingsFromJson()
+
+//-- Write chain settings into JSON document while preserving unrelated fields.
+static void writeChainSettingsToJson(JsonDocument& jsonDocument, bool enabled, uint8_t length, const String& target)
+{
+  JsonObject chainObject = jsonDocument["chain"].to<JsonObject>();
+
+  jsonDocument["chainEnabled"] = enabled;
+  jsonDocument["chainLength"] = length;
+  jsonDocument["chainTarget"] = target;
+
+  chainObject["enabled"] = enabled;
+  chainObject["length"] = length;
+  chainObject["target"] = target;
+
+} //   writeChainSettingsToJson()
+
 //-- Return LittleFS usage values in bytes.
 bool settingsStoreGetLittleFsUsage(size_t& outTotalBytes, size_t& outUsedBytes, size_t& outFreeBytes)
 {
@@ -716,6 +795,63 @@ bool settingsStoreListPatterns(String patternNames[], size_t maxCount, size_t& o
   return true;
 
 } //   settingsStoreListPatterns()
+
+//-- List available pattern names for one series letter (A..Z), sorted numerically.
+bool settingsStoreListPatternsForSeries(char patternLetter, String patternNames[], size_t maxCount, size_t& outCount)
+{
+  String listedPatternNames[patternStoreMaxEntries];
+  size_t listedCount = 0;
+  char normalizedLetter;
+
+  outCount = 0;
+
+  if (patternNames == nullptr || maxCount == 0)
+  {
+    return false;
+  }
+
+  normalizedLetter = normalizePatternLetter(patternLetter);
+
+  if (normalizedLetter < 'A' || normalizedLetter > 'Z')
+  {
+    return false;
+  }
+
+  if (!settingsStoreListPatterns(listedPatternNames, patternStoreMaxEntries, listedCount))
+  {
+    return false;
+  }
+
+  for (size_t patternIndex = 0; patternIndex < listedCount && outCount < maxCount; patternIndex++)
+  {
+    const String& patternName = listedPatternNames[patternIndex];
+
+    if (patternName.length() == 3 && normalizePatternLetter(patternName[0]) == normalizedLetter)
+    {
+      patternNames[outCount] = normalizeStrictPatternToken(patternName);
+      outCount++;
+    }
+  }
+
+  for (size_t leftIndex = 0; leftIndex < outCount; leftIndex++)
+  {
+    for (size_t rightIndex = leftIndex + 1; rightIndex < outCount; rightIndex++)
+    {
+      uint8_t leftNumber = static_cast<uint8_t>(((patternNames[leftIndex][1] - '0') * 10) + (patternNames[leftIndex][2] - '0'));
+      uint8_t rightNumber = static_cast<uint8_t>(((patternNames[rightIndex][1] - '0') * 10) + (patternNames[rightIndex][2] - '0'));
+
+      if (rightNumber < leftNumber)
+      {
+        String temporaryName = patternNames[leftIndex];
+        patternNames[leftIndex] = patternNames[rightIndex];
+        patternNames[rightIndex] = temporaryName;
+      }
+    }
+  }
+
+  return true;
+
+} //   settingsStoreListPatternsForSeries()
 
 //-- Find next available default pattern name.
 bool settingsStoreFindNextPatternName(String& outName)
@@ -1285,6 +1421,184 @@ bool settingsStoreLoadPattern(const String& patternName, PatternData& patternDat
   return parsePatternJsonDocument(jsonDocument, patternData, patternPath);
 
 } //   settingsStoreLoadPattern()
+
+//-- Load chain settings from one existing pattern JSON file.
+bool settingsStoreLoadPatternChainSettings(const String& patternName, bool& outEnabled, uint8_t& outLength, String& outTarget)
+{
+  String normalizedName;
+  String patternPath;
+  JsonDocument jsonDocument;
+
+  outEnabled = false;
+  outLength = 1;
+  outTarget = "";
+
+  normalizedName = normalizeStrictPatternToken(patternName);
+
+  if (normalizedName.isEmpty())
+  {
+    return false;
+  }
+
+  patternPath = buildPatternPath(normalizedName);
+
+  if (!ensurePatternDirectory() || !patternPathExists(patternPath))
+  {
+    return false;
+  }
+
+  File file = LittleFS.open(patternPath, "r");
+
+  if (!file)
+  {
+    return false;
+  }
+
+  DeserializationError error = deserializeJson(jsonDocument, file);
+  file.close();
+
+  if (error)
+  {
+    return false;
+  }
+
+  readChainSettingsFromJson(jsonDocument, outEnabled, outLength, outTarget);
+  return true;
+
+} //   settingsStoreLoadPatternChainSettings()
+
+//-- Load chain settings from one existing SD card pattern JSON file.
+bool settingsStoreLoadPatternChainSettingsFromCard(const String& patternName, bool& outEnabled, uint8_t& outLength, String& outTarget)
+{
+  String normalizedName;
+  String patternPath;
+  JsonDocument jsonDocument;
+
+  outEnabled = false;
+  outLength = 1;
+  outTarget = "";
+
+  normalizedName = normalizeStrictPatternToken(patternName);
+
+  if (normalizedName.isEmpty())
+  {
+    return false;
+  }
+
+  patternPath = String(sdPatternDirectoryPath) + "/" + normalizedName + patternFileExtension;
+
+  if (SD.cardType() == CARD_NONE || !sdPatternPathExists(patternPath))
+  {
+    return false;
+  }
+
+  File file = SD.open(patternPath, FILE_READ);
+
+  if (!file)
+  {
+    return false;
+  }
+
+  DeserializationError error = deserializeJson(jsonDocument, file);
+  file.close();
+
+  if (error)
+  {
+    return false;
+  }
+
+  readChainSettingsFromJson(jsonDocument, outEnabled, outLength, outTarget);
+  return true;
+
+} //   settingsStoreLoadPatternChainSettingsFromCard()
+
+//-- Update only chain settings in one existing pattern JSON file.
+bool settingsStoreSavePatternChainSettings(const String& patternName, bool chainEnabled, uint8_t chainLength, const String& chainTarget)
+{
+  String normalizedName;
+  String normalizedTarget;
+  String patternPath;
+  String tempPatternPath;
+  JsonDocument jsonDocument;
+
+  normalizedName = normalizeStrictPatternToken(patternName);
+
+  if (normalizedName.isEmpty())
+  {
+    return false;
+  }
+
+  if (chainLength < 1)
+  {
+    chainLength = 1;
+  }
+  else if (chainLength > sequencerPatternCount)
+  {
+    chainLength = sequencerPatternCount;
+  }
+
+  normalizedTarget = normalizeStrictPatternToken(chainTarget);
+  patternPath = buildPatternPath(normalizedName);
+  tempPatternPath = patternPath + patternTempFileSuffix;
+
+  if (!ensurePatternDirectory() || !patternPathExists(patternPath))
+  {
+    return false;
+  }
+
+  File readFile = LittleFS.open(patternPath, "r");
+
+  if (!readFile)
+  {
+    return false;
+  }
+
+  DeserializationError error = deserializeJson(jsonDocument, readFile);
+  readFile.close();
+
+  if (error)
+  {
+    ESP_LOGW(logTag, "Failed to parse %s for chain update", patternPath.c_str());
+    return false;
+  }
+
+  writeChainSettingsToJson(jsonDocument, chainEnabled, chainLength, normalizedTarget);
+
+  if (patternPathExists(tempPatternPath))
+  {
+    LittleFS.remove(tempPatternPath);
+  }
+
+  File writeFile = LittleFS.open(tempPatternPath, "w");
+
+  if (!writeFile)
+  {
+    return false;
+  }
+
+  bool success = (serializeJson(jsonDocument, writeFile) > 0);
+  writeFile.close();
+
+  if (!success)
+  {
+    LittleFS.remove(tempPatternPath);
+    return false;
+  }
+
+  if (patternPathExists(patternPath))
+  {
+    LittleFS.remove(patternPath);
+  }
+
+  if (!LittleFS.rename(tempPatternPath, patternPath))
+  {
+    LittleFS.remove(tempPatternPath);
+    return false;
+  }
+
+  return true;
+
+} //   settingsStoreSavePatternChainSettings()
 
 //-- Remove one stored pattern file.
 bool settingsStoreDeletePattern(const String& patternName)
