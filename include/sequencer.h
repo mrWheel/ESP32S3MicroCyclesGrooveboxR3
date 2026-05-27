@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-26 - 09:27 ***/
+/*** Last Changed: 2026-05-27 - 18:42 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -35,7 +35,7 @@ struct Pattern
 //-- Lightweight read-only snapshot for UI.
 struct SequencerView
 {
-  Pattern pattern;
+  Pattern* pattern;
   uint16_t bpm;
   uint8_t swingPercent;
   uint8_t currentStep;

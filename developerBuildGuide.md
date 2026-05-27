@@ -529,7 +529,7 @@ This document is intended as a direct implementation guide for the Developer.
 
 ---
 
-# 15.1. Primary Goal
+## 15.1. Primary Goal
 
 Phase 4 transforms the groovebox from:
 
@@ -565,7 +565,7 @@ Phase 4 replaces this with:
 
 ---
 
-# 15.2 Core Audio Architecture
+## 15.2 Core Audio Architecture
 
 Target architecture:
 
@@ -588,6 +588,7 @@ The ESP32-WROVER with PSRAM is capable of supporting this architecture when impl
 # 16. Voice Pool Architecture
 
 ## 16.1 Fixed Voice Pool
+**Is IMPLEMENTED**
 
 The engine must use a fixed-size voice array.
 
@@ -638,6 +639,7 @@ without excessive CPU usage.
 ---
 
 ## 16.2 Voice Allocation
+**Is IMPLEMENTED**
 
 A new trigger MUST allocate a new voice.
 
@@ -728,6 +730,7 @@ This significantly improves perceived audio quality.
 # 18. Mixer Architecture
 
 ## 18.1 Internal Mixer Precision
+**Is IMPLEMENTED**
 
 The mixer must use:
 
@@ -755,6 +758,7 @@ Reason:
 ---
 
 ## 18.2 Gain Structure
+**Is IMPLEMENTED**
 
 Recommended gain stages:
 
@@ -778,6 +782,7 @@ sample = (sample * gain) >> 8;
 ---
 
 ## 18.3 Headroom
+**Is IMPLEMENTED**
 
 The mixer should intentionally reserve headroom.
 
@@ -844,6 +849,7 @@ A soft limiter is strongly recommended.
 ---
 
 ## 20.2 Initial Limiter Strategy
+**Is IMPLEMENTED**
 
 Initial limiter may remain simple.
 
@@ -867,6 +873,7 @@ This is sufficient for:
 # 21. Sample Playback Improvements
 
 ## 21.1 Natural Decay
+**Is IMPLEMENTED**
 
 Samples should continue naturally beyond step boundaries.
 
