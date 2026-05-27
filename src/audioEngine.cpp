@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-27 - 11:31 ***/
+/*** Last Changed: 2026-05-27 - 17:49 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -11,10 +11,11 @@
 static const char* logTag = "AudioEngine";
 
 //-- Audio constants.
+
 static const int audioSampleRate = 44100;
 static const int audioChannelCount = 2;
 static const int audioBlockFrames = 128;
-static const int audioVoiceCount = 16;
+static const int MAX_VOICES = 8; //-- Phase 4: fixed voice pool size
 static const i2s_port_t audioI2sPort = I2S_NUM_0;
 
 #ifndef AUDIO_MASTER_GAIN_PERCENT
@@ -41,18 +42,6 @@ static const i2s_port_t audioI2sPort = I2S_NUM_0;
 #define AUDIO_HEADROOM_LIMITER_EFFECTIVE_THRESHOLD_PERCENT AUDIO_HEADROOM_LIMITER_THRESHOLD_PERCENT
 #endif
 
-//-- One fixed mixer voice.
-struct Voice
-{
-  bool active;
-  SampleId sampleId;
-  const int16_t* sampleData;
-  uint32_t frameCount;
-  uint32_t position;
-  uint8_t level;
-
-}; //   Voice
-
 //-- Per-sample gain percent to balance sample loudness.
 static const uint16_t sampleGainPercent[] =
     {
@@ -62,11 +51,10 @@ static const uint16_t sampleGainPercent[] =
         260, // oh
         100, // tone
         100  // metal
-
 };
 
-//-- Fixed voice pool.
-static Voice voices[audioVoiceCount];
+//-- Fixed voice pool (Phase 4)
+Voice voices[MAX_VOICES];
 
 //-- Interleaved stereo output buffer.
 static int16_t outputBuffer[audioBlockFrames * audioChannelCount];
@@ -166,7 +154,7 @@ static int16_t mixNextFrame(bool& hadVoices)
   int32_t mixed = 0;
   hadVoices = false;
 
-  for (int voiceIndex = 0; voiceIndex < audioVoiceCount; voiceIndex++)
+  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     Voice& voice = voices[voiceIndex];
 
@@ -221,7 +209,7 @@ static int16_t mixNextFrame(bool& hadVoices)
 bool audioEngineInit()
 {
 #ifdef NO_DAC_HARDWARE
-  for (int voiceIndex = 0; voiceIndex < audioVoiceCount; voiceIndex++)
+  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     voices[voiceIndex].active = false;
     voices[voiceIndex].sampleData = nullptr;
@@ -296,7 +284,7 @@ bool audioEngineInit()
     return false;
   }
 
-  for (int voiceIndex = 0; voiceIndex < audioVoiceCount; voiceIndex++)
+  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     voices[voiceIndex].active = false;
     voices[voiceIndex].sampleData = nullptr;
@@ -347,11 +335,15 @@ bool audioEngineIsOutputReady()
 } //   audioEngineIsOutputReady()
 
 //-- Trigger sample playback on a fixed voice slot.
-void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
+//-- Trigger sample playback with full voice params (Phase 4)
+void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan, uint8_t chokeGroup)
 {
 #ifdef TEST_TONE
   (void)sampleId;
   (void)level;
+  (void)gain;
+  (void)pan;
+  (void)chokeGroup;
 
   return;
 #else
@@ -368,8 +360,7 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
   }
 
   int selectedVoice = -1;
-
-  for (int voiceIndex = 0; voiceIndex < audioVoiceCount; voiceIndex++)
+  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     if (!voices[voiceIndex].active)
     {
@@ -377,21 +368,30 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
       break;
     }
   }
-
   if (selectedVoice < 0)
   {
     selectedVoice = 0;
   }
-
   voices[selectedVoice].active = true;
   voices[selectedVoice].sampleId = sampleId;
   voices[selectedVoice].sampleData = sample.data;
   voices[selectedVoice].frameCount = sample.frameCount;
   voices[selectedVoice].position = 0;
   voices[selectedVoice].level = level;
+  voices[selectedVoice].gain = gain;
+  voices[selectedVoice].pan = pan;
+  voices[selectedVoice].chokeGroup = chokeGroup;
+  voices[selectedVoice].releaseActive = false;
+  voices[selectedVoice].releaseCounter = 0;
 #endif
 
 } //   audioEngineTriggerSample()
+
+//-- Backward compatibility: old trigger function
+void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
+{
+  audioEngineTriggerSample(sampleId, level, 65535, 0, 0);
+}
 
 //-- Render one audio block and write to I2S.
 void audioEngineRenderBlock()
@@ -416,7 +416,7 @@ void audioEngineRenderBlock()
   }
 #endif
 
-  for (int voiceIndex = 0; voiceIndex < audioVoiceCount; voiceIndex++)
+  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     if (voices[voiceIndex].active)
     {

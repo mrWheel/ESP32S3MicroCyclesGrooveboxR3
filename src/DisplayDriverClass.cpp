@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-25 - 18:06 ***/
+/*** Last Changed: 2026-05-27 - 17:49 ***/
 #include "DisplayDriverClass.h"
 #include "appConfig.h"
 #include "colorSettings.h"
@@ -1375,7 +1375,9 @@ void DisplayDriver::init(uint16_t width, uint16_t height, int rotation)
   tft.setFont(nullptr);
   invalidateStatusScreenCache();
 
+#ifdef DISPLAY_DEBUG_INFO
   ESP_LOGI("displayDriver", "Display initialized");
+#endif
 
 } //   DisplayDriver::init()
 

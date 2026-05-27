@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-27 - 17:27 ***/
+/*** Last Changed: 2026-05-27 - 17:49 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -19,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v0.6.0";
+const char* PROG_VERSION = "v0.6.1";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -54,9 +54,9 @@ static void bootStatusDraw()
   {
     return;
   }
-
+#ifdef DISPLAY_DEBUG_INFO
   display.drawListScreen("Startup", bootStatusLines, bootStatusVisibleLines, -1, 0, PROG_VERSION);
-
+#endif
 } //   bootStatusDraw()
 
 //-- Keep only the tail of long lines so right edge remains visible.
@@ -76,19 +76,21 @@ static String compactBootStatusLine(const String& line)
 //-- Append one startup status line at the bottom and scroll older lines upward.
 static void bootStatusPush(const String& rawLine)
 {
+  Serial.println(rawLine); // Altijd naar serial log
+
   if (!bootStatusDisplayReady)
   {
     return;
   }
 
+#ifdef DISPLAY_DEBUG_INFO
   for (int lineIndex = 0; lineIndex < (bootStatusVisibleLines - 1); lineIndex++)
   {
     bootStatusLines[lineIndex] = bootStatusLines[lineIndex + 1];
   }
-
   bootStatusLines[bootStatusVisibleLines - 1] = compactBootStatusLine(rawLine);
   bootStatusDraw();
-
+#endif
 } //   bootStatusPush()
 
 //-- Prepare the display for boot status scrolling.
