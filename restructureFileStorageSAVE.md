@@ -21,10 +21,6 @@ Important:
 
 # 1. Storage Overview
 
-
-**Implemented**  
-Aangepaste code: src/settingsStore.cpp, src/uiManager.cpp
-
 There are three storage locations:
 
 1. NVS
@@ -41,17 +37,10 @@ Card
 
 # 2. NVS Storage
 
-
-**Partial Implemented**  
-Aangepaste code: src/settingsStore.cpp (stub, nog niet volledig uit NVS)
-
 NVS stores only small persistent system state.
 
 NVS must store:
 
-- RotateDisplay value
-- EncoderOrder
-- Theme
 - WiFi credentials
 - active pattern group name
 - active sample set name
@@ -60,11 +49,9 @@ Default active sample set:
 
 S1
 
-The active pattern group name is the name of the pattern group currently being edited ("DEMO" of not in NVS).
+The active pattern group name is the name of the pattern group currently being edited.
 
-The active sample set is the sample set loaded from Card.
-
-If not in NVS use "S1":
+The active sample set is the sample set loaded from Card:
 ```
 /samples/S1
 /samples/S2
@@ -92,10 +79,6 @@ Changing sample set may interrupt playback.
 
 # 3. Local Storage Layout
 
-
-**Implemented**  
-Aangepaste code: src/settingsStore.cpp
-
 Local storage means LittleFS.
 
 Local stores:
@@ -121,15 +104,10 @@ Important:
 - Pattern numbering starts at p01.
 - Local contains the currently active editable pattern group.
 - Local p01..p99 are working copies.
-- PatternName is as selected en loaded from Card.
 
 ---
 
 # 4. Card Storage Layout
-
-
-**Partial Implemented**  
-Aangepaste code: src/settingsStore.cpp
 
 Card means SD card.
 
@@ -183,13 +161,13 @@ Card root structure:
         └── metal.wav
 ```
 Important:
-```
+
 - Pattern groups are stored under /patterns/<Name>/.
 - Sample sets are stored under /samples/S1 through /samples/S9.
 - Pattern group names and sample set names are different concepts.
 - Do NOT confuse /patterns/<Name> with /samples/Sn.
 - sampleGainPercent.json has this format:
-
+```
 {
   "sampleGainPercent": {
     "kick": 45,
@@ -208,10 +186,6 @@ If the file does not exist create one with 100 for all items.
 # 5. Naming Rules
 
 ## 5.1 Pattern Files
-
-
-**Implemented**  
-Aangepaste code: src/settingsStore.cpp
 
 Use:
 ```
@@ -236,9 +210,11 @@ p02.json
 p99.json
 ```
 But the visible/user-facing name should remain:
-```
+
 p01
-```
+
+Developer must preserve compatibility with existing pattern parser.
+
 ---
 
 ## 5.2 Pattern Group Names
@@ -261,8 +237,6 @@ JAZZ01
 TECHNO1
 GROOVE9
 ```
-If no patterns/xyz are on the Card, create a dummy one "DEMO" and load DEMO to Local and store the name "DEMO" in NVS.
-
 ---
 
 ## 5.3 Sample Set Names
@@ -290,15 +264,11 @@ NVS stores the active sample set name.
 
 # 6. Boot Behavior
 
-
-**Partial Implemented**  
-Aangepaste code: src/main.cpp, src/settingsStore.cpp, src/sampleManager.cpp
-
 On boot:
 
 1. Load WiFi/system settings from NVS.
-2. Read active pattern group name from NVS, defaulting to `DEMO`.
-3. Read active sample set name from NVS, defaulting to `S1`.
+2. Read active pattern group name from NVS.
+3. Read active sample set name from NVS, defaulting to S1.
 4. Mount Local.
 5. Mount Card.
 6. Load active sample set from Card:
@@ -312,7 +282,6 @@ On boot:
    - /patterns/p01
    - /patterns/p02
    - etc.
-8. If there are no (local) /patterns then load `DEMO` from Card)
 
 If Card is not available:
 
@@ -330,10 +299,6 @@ If the active sample set is missing:
 
 # 7. System Settings Menu
 
-
-**Partial Implemented**  
-Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
-
 System Settings must contain:
 
 [System Menu]
@@ -341,8 +306,6 @@ System Settings must contain:
 SSID: <AP name>           (Read Only)
 IP: <ip-address>          (Read Only)
 MAC: <aa:bb:cc:dd:ee:ff>  (Read Only)
-Load Local                [REMOVE]
-Load Card                 [REMOVE]
 Local Storage   [***]
 Card Storage    [***]
 Erase WiFi credentials
@@ -355,23 +318,18 @@ Exit
 ```
 System Settings actions may interrupt playback.
 
-Remove items "Load Local" en "Load Card".
-Menu items marked with [***] are new. All other functionality, except "Load Local" and "Load Card", should stay the same. 
-Don't change anything else on the existing menu items
+Except menu items marked with [***] ("Local Strorage" and "Card Storage") are new. All other functionality should stay the same. 
+Don't change anything on the existing menu items
 
 Before executing any System Settings action that modifies storage or WiFi:
 
-- stop playback (do not wait for Steps to finish)
+- stop playback
 - set transport status to STOP
 - prevent audio task from accessing state being changed
 
 ---
 
-# 8. Local Storage Menu
-
-
-**Partial Implemented**  
-Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
+# 9. Local Storage Menu
 
 Selecting:
 
@@ -380,15 +338,15 @@ Local Storage
 opens:
 
 [Local Storage]
-```
+
 Save Pattern
 New Pattern
 Delete Pattern
 Edit Set Gain
-```
+
 ---
 
-## 8.1 New Pattern
+## 9.1 New Pattern
 
 Menu item:
 
@@ -420,7 +378,7 @@ If p99 exists:
 - show error message
 - do not create more patterns
 
-## 8.2 Delete Pattern
+## 9.2 Delete Pattern
 
 Menu item:
 
@@ -429,9 +387,9 @@ Delete Pattern
 Open popup:
 
 [DELETE PATTERN]
-```
+
 <list of Local patterns>
-```
+
 Input behavior:
 
 - rotary encoder moves cursor
@@ -455,23 +413,23 @@ If Yes:
 Example:
 
 Before delete:
-```
+
 p01
 p02
 p03
 p04
-```
+
 Delete:
-```
+
 p02
-```
+
 After compaction:
-```
+
 p01
 p02
 p03
-```
-where old `p03` became `p02` and old `p04` became `p03`.
+
+where old p03 became p02 and old p04 became p03.
 
 If No:
 
@@ -479,7 +437,7 @@ If No:
 - do not modify files
 
 ---
-## 8.3 Edit Set Gain Percent
+## 9.3 Edit Set Gain Percent
 
 Menu item:
 
@@ -509,11 +467,7 @@ Input behavior:
 
 ---
 
-# 9. Card Storage Menu
-
-
-**Partial Implemented**  
-Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
+# 10. Card Storage Menu
 
 Selecting:
 
@@ -522,19 +476,15 @@ Card Storage
 opens:
 
 [Card Storage]
-```
+
 Load Pattern
 Save Pattern
 Rename Pattern
 Copy Pattern
-```
+
 ---
 
-# 9.1 Card Storage: Load Pattern
-
-
-**Partial Implemented**  
-Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
+# 11. Card Storage: Load Pattern
 
 Menu item:
 
@@ -583,11 +533,7 @@ Important:
 
 ---
 
-# 9.2 Card Storage: Save Pattern
-
-
-**Partial Implemented**  
-Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
+# 12. Card Storage: Save Pattern
 
 Menu item:
 
@@ -613,11 +559,7 @@ If No:
 
 ---
 
-# 9.3 Card Storage: Rename Pattern
-
-
-**Partial Implemented**  
-Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
+# 13. Card Storage: Rename Pattern
 
 Menu item:
 
@@ -673,11 +615,7 @@ If rename fails:
 
 ---
 
-# 9.4 Card Storage: Copy Pattern
-
-
-**Partial Implemented**  
-Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
+# 14. Card Storage: Copy Pattern
 
 Menu item:
 
@@ -711,13 +649,13 @@ On accept:
 /patterns/<newName>
 ```
 2. Copy active Card pattern group:
-```
+
 /patterns/<activeName>/pNN
-```
+
 to:
-```
+
 /patterns/<newName>/pNN
-```
+
 3. Save newName to NVS.
 4. Optionally copy new pattern group into Local so editing continues on the copied group.
 
@@ -739,19 +677,15 @@ If copy fails:
 
 ---
 
-# 9.5 Sample Set Selection
-
-
-**Partial Implemented**  
-Aangepaste code: src/sampleManager.cpp, src/settingsStore.cpp
+# 15. Sample Set Selection
 
 There are multiple sample sets:
-```
+
 /samples/S1
 /samples/S2
 ...
 /samples/S9
-```
+
 System should support selecting active sample set.
 
 Preferred menu location:
@@ -791,15 +725,11 @@ On next boot, selected sample set is loaded.
 
 ---
 
-# 10. Groovebox Transport Behavior
-
-
-**Implemented**  
-Aangepaste code: src/sequencer.cpp, src/uiManager.cpp
+# 16. Groovebox Transport Behavior
 
 In [Groovebox]:
 
-## 10.1 Start
+## 16.1 Start
 
 Short press KEY0 in STOP mode:
 
@@ -814,7 +744,7 @@ Important:
 
 ---
 
-## 10.2 Stop
+## 16.2 Stop
 
 Short press KEY0 in RUN mode:
 
@@ -839,11 +769,7 @@ This gives musically clean stopping behavior.
 
 ---
 
-# 11. Pattern Chain Rules
-
-
-**Implemented**  
-Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
+# 17. Pattern Chain Rules
 
 Pattern chaining uses Local working patterns:
 ```
@@ -868,11 +794,7 @@ Developer must ensure:
 
 ---
 
-# 12. Existing Popup/Menu Infrastructure
-
-
-**Implemented**  
-Aangepaste code: src/uiManager.cpp, src/DisplayDriverClass.cpp
+# 18. Existing Popup/Menu Infrastructure
 
 Important:
 
@@ -913,7 +835,7 @@ If existing DisplayDriver functions are insufficient:
 
 ---
 
-# 13. Implementation Modules
+# 19. Implementation Modules
 
 Suggested responsibility split:
 
@@ -999,7 +921,7 @@ Responsible for:
 
 ---
 
-# 14. Safety Requirements
+# 20. Safety Requirements
 
 Storage operations must:
 
@@ -1017,9 +939,9 @@ When destructive action is requested:
 
 ---
 
-# 15. Acceptance Tests
+# 21. Acceptance Tests
 
-## 15.1 Boot
+## 21.1 Boot
 
 Given NVS active sample set is S2:
 
@@ -1029,45 +951,45 @@ Given NVS active sample set is S2:
 
 ---
 
-## 15.2 Local New Pattern
+## 21.2 Local New Pattern
 
 Given Local contains:
-```
+
 p01
 p02
-```
+
 New Pattern creates:
-```
+
 p03
-```
+
 ---
 
-## 15.3 Local Delete Pattern
+## 21.3 Local Delete Pattern
 
 Given Local contains:
-```
+
 p01
 p02
 p03
 p04
-```
+
 Delete p02 results in:
-```
+
 p01
 p02
 p03
-```
+
 with old p03 renamed to p02 and old p04 renamed to p03.
 
 ---
 
-## 15.4 Card Load Pattern
+## 21.4 Card Load Pattern
 
 Given Card contains:
-``
+
 /patterns/JAZZ01/p01
 /patterns/JAZZ01/p02
-``
+
 Load Pattern JAZZ01:
 
 - optionally asks to save Local first
@@ -1076,65 +998,65 @@ Load Pattern JAZZ01:
 
 ---
 
-## 15.5 Card Save Pattern
+## 21.5 Card Save Pattern
 
 Given active NVS pattern group is:
 
 JAZZ01
 
 Save Pattern writes Local /patterns/pNN to:
-```
+
 /patterns/JAZZ01/pNN
-```
+
 ---
 
-## 15.6 Card Rename Pattern
+## 21.6 Card Rename Pattern
 
 Given active group:
-```
+
 JAZZ01
-```
+
 Rename to:
-```
+
 JAZZ02
-```
+
 renames:
-```
+
 /patterns/JAZZ01
-```
+
 to:
-```
+
 /patterns/JAZZ02
-```
+
 and writes JAZZ02 to NVS.
 
 It must NOT touch /samples/.
 
 ---
 
-## 15.7 Card Copy Pattern
+## 21.7 Card Copy Pattern
 
 Given active group:
-```
+
 JAZZ01
-```
+
 Copy to:
-```
+
 JAZZ03
-```
+
 creates:
-```
+
 /patterns/JAZZ03
-```
+
 and copies all pNN files from:
-```
+
 /patterns/JAZZ01
-```
+
 It must NOT touch /samples/.
 
 ---
 
-## 15.8 WiFiManager
+## 21.8 WiFiManager
 
 Start WiFiManager:
 
@@ -1145,7 +1067,7 @@ Start WiFiManager:
 
 ---
 
-## 15.9 Transport Start
+## 21.9 Transport Start
 
 KEY0 short in STOP:
 
@@ -1154,7 +1076,7 @@ KEY0 short in STOP:
 
 ---
 
-## 15.10 Transport Stop
+## 21.10 Transport Stop
 
 KEY0 short in RUN:
 
@@ -1164,35 +1086,35 @@ KEY0 short in RUN:
 
 ---
 
-# 16. Important Developer Warnings
+# 22. Important Developer Warnings
 
 Do not confuse these paths:
 
 Correct pattern group path:
-```
+
 /patterns/<Name>/
-```
+
 Correct sample set path:
-```
+
 /samples/S1/
-```
+
 Rename Pattern and Copy Pattern operate on:
-```
+
 /patterns/<Name>/
-```
+
 They must never operate on:
-```
+
 /samples/<Name>/
-```
+
 Sample set selection operates on:
-```
+
 /samples/Sn/
-```
+
 It must never rename or copy pattern groups.
 
 ---
 
-# 17. Final Goal
+# 23. Final Goal
 
 The final storage model must behave like this:
 
