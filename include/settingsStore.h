@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-29 - 13:46 ***/
+/*** Last Changed: 2026-05-29 - 14:54 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 #ifndef SETTINGS_STORE_H
 #define SETTINGS_STORE_H
@@ -6,8 +6,32 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-//-- Get active pattern group name (from NVS or stub)
+//-- NVS persistent storage keys
+#define NVS_NAMESPACE "groovebox"
+
+//-- Get/set active pattern group name (from NVS)
 String settingsStoreGetActivePatternGroup();
+bool settingsStoreSetActivePatternGroup(const String& groupName);
+
+//-- Get/set active sample set name (from NVS)
+String settingsStoreGetActiveSampleSet();
+bool settingsStoreSetActiveSampleSet(const String& setName);
+
+//-- Get/set display rotation (from NVS)
+uint8_t settingsStoreGetDisplayRotation();
+bool settingsStoreSetDisplayRotation(uint8_t rotation);
+
+//-- Get/set encoder order (from NVS)
+bool settingsStoreGetEncoderOrder();
+bool settingsStoreSetEncoderOrder(bool reversed);
+
+//-- Get/set theme color index (from NVS)
+int settingsStoreGetThemeColorIndex();
+bool settingsStoreSetThemeColorIndex(int colorIndex);
+
+//-- Get/set WiFi credentials (from NVS)
+bool settingsStoreGetWifiCredentials(String& ssid, String& password);
+bool settingsStoreSetWifiCredentials(const String& ssid, const String& password);
 
 #include "sequencer.h"
 

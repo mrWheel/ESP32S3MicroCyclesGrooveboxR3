@@ -1,13 +1,180 @@
-/*** Last Changed: 2026-05-29 - 13:46 ***/
-
+/*** Last Changed: 2026-05-29 - 14:54 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
+
 #include "settingsStore.h"
 #include "appConfig.h"
+#include <nvs.h>
+#include <nvs_flash.h>
 
-//-- Get active pattern group name (stub: DEFAULT, later uit NVS)
+//-- Helper: open NVS handle
+static nvs_handle_t openNvsHandle(bool write = false)
+{
+  nvs_handle_t handle;
+  esp_err_t err = nvs_open(NVS_NAMESPACE, write ? NVS_READWRITE : NVS_READONLY, &handle);
+  if (err != ESP_OK)
+    return 0;
+  return handle;
+}
+
+//-- Get active pattern group name from NVS
 String settingsStoreGetActivePatternGroup()
 {
-  return "DEFAULT";
+  nvs_handle_t handle = openNvsHandle();
+  if (!handle)
+    return "DEMO";
+  char buf[16] = {0};
+  size_t len = sizeof(buf);
+  esp_err_t err = nvs_get_str(handle, "pattern_group", buf, &len);
+  nvs_close(handle);
+  if (err == ESP_OK && len > 1)
+    return String(buf);
+  return "DEMO";
+}
+
+//-- Set active pattern group name in NVS
+bool settingsStoreSetActivePatternGroup(const String& groupName)
+{
+  nvs_handle_t handle = openNvsHandle(true);
+  if (!handle)
+    return false;
+  esp_err_t err = nvs_set_str(handle, "pattern_group", groupName.c_str());
+  nvs_commit(handle);
+  nvs_close(handle);
+  return err == ESP_OK;
+}
+
+//-- Get active sample set name from NVS
+String settingsStoreGetActiveSampleSet()
+{
+  nvs_handle_t handle = openNvsHandle();
+  if (!handle)
+    return "S1";
+  char buf[4] = {0};
+  size_t len = sizeof(buf);
+  esp_err_t err = nvs_get_str(handle, "sample_set", buf, &len);
+  nvs_close(handle);
+  if (err == ESP_OK && len > 1)
+    return String(buf);
+  return "S1";
+}
+
+//-- Set active sample set name in NVS
+bool settingsStoreSetActiveSampleSet(const String& setName)
+{
+  nvs_handle_t handle = openNvsHandle(true);
+  if (!handle)
+    return false;
+  esp_err_t err = nvs_set_str(handle, "sample_set", setName.c_str());
+  nvs_commit(handle);
+  nvs_close(handle);
+  return err == ESP_OK;
+}
+
+//-- Get display rotation from NVS
+uint8_t settingsStoreGetDisplayRotation()
+{
+  nvs_handle_t handle = openNvsHandle();
+  if (!handle)
+    return 0;
+  uint8_t val = 0;
+  esp_err_t err = nvs_get_u8(handle, "display_rot", &val);
+  nvs_close(handle);
+  return (err == ESP_OK) ? val : 0;
+}
+
+//-- Set display rotation in NVS
+bool settingsStoreSetDisplayRotation(uint8_t rotation)
+{
+  nvs_handle_t handle = openNvsHandle(true);
+  if (!handle)
+    return false;
+  esp_err_t err = nvs_set_u8(handle, "display_rot", rotation);
+  nvs_commit(handle);
+  nvs_close(handle);
+  return err == ESP_OK;
+}
+
+//-- Get encoder order from NVS
+bool settingsStoreGetEncoderOrder()
+{
+  nvs_handle_t handle = openNvsHandle();
+  if (!handle)
+    return false;
+  uint8_t val = 0;
+  esp_err_t err = nvs_get_u8(handle, "enc_order", &val);
+  nvs_close(handle);
+  return (err == ESP_OK) ? (val != 0) : false;
+}
+
+//-- Set encoder order in NVS
+bool settingsStoreSetEncoderOrder(bool reversed)
+{
+  nvs_handle_t handle = openNvsHandle(true);
+  if (!handle)
+    return false;
+  esp_err_t err = nvs_set_u8(handle, "enc_order", reversed ? 1 : 0);
+  nvs_commit(handle);
+  nvs_close(handle);
+  return err == ESP_OK;
+}
+
+//-- Get theme color index from NVS
+int settingsStoreGetThemeColorIndex()
+{
+  nvs_handle_t handle = openNvsHandle();
+  if (!handle)
+    return 0;
+  int32_t val = 0;
+  esp_err_t err = nvs_get_i32(handle, "theme_color", &val);
+  nvs_close(handle);
+  return (err == ESP_OK) ? val : 0;
+}
+
+//-- Set theme color index in NVS
+bool settingsStoreSetThemeColorIndex(int colorIndex)
+{
+  nvs_handle_t handle = openNvsHandle(true);
+  if (!handle)
+    return false;
+  esp_err_t err = nvs_set_i32(handle, "theme_color", colorIndex);
+  nvs_commit(handle);
+  nvs_close(handle);
+  return err == ESP_OK;
+}
+
+//-- Get WiFi credentials from NVS
+bool settingsStoreGetWifiCredentials(String& ssid, String& password)
+{
+  nvs_handle_t handle = openNvsHandle();
+  if (!handle)
+    return false;
+  char ssidBuf[33] = {0};
+  char passBuf[65] = {0};
+  size_t ssidLen = sizeof(ssidBuf);
+  size_t passLen = sizeof(passBuf);
+  esp_err_t err1 = nvs_get_str(handle, "wifi_ssid", ssidBuf, &ssidLen);
+  esp_err_t err2 = nvs_get_str(handle, "wifi_pass", passBuf, &passLen);
+  nvs_close(handle);
+  if (err1 == ESP_OK && err2 == ESP_OK)
+  {
+    ssid = String(ssidBuf);
+    password = String(passBuf);
+    return true;
+  }
+  return false;
+}
+
+//-- Set WiFi credentials in NVS
+bool settingsStoreSetWifiCredentials(const String& ssid, const String& password)
+{
+  nvs_handle_t handle = openNvsHandle(true);
+  if (!handle)
+    return false;
+  esp_err_t err1 = nvs_set_str(handle, "wifi_ssid", ssid.c_str());
+  esp_err_t err2 = nvs_set_str(handle, "wifi_pass", password.c_str());
+  nvs_commit(handle);
+  nvs_close(handle);
+  return (err1 == ESP_OK && err2 == ESP_OK);
 }
 
 #include <ArduinoJson.h>
