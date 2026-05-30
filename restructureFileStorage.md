@@ -327,7 +327,6 @@ If the active sample set is missing:
 
 # 7. System Settings Menu
 
-
 **Partial Implemented**  
 Aangepaste code: src/uiManager.cpp, src/settingsStore.cpp
 
@@ -735,8 +734,9 @@ If copy fails:
 
 ---
 
-# 9.5 Sample Set Selection
+# 9.5 Sample Set Selection (not anymore)
 
+***THIS HAS MOVED TO THE System Settings AND IS IMPLEMENTED***
 
 **Partial Implemented**  
 Aangepaste code: src/sampleManager.cpp, src/settingsStore.cpp

@@ -1,10 +1,13 @@
-/*** Last Changed: 2026-05-30 - 12:41 ***/
+/*** Last Changed: 2026-05-30 - 13:21 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 #ifndef SETTINGS_STORE_H
 #define SETTINGS_STORE_H
 
 #include <Arduino.h>
 #include <stdint.h>
+
+//-- List available pattern group names on SD card (subdirectories of /patterns)
+bool settingsStoreListPatternGroupsOnCard(String groupNames[], size_t maxCount, size_t& outCount);
 
 //-- NVS persistent storage keys
 #define NVS_NAMESPACE "groovebox"

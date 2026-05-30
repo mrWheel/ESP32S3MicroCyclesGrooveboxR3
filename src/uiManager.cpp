@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 12:41 ***/
+/*** Last Changed: 2026-05-30 - 13:21 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -100,6 +100,8 @@ struct UiState
   String chainSlotPatternNames[sequencerPatternCount];
   bool localStorageMenuOpen;
   bool cardStorageMenuOpen;
+  int cardStorageMenuSelection;
+  int cardStorageMenuFirstVisibleIndex;
   bool sampleSetListOpen;
   int sampleSetListSelection;
   int sampleSetListFirstVisibleIndex;
@@ -1254,7 +1256,7 @@ static String getCurrentPatternDisplayName(const SequencerView& view)
     return uiState.activePatternName;
   }
 
-  snprintf(slotLabel, sizeof(slotLabel), "P%03u",
+  snprintf(slotLabel, sizeof(slotLabel), "p%02u",
            static_cast<unsigned>(view.activePatternIndex + 1U));
   return String(slotLabel);
 
@@ -1464,9 +1466,36 @@ static void loadSelectedSampleSetFromMenu()
 
 } //   loadSelectedSampleSetFromMenu()
 
+//-- Draw Card Storage menu.
+static void drawCardStorageMenu()
+{
+  // Card Storage menu entries
+  static const int cardStorageMenuEntryCount = 5;
+  String items[cardStorageMenuEntryCount];
+  items[0] = "Load Pattern";
+  items[1] = "Save Pattern";
+  items[2] = "Rename Pattern";
+  items[3] = "Copy Pattern";
+  items[4] = "Exit";
+
+  updateListFirstVisibleIndex(uiState.cardStorageMenuSelection, cardStorageMenuEntryCount,
+                              uiState.cardStorageMenuFirstVisibleIndex);
+  display.drawListScreen("Card Storage", items, cardStorageMenuEntryCount,
+                         uiState.cardStorageMenuSelection,
+                         uiState.cardStorageMenuFirstVisibleIndex);
+
+  // TODO: Add popup/status overlays if needed
+}
+
 //-- Draw required system settings menu.
 static void drawSystemSettingsScreen()
 {
+  // Card Storage is a submenu, not a replacement for System Settings
+  if (uiState.cardStorageMenuOpen)
+  {
+    drawCardStorageMenu();
+    return;
+  }
   if (uiState.eraseWifiRestartPending)
   {
     display.drawWifiPortalScreen("Erasing credentials", "Restart Groovebox", "", "");
@@ -1741,7 +1770,6 @@ static void drawSequencerFooterUpdate(const SequencerView& view)
 } //   drawSequencerFooterUpdate()
 
 //-- Run selected action from settings menu.
-//-- Run selected action from settings menu.
 static void executeMenuAction()
 {
   int activeThemeIndex;
@@ -1758,7 +1786,9 @@ static void executeMenuAction()
   else if (uiState.menuSelection == 4)
   {
     uiState.cardStorageMenuOpen = true;
-    uiState.menuOpen = false;
+    uiState.cardStorageMenuSelection = 0;
+    uiState.cardStorageMenuFirstVisibleIndex = 0;
+    // Keep menuOpen true, Card Storage is a submenu
     uiState.dirty = true;
     return;
   }
@@ -2107,6 +2137,46 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
       return;
     }
 
+    // Card Storage menu navigation
+    if (uiState.cardStorageMenuOpen)
+    {
+      const int cardStorageMenuEntryCount = 6;
+      if (encoderEvent == ENCODER_EVENT_LEFT)
+      {
+        uiState.cardStorageMenuSelection--;
+        if (uiState.cardStorageMenuSelection < 0)
+        {
+          uiState.cardStorageMenuSelection = cardStorageMenuEntryCount - 1;
+        }
+        updateListFirstVisibleIndex(uiState.cardStorageMenuSelection, cardStorageMenuEntryCount,
+                                    uiState.cardStorageMenuFirstVisibleIndex);
+      }
+      else if (encoderEvent == ENCODER_EVENT_RIGHT)
+      {
+        uiState.cardStorageMenuSelection++;
+        if (uiState.cardStorageMenuSelection >= cardStorageMenuEntryCount)
+        {
+          uiState.cardStorageMenuSelection = 0;
+        }
+        updateListFirstVisibleIndex(uiState.cardStorageMenuSelection, cardStorageMenuEntryCount,
+                                    uiState.cardStorageMenuFirstVisibleIndex);
+      }
+      else if (encoderEvent == ENCODER_EVENT_SHORT_PRESS ||
+               encoderEvent == ENCODER_EVENT_MEDIUM_PRESS)
+      {
+        // Handle Card Storage menu selection
+        if (uiState.cardStorageMenuSelection == 5) // Exit
+        {
+          uiState.cardStorageMenuOpen = false;
+          uiState.cardStorageMenuSelection = 0;
+          uiState.cardStorageMenuFirstVisibleIndex = 0;
+        }
+        // TODO: Implement other actions for Card Storage menu
+      }
+      uiState.dirty = true;
+      return;
+    }
+
     if (encoderEvent == ENCODER_EVENT_LEFT)
     {
       if (uiState.sampleSetListOpen)
@@ -2114,12 +2184,10 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
         if (uiState.sampleSetCount > 0)
         {
           uiState.sampleSetListSelection--;
-
           if (uiState.sampleSetListSelection < 0)
           {
             uiState.sampleSetListSelection = uiState.sampleSetCount - 1;
           }
-
           updateListFirstVisibleIndex(uiState.sampleSetListSelection, uiState.sampleSetCount,
                                       uiState.sampleSetListFirstVisibleIndex);
         }
@@ -2160,12 +2228,10 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
         if (uiState.sampleSetCount > 0)
         {
           uiState.sampleSetListSelection++;
-
           if (uiState.sampleSetListSelection >= uiState.sampleSetCount)
           {
             uiState.sampleSetListSelection = 0;
           }
-
           updateListFirstVisibleIndex(uiState.sampleSetListSelection, uiState.sampleSetCount,
                                       uiState.sampleSetListFirstVisibleIndex);
         }
@@ -2528,7 +2594,14 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
   {
     if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
     {
-      if (uiState.sampleSetListOpen)
+      if (uiState.cardStorageMenuOpen)
+      {
+        // KEY0 short-press in Card Storage = Exit
+        uiState.cardStorageMenuOpen = false;
+        uiState.cardStorageMenuSelection = 0;
+        uiState.cardStorageMenuFirstVisibleIndex = 0;
+      }
+      else if (uiState.sampleSetListOpen)
       {
         uiState.sampleSetListOpen = false;
         uiState.sampleSetListFirstVisibleIndex = 0;
