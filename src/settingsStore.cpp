@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 14:05 ***/
+/*** Last Changed: 2026-05-30 - 14:20 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -673,17 +673,48 @@ static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternDa
       JsonObjectConst stepObject = steps[stepIndex].as<JsonObjectConst>();
       Step& step = patternData.pattern.tracks[trackIndex].steps[stepIndex];
 
-      step.trigger = static_cast<bool>(stepObject["trig"] | false);
-      step.velocity = static_cast<uint8_t>(stepObject["velocity"] | 255);
+      //-- Accept both old/new trigger field names.
+      if (stepObject["trig"].is<bool>())
+      {
+        step.trigger = static_cast<bool>(stepObject["trig"]);
+      }
+      else
+      {
+        step.trigger = static_cast<bool>(stepObject["trigger"] | false);
+      }
+
+      step.velocity = static_cast<uint8_t>(stepObject["velocity"] | (step.trigger ? 255 : 0));
       step.probability = static_cast<uint8_t>(stepObject["probability"] | 100);
 
       JsonObjectConst locksObject = stepObject["locks"].as<JsonObjectConst>();
 
       if (locksObject.isNull())
       {
-        step.lockEnabled = false;
-        step.lockPitch = 0;
-        step.lockDecay = 100;
+        //-- Accept flat lock fields from newer saved patterns.
+        int lockPitchValue = static_cast<int>(stepObject["lockPitch"] | 0);
+        int lockDecayValue = static_cast<int>(stepObject["lockDecay"] | 100);
+
+        if (lockPitchValue < -24)
+        {
+          lockPitchValue = -24;
+        }
+        else if (lockPitchValue > 24)
+        {
+          lockPitchValue = 24;
+        }
+
+        if (lockDecayValue < 10)
+        {
+          lockDecayValue = 10;
+        }
+        else if (lockDecayValue > 200)
+        {
+          lockDecayValue = 200;
+        }
+
+        step.lockEnabled = static_cast<bool>(stepObject["lockEnabled"] | false);
+        step.lockPitch = static_cast<int8_t>(lockPitchValue);
+        step.lockDecay = static_cast<uint8_t>(lockDecayValue);
       }
       else
       {

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 12:41 ***/
+/*** Last Changed: 2026-05-30 - 14:20 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -704,6 +704,40 @@ void sequencerImportPattern(const PatternData& patternData)
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerImportPattern()
+
+//-- Import pattern data into a specific pattern memory slot.
+void sequencerImportPatternToSlot(uint8_t slotIndex, const PatternData& patternData)
+{
+  if (slotIndex >= sequencerPatternCount)
+  {
+    return;
+  }
+
+  portENTER_CRITICAL(&sequencerMux);
+
+  state.patterns[slotIndex] = patternData.pattern;
+
+  if (slotIndex == state.activePatternIndex)
+  {
+    state.bpm = patternData.bpm;
+    state.swingPercent = patternData.swingPercent;
+    state.chainEnabled = patternData.chainEnabled;
+    state.chainLength =
+        clampToByte(static_cast<int32_t>(patternData.chainLength), 1, sequencerPatternCount);
+
+    if (state.chainLength <= 1U)
+    {
+      state.chainEnabled = false;
+    }
+
+    state.currentStep = 0;
+    state.cursorStep = 0;
+    state.nextStepDueUs = 0;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerImportPatternToSlot()
 
 //-- Reset active pattern to an empty pattern.
 void sequencerClearActivePattern()

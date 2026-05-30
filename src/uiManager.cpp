@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 14:05 ***/
+/*** Last Changed: 2026-05-30 - 14:20 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -1234,11 +1234,13 @@ static bool loadSelectedPattern()
 
 } //   loadSelectedPattern()
 
-//-- Load selected Card pattern group into Local working storage.
+//-- Load selected Card pattern group directly into sequencer memory.
 static bool loadSelectedCardPatternGroup()
 {
   PatternData patternData;
   SequencerView view;
+  String cardPatternNames[patternStoreMaxEntries];
+  size_t cardPatternCount = 0;
 
   if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 ||
       uiState.patternListSelection >= uiState.patternCount)
@@ -1255,10 +1257,39 @@ static bool loadSelectedCardPatternGroup()
     sequencerStopImmediately();
   }
 
-  if (!settingsStoreLoadPatternGroupFromCardToLocal(selectedGroupName))
+  if (!settingsStoreListPatternsInGroupOnCard(selectedGroupName, cardPatternNames,
+                                              patternStoreMaxEntries, cardPatternCount))
   {
-    showPatternStatus("Load failed\n" + selectedGroupName, 2500);
+    showPatternStatus("List failed\n" + selectedGroupName, 2500);
     return false;
+  }
+
+  if (cardPatternCount == 0)
+  {
+    showPatternStatus("Empty group\n" + selectedGroupName, 2500);
+    return false;
+  }
+
+  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
+  {
+    uiState.chainSlotPatternNames[slotIndex] = "";
+    uiState.chainSlotTargetPatternNames[slotIndex] = "";
+  }
+
+  for (size_t patternIndex = 0;
+       patternIndex < cardPatternCount && patternIndex < sequencerPatternCount; patternIndex++)
+  {
+    if (!settingsStoreLoadPatternFromCard(selectedGroupName, cardPatternNames[patternIndex],
+                                          patternData))
+    {
+      showPatternStatus("Load failed\n" + cardPatternNames[patternIndex], 2500);
+      return false;
+    }
+
+    sequencerImportPatternToSlot(static_cast<uint8_t>(patternIndex), patternData);
+
+    uiState.chainSlotPatternNames[patternIndex] = cardPatternNames[patternIndex];
+    uiState.chainSlotTargetPatternNames[patternIndex] = "";
   }
 
   if (!settingsStoreSetActivePatternGroup(selectedGroupName))
@@ -1267,31 +1298,18 @@ static bool loadSelectedCardPatternGroup()
     return false;
   }
 
-  if (!settingsStoreLoadPattern("p01", patternData))
-  {
-    showPatternStatus("Loaded group\nNo p01 found", 2500);
-    return false;
-  }
+  sequencerSetActivePatternIndex(0);
 
-  sequencerImportPattern(patternData);
-
-  uiState.activePatternName = "p01";
+  uiState.activePatternName = cardPatternNames[0];
   uiState.chainTargetPatternName = "";
   uiState.chainTargetValid = false;
   uiState.chainSettingsDirty = false;
-
-  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
-  {
-    uiState.chainSlotPatternNames[slotIndex] = "";
-    uiState.chainSlotTargetPatternNames[slotIndex] = "";
-  }
+  uiState.patternListNeedsRefresh = true;
 
   assignActivePatternNameToCurrentSlot();
   refreshChainSeriesPatternCache();
   loadChainSettingsForActivePattern();
   saveRuntimeSettingsFromCurrentState();
-
-  uiState.patternListNeedsRefresh = true;
 
   showPatternStatus("Loaded group\n" + selectedGroupName, 2500);
 

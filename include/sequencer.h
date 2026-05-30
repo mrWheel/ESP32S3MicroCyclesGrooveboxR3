@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 12:41 ***/
+/*** Last Changed: 2026-05-30 - 14:20 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -93,6 +93,7 @@ void sequencerLoadPattern(uint8_t slotIndex);
 //-- Import/export helpers for pattern storage.
 void sequencerExportPattern(PatternData& outData);
 void sequencerImportPattern(const PatternData& patternData);
+void sequencerImportPatternToSlot(uint8_t slotIndex, const PatternData& patternData);
 void sequencerClearActivePattern();
 
 //-- Copy current state into a view snapshot.
