@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 14:20 ***/
+/*** Last Changed: 2026-05-30 - 17:15 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -28,6 +28,7 @@ struct SequencerState
   uint8_t cursorStep;
   uint8_t selectedTrack;
   uint8_t activePatternIndex;
+  uint8_t playingPatternIndex;
   uint8_t chainLength;
   uint8_t finalStopPatternIndex;
 
@@ -674,6 +675,35 @@ void sequencerExportPattern(PatternData& outData)
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerExportPattern()
+
+//-- Export pattern data from a specific pattern memory slot.
+void sequencerExportPatternFromSlot(uint8_t slotIndex, PatternData& outData)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (slotIndex >= sequencerPatternCount)
+  {
+    slotIndex = state.activePatternIndex;
+  }
+
+  outData.pattern = state.patterns[slotIndex];
+  outData.bpm = state.bpm;
+  outData.swingPercent = state.swingPercent;
+
+  if (slotIndex == state.activePatternIndex)
+  {
+    outData.chainEnabled = state.chainEnabled;
+    outData.chainLength = state.chainLength;
+  }
+  else
+  {
+    outData.chainEnabled = false;
+    outData.chainLength = 1;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerExportPatternFromSlot()
 
 //-- Import pattern data into active pattern slot.
 void sequencerImportPattern(const PatternData& patternData)

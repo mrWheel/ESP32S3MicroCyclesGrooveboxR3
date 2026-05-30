@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 14:20 ***/
+/*** Last Changed: 2026-05-30 - 17:15 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -1862,7 +1862,7 @@ bool settingsStoreLoadPattern(const String& patternName, PatternData& patternDat
 
 } //   settingsStoreLoadPattern()
 
-//-- Load chain settings from one existing pattern JSON file.
+//-- Load chain settings from one existing Local pattern JSON file.
 bool settingsStoreLoadPatternChainSettings(const String& patternName, bool& outEnabled,
                                            uint8_t& outLength, String& outTarget)
 {
@@ -1881,6 +1881,13 @@ bool settingsStoreLoadPatternChainSettings(const String& patternName, bool& outE
     return false;
   }
 
+  patternPath = buildPatternPath(normalizedName);
+
+  if (!ensurePatternDirectory() || !LittleFS.exists(patternPath))
+  {
+    return false;
+  }
+
   File file = LittleFS.open(patternPath, "r");
 
   if (!file)
@@ -1889,6 +1896,7 @@ bool settingsStoreLoadPatternChainSettings(const String& patternName, bool& outE
   }
 
   DeserializationError error = deserializeJson(jsonDocument, file);
+
   file.close();
 
   if (error)
@@ -1897,6 +1905,7 @@ bool settingsStoreLoadPatternChainSettings(const String& patternName, bool& outE
   }
 
   readChainSettingsFromJson(jsonDocument, outEnabled, outLength, outTarget);
+
   return true;
 
 } //   settingsStoreLoadPatternChainSettings()

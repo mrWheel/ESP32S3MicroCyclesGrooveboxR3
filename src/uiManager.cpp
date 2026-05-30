@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 14:20 ***/
+/*** Last Changed: 2026-05-30 - 17:15 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -166,6 +166,9 @@ static void saveChainSettingsForPattern();
 
 //-- Commit pending chain settings to storage when UI leaves edit interactions.
 static void flushPendingChainSettings();
+
+//-aaw- Load one Card pattern group directly into sequencer memory by group name.
+static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showStatus);
 
 //-- Rotate selected New Pattern letter in full A..Z range.
 
@@ -639,62 +642,26 @@ static bool isCurrentChainTargetValid()
 
 } //   isCurrentChainTargetValid()
 
-//-- Load persisted chain settings for the active pattern.
+//-- Load chain settings for active RAM pattern without touching LittleFS.
 static void loadChainSettingsForActivePattern()
 {
-  bool chainEnabled = false;
-  uint8_t chainLength = 1;
-  String chainTarget = "";
   SequencerView view;
 
   uiState.chainTargetValid = false;
   uiState.chainSettingsDirty = false;
-  refreshChainSeriesPatternCache();
-
-  if (uiState.activePatternName.isEmpty())
-  {
-    return;
-  }
+  uiState.chainTargetPatternName = "";
 
   sequencerGetView(view);
 
-  if (!settingsStoreLoadPatternChainSettings(uiState.activePatternName, chainEnabled, chainLength,
-                                             chainTarget))
+  if (view.activePatternIndex >= sequencerPatternCount)
   {
-    if (view.activePatternIndex < sequencerPatternCount)
-    {
-      uiState.chainTargetPatternName = uiState.chainSlotTargetPatternNames[view.activePatternIndex];
-      uiState.chainTargetValid = isCurrentChainTargetValid();
-    }
-
     return;
   }
 
-  uiState.chainTargetPatternName = chainTarget;
-  uiState.chainTargetValid = isCurrentChainTargetValid();
-
-  if (view.activePatternIndex < sequencerPatternCount)
+  if (!uiState.chainSlotTargetPatternNames[view.activePatternIndex].isEmpty())
   {
-    uiState.chainSlotPatternNames[view.activePatternIndex] = uiState.activePatternName;
-    uiState.chainSlotTargetPatternNames[view.activePatternIndex] = uiState.chainTargetPatternName;
-
-    if (view.chainLength > 1U)
-    {
-      uint8_t nextSlotIndex =
-          static_cast<uint8_t>((view.activePatternIndex + 1U) % view.chainLength);
-
-      if (nextSlotIndex < sequencerPatternCount)
-      {
-        if (uiState.chainTargetValid)
-        {
-          uiState.chainSlotPatternNames[nextSlotIndex] = uiState.chainTargetPatternName;
-        }
-        else
-        {
-          uiState.chainSlotPatternNames[nextSlotIndex] = "";
-        }
-      }
-    }
+    uiState.chainTargetPatternName = uiState.chainSlotTargetPatternNames[view.activePatternIndex];
+    uiState.chainTargetValid = true;
   }
 
 } //   loadChainSettingsForActivePattern()
@@ -711,29 +678,21 @@ static String formatChainTargetLabel()
 
 } //   formatChainTargetLabel()
 
-//-- Save active-pattern chain settings without rewriting unrelated JSON fields.
+//-- Save active-pattern chain settings into RAM bookkeeping only.
 static void saveChainSettingsForPattern()
 {
   SequencerView view;
 
-  if (uiState.activePatternName.isEmpty())
+  sequencerGetView(view);
+
+  if (view.activePatternIndex >= sequencerPatternCount)
   {
     return;
   }
 
-  sequencerGetView(view);
-
-  if (view.activePatternIndex < sequencerPatternCount)
-  {
-    uiState.chainSlotTargetPatternNames[view.activePatternIndex] = uiState.chainTargetPatternName;
-  }
-
-  if (!settingsStoreSavePatternChainSettings(
-          uiState.activePatternName, view.chainEnabled, view.chainLength,
-          uiState.chainTargetValid ? uiState.chainTargetPatternName : String("")))
-  {
-    ESP_LOGW(logTag, "Failed to save chain settings for %s", uiState.activePatternName.c_str());
-  }
+  uiState.chainSlotPatternNames[view.activePatternIndex] = uiState.activePatternName;
+  uiState.chainSlotTargetPatternNames[view.activePatternIndex] =
+      uiState.chainTargetValid ? uiState.chainTargetPatternName : String("");
 
 } //   saveChainSettingsForPattern()
 
@@ -1237,10 +1196,7 @@ static bool loadSelectedPattern()
 //-- Load selected Card pattern group directly into sequencer memory.
 static bool loadSelectedCardPatternGroup()
 {
-  PatternData patternData;
   SequencerView view;
-  String cardPatternNames[patternStoreMaxEntries];
-  size_t cardPatternCount = 0;
 
   if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 ||
       uiState.patternListSelection >= uiState.patternCount)
@@ -1257,16 +1213,60 @@ static bool loadSelectedCardPatternGroup()
     sequencerStopImmediately();
   }
 
-  if (!settingsStoreListPatternsInGroupOnCard(selectedGroupName, cardPatternNames,
-                                              patternStoreMaxEntries, cardPatternCount))
+  if (!loadCardPatternGroupIntoMemory(selectedGroupName, true))
   {
-    showPatternStatus("List failed\n" + selectedGroupName, 2500);
+    return false;
+  }
+
+  if (!settingsStoreSetActivePatternGroup(selectedGroupName))
+  {
+    showPatternStatus("NVS save failed\n" + selectedGroupName, 2500);
+    return false;
+  }
+
+  saveRuntimeSettingsFromCurrentState();
+
+  ESP_LOGI(logTag, "Active Card pattern group stored in NVS: %s", selectedGroupName.c_str());
+
+  return true;
+
+} //   loadSelectedCardPatternGroup()
+
+//-- Load one Card pattern group directly into sequencer memory by group name.
+static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showStatus)
+{
+  PatternData patternData;
+  String cardPatternNames[patternStoreMaxEntries];
+  size_t cardPatternCount = 0;
+
+  if (groupName.isEmpty())
+  {
+    if (showStatus)
+    {
+      showPatternStatus("No active\ngroup", 2500);
+    }
+
+    return false;
+  }
+
+  if (!settingsStoreListPatternsInGroupOnCard(groupName, cardPatternNames, patternStoreMaxEntries,
+                                              cardPatternCount))
+  {
+    if (showStatus)
+    {
+      showPatternStatus("List failed\n" + groupName, 2500);
+    }
+
     return false;
   }
 
   if (cardPatternCount == 0)
   {
-    showPatternStatus("Empty group\n" + selectedGroupName, 2500);
+    if (showStatus)
+    {
+      showPatternStatus("Empty group\n" + groupName, 2500);
+    }
+
     return false;
   }
 
@@ -1279,10 +1279,13 @@ static bool loadSelectedCardPatternGroup()
   for (size_t patternIndex = 0;
        patternIndex < cardPatternCount && patternIndex < sequencerPatternCount; patternIndex++)
   {
-    if (!settingsStoreLoadPatternFromCard(selectedGroupName, cardPatternNames[patternIndex],
-                                          patternData))
+    if (!settingsStoreLoadPatternFromCard(groupName, cardPatternNames[patternIndex], patternData))
     {
-      showPatternStatus("Load failed\n" + cardPatternNames[patternIndex], 2500);
+      if (showStatus)
+      {
+        showPatternStatus("Load failed\n" + cardPatternNames[patternIndex], 2500);
+      }
+
       return false;
     }
 
@@ -1290,12 +1293,6 @@ static bool loadSelectedCardPatternGroup()
 
     uiState.chainSlotPatternNames[patternIndex] = cardPatternNames[patternIndex];
     uiState.chainSlotTargetPatternNames[patternIndex] = "";
-  }
-
-  if (!settingsStoreSetActivePatternGroup(selectedGroupName))
-  {
-    showPatternStatus("NVS save failed\n" + selectedGroupName, 2500);
-    return false;
   }
 
   sequencerSetActivePatternIndex(0);
@@ -1306,16 +1303,78 @@ static bool loadSelectedCardPatternGroup()
   uiState.chainSettingsDirty = false;
   uiState.patternListNeedsRefresh = true;
 
-  assignActivePatternNameToCurrentSlot();
   refreshChainSeriesPatternCache();
   loadChainSettingsForActivePattern();
-  saveRuntimeSettingsFromCurrentState();
 
-  showPatternStatus("Loaded group\n" + selectedGroupName, 2500);
+  if (showStatus)
+  {
+    showPatternStatus("Loaded group\n" + groupName, 2500);
+  }
+
+  ESP_LOGI(logTag, "Loaded Card group %s into RAM (%u patterns)", groupName.c_str(),
+           static_cast<unsigned>(cardPatternCount));
 
   return true;
 
-} //   loadSelectedCardPatternGroup()
+} //   loadCardPatternGroupIntoMemory()
+
+//-- Save loaded in-memory pattern slots to active Card pattern group.
+static bool saveLoadedPatternGroupToCard()
+{
+  PatternData patternData;
+  String groupName = settingsStoreGetActivePatternGroup();
+  int savedCount = 0;
+
+  if (groupName.isEmpty())
+  {
+    showPatternStatus("No active\ngroup name", 2500);
+    return false;
+  }
+
+  SequencerView view;
+
+  sequencerGetView(view);
+
+  if (view.playing)
+  {
+    sequencerStopImmediately();
+  }
+
+  flushPendingChainSettings();
+  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
+  {
+    String patternName = uiState.chainSlotPatternNames[slotIndex];
+
+    if (patternName.isEmpty())
+    {
+      char patternNameBuffer[8];
+
+      snprintf(patternNameBuffer, sizeof(patternNameBuffer), "p%02u",
+               static_cast<unsigned>(slotIndex + 1U));
+
+      patternName = String(patternNameBuffer);
+    }
+
+    sequencerExportPatternFromSlot(slotIndex, patternData);
+
+    if (!settingsStoreSavePatternToCard(groupName, patternName, patternData))
+    {
+      showPatternStatus("Save failed\n" + patternName, 2500);
+      return false;
+    }
+
+    savedCount++;
+  }
+
+  saveRuntimeSettingsFromCurrentState();
+
+  showPatternStatus("Saved group\n" + groupName, 2500);
+
+  ESP_LOGI(logTag, "Saved %d in-memory patterns to Card group %s", savedCount, groupName.c_str());
+
+  return true;
+
+} //   saveLoadedPatternGroupToCard()
 
 //-- Delete one pattern from current list selection.
 static bool deleteSelectedPattern(String* outDeletedName = nullptr,
@@ -1983,12 +2042,12 @@ static void executeMenuAction()
 
 } //   executeMenuAction()
 
-//-- Initialize splash and UI state.
+//-- Initialize UI state and load persisted Card pattern group from NVS.
 void uiManagerInit()
 {
   RuntimeSettings runtimeSettings;
-  PatternData startupPatternData;
-  bool startupPatternLoaded = false;
+  String activeGroupName;
+  bool startupGroupLoaded = false;
 
   uiState.menuOpen = false;
   uiState.tempoEditOpen = false;
@@ -2001,8 +2060,9 @@ void uiManagerInit()
   uiState.eraseWifiConfirmOpen = false;
   uiState.patternListOpen = false;
   uiState.patternDeleteMode = false;
+  uiState.patternListSourceFilter = -1;
+  uiState.patternListNeedsRefresh = true;
   uiState.sampleSetListOpen = false;
-
   uiState.patternStatusOpen = false;
   uiState.wifiManagerWaitingForCredentials = false;
   uiState.wifiManagerPortalSeenActive = false;
@@ -2015,7 +2075,6 @@ void uiManagerInit()
   uiState.sampleSetListSelection = 0;
   uiState.sampleSetListFirstVisibleIndex = 0;
   uiState.sampleSetCount = 0;
-
   uiState.patternCount = 0;
   uiState.patternStatusUntilMs = 0;
   uiState.eraseWifiRestartAtMs = 0;
@@ -2031,6 +2090,11 @@ void uiManagerInit()
   uiState.chainSeriesPatternCount = 0;
   uiState.chainSeriesPatternLetter = '\0';
   uiState.chainSeriesPatternCacheValid = false;
+  uiState.localStorageMenuOpen = false;
+  uiState.cardStorageMenuOpen = false;
+  uiState.cardStorageMenuSelection = 0;
+  uiState.cardStorageMenuFirstVisibleIndex = 0;
+
   lastSequencerStep = 0xFF;
   lastSequencerCursor = 0xFF;
   lastSequencerPlaying = false;
@@ -2052,31 +2116,24 @@ void uiManagerInit()
 
   settingsStoreLoadRuntimeSettings(runtimeSettings);
 
-  if (!runtimeSettings.activePatternName.isEmpty() &&
-      settingsStoreLoadPattern(runtimeSettings.activePatternName, startupPatternData))
+  activeGroupName = settingsStoreGetActivePatternGroup();
+
+  ESP_LOGI(logTag, "Startup active Card pattern group from NVS: %s", activeGroupName.c_str());
+
+  if (!activeGroupName.isEmpty())
   {
-    sequencerImportPattern(startupPatternData);
-    uiState.activePatternName = runtimeSettings.activePatternName;
-    uiState.chainSlotPatternNames[0] = uiState.activePatternName;
-    loadChainSettingsForActivePattern();
-    startupPatternLoaded = true;
+    startupGroupLoaded = loadCardPatternGroupIntoMemory(activeGroupName, false);
   }
 
   refreshPatternList();
 
-  if (!startupPatternLoaded && uiState.patternCount > 0)
+  if (!startupGroupLoaded)
   {
-    if (settingsStoreLoadPattern(uiState.patternNames[0], startupPatternData))
-    {
-      sequencerImportPattern(startupPatternData);
-      uiState.activePatternName = uiState.patternNames[0];
-      uiState.chainSlotPatternNames[0] = uiState.activePatternName;
-      loadChainSettingsForActivePattern();
-      saveRuntimeSettingsFromCurrentState();
-    }
+    ESP_LOGW(logTag,
+             "No startup Card group loaded. Use System Settings -> Card Storage -> Load Pattern");
   }
 
-  display.drawMessage("ESP32 Groovebox", "Phase 1 + 2 Boot");
+  display.drawMessage("ESP32 Groovebox", startupGroupLoaded ? activeGroupName.c_str() : "Ready");
 
 } //   uiManagerInit()
 
@@ -2321,6 +2378,10 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
           uiState.patternListNeedsRefresh = true;
           uiState.cardStorageMenuOpen = false;
         }
+        else if (uiState.cardStorageMenuSelection == 1)
+        {
+          saveLoadedPatternGroupToCard();
+        }
         else if (uiState.cardStorageMenuSelection == 4)
         {
           uiState.cardStorageMenuOpen = false;
@@ -2332,7 +2393,6 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
           showPatternStatus("Not implemented\nyet", 2000);
         }
       }
-
       uiState.dirty = true;
 
       return;
