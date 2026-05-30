@@ -1,7 +1,8 @@
-/*** Last Changed: 2026-05-30 - 17:15 ***/
+/*** Last Changed: 2026-05-30 - 18:09 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
+#include <Arduino.h>
 #include <stdint.h>
 
 static const uint8_t sequencerTrackCount = 6;
@@ -42,6 +43,7 @@ struct SequencerView
   uint8_t selectedTrack;
   uint8_t cursorStep;
   uint8_t activePatternIndex;
+  uint8_t playingPatternIndex;
   uint8_t chainLength;
   bool playing;
   bool editMode;
@@ -56,6 +58,7 @@ struct PatternData
   uint8_t swingPercent;
   bool chainEnabled;
   uint8_t chainLength;
+  String chainTarget;
 };
 
 //-- Initialize deterministic sequencer state.

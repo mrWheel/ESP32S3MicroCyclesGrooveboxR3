@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 17:15 ***/
+/*** Last Changed: 2026-05-30 - 18:09 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -490,36 +490,41 @@ static String fitListRowText(const String& text)
 
 } //   fitListRowText()
 
-//-- Return uppercase pattern letter from strict <LETTER><DIGIT><DIGIT> name.
-static char patternLetterFromName(const String& patternName)
+//-- Return pattern slot number from pNN name.
+static int patternSlotNumberFromName(const String& patternName)
 {
-  char patternLetter;
+  String normalizedName = patternName;
 
-  if (patternName.length() != 3)
+  if (normalizedName.endsWith(".json"))
   {
-    return '\0';
+    normalizedName = normalizedName.substring(0, normalizedName.length() - 5);
   }
 
-  patternLetter = patternName[0];
-
-  if (patternLetter >= 'a' && patternLetter <= 'z')
+  if (normalizedName.length() != 3)
   {
-    patternLetter = static_cast<char>(patternLetter - ('a' - 'A'));
+    return -1;
   }
 
-  if (patternLetter < 'A' || patternLetter > 'Z')
+  if (normalizedName[0] != 'p' && normalizedName[0] != 'P')
   {
-    return '\0';
+    return -1;
   }
 
-  if (patternName[1] < '0' || patternName[1] > '9' || patternName[2] < '0' || patternName[2] > '9')
+  if (!isDigit(normalizedName[1]) || !isDigit(normalizedName[2]))
   {
-    return '\0';
+    return -1;
   }
 
-  return patternLetter;
+  int slotNumber = normalizedName.substring(1).toInt();
 
-} //   patternLetterFromName()
+  if (slotNumber < 1)
+  {
+    return -1;
+  }
+
+  return slotNumber;
+
+} //   patternSlotNumberFromName()
 
 //-- Persist the currently active pattern name for one in-memory chain slot.
 static void assignActivePatternNameToCurrentSlot()
@@ -565,45 +570,49 @@ static int scanPatternsForSeries(char seriesLetter, String outNames[patternStore
 
 } //   scanPatternsForSeries()
 
-//-- Rebuild cached same-series chain target list.
+//-- Rebuild cached chain target list from loaded RAM pattern slots.
 static void refreshChainSeriesPatternCache()
 {
-  char activeLetter = patternLetterFromName(uiState.activePatternName);
-  String seriesNames[patternStoreMaxEntries];
-  int seriesCount;
-
   uiState.chainSeriesPatternCount = 0;
-  uiState.chainSeriesPatternLetter = '\0';
+  uiState.chainSeriesPatternLetter = 'p';
   uiState.chainSeriesPatternCacheValid = false;
 
-  if (activeLetter == '\0')
+  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
   {
-    return;
-  }
+    String slotName = uiState.chainSlotPatternNames[slotIndex];
 
-  seriesCount = scanPatternsForSeries(activeLetter, seriesNames);
-
-  for (int nameIndex = 0; nameIndex < seriesCount && uiState.chainSeriesPatternCount <
-                                                         static_cast<int>(patternStoreMaxEntries);
-       nameIndex++)
-  {
-    if (seriesNames[nameIndex] != uiState.activePatternName)
+    if (slotName.isEmpty())
     {
-      uiState.chainSeriesPatternNames[uiState.chainSeriesPatternCount] = seriesNames[nameIndex];
-      uiState.chainSeriesPatternCount++;
+      continue;
+    }
+
+    if (slotName == uiState.activePatternName)
+    {
+      continue;
+    }
+
+    if (patternSlotNumberFromName(slotName) < 1)
+    {
+      continue;
+    }
+
+    uiState.chainSeriesPatternNames[uiState.chainSeriesPatternCount] = slotName;
+    uiState.chainSeriesPatternCount++;
+
+    if (uiState.chainSeriesPatternCount >= static_cast<int>(patternStoreMaxEntries))
+    {
+      break;
     }
   }
 
-  uiState.chainSeriesPatternLetter = activeLetter;
   uiState.chainSeriesPatternCacheValid = true;
 
 } //   refreshChainSeriesPatternCache()
 
-//-- Return available same-series targets excluding the active pattern name.
+//-- Return available loaded pNN targets excluding the active pattern name.
 static int getAvailablePatternsForCurrentSeries(String outNames[patternStoreMaxEntries])
 {
-  if (!uiState.chainSeriesPatternCacheValid ||
-      uiState.chainSeriesPatternLetter != patternLetterFromName(uiState.activePatternName))
+  if (!uiState.chainSeriesPatternCacheValid)
   {
     refreshChainSeriesPatternCache();
   }
@@ -617,7 +626,7 @@ static int getAvailablePatternsForCurrentSeries(String outNames[patternStoreMaxE
 
 } //   getAvailablePatternsForCurrentSeries()
 
-//-- Validate the current chain target against same-series existing patterns.
+//-- Validate the current chain target against loaded RAM pattern slots.
 static bool isCurrentChainTargetValid()
 {
   String availableNames[patternStoreMaxEntries];
@@ -658,10 +667,12 @@ static void loadChainSettingsForActivePattern()
     return;
   }
 
+  refreshChainSeriesPatternCache();
+
   if (!uiState.chainSlotTargetPatternNames[view.activePatternIndex].isEmpty())
   {
     uiState.chainTargetPatternName = uiState.chainSlotTargetPatternNames[view.activePatternIndex];
-    uiState.chainTargetValid = true;
+    uiState.chainTargetValid = isCurrentChainTargetValid();
   }
 
 } //   loadChainSettingsForActivePattern()
@@ -691,8 +702,15 @@ static void saveChainSettingsForPattern()
   }
 
   uiState.chainSlotPatternNames[view.activePatternIndex] = uiState.activePatternName;
-  uiState.chainSlotTargetPatternNames[view.activePatternIndex] =
-      uiState.chainTargetValid ? uiState.chainTargetPatternName : String("");
+
+  if (uiState.chainTargetValid)
+  {
+    uiState.chainSlotTargetPatternNames[view.activePatternIndex] = uiState.chainTargetPatternName;
+  }
+  else
+  {
+    uiState.chainSlotTargetPatternNames[view.activePatternIndex] = "";
+  }
 
 } //   saveChainSettingsForPattern()
 
@@ -1292,7 +1310,7 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
     sequencerImportPatternToSlot(static_cast<uint8_t>(patternIndex), patternData);
 
     uiState.chainSlotPatternNames[patternIndex] = cardPatternNames[patternIndex];
-    uiState.chainSlotTargetPatternNames[patternIndex] = "";
+    uiState.chainSlotTargetPatternNames[patternIndex] = patternData.chainTarget;
   }
 
   sequencerSetActivePatternIndex(0);
@@ -1356,6 +1374,7 @@ static bool saveLoadedPatternGroupToCard()
     }
 
     sequencerExportPatternFromSlot(slotIndex, patternData);
+    patternData.chainTarget = uiState.chainSlotTargetPatternNames[slotIndex];
 
     if (!settingsStoreSavePatternToCard(groupName, patternName, patternData))
     {
@@ -1459,6 +1478,20 @@ static String getCurrentPatternDisplayName(const SequencerView& view)
 
 } //   getCurrentPatternDisplayName()
 
+//-- Resolve the active Card pattern group name for compact display.
+static String getActivePatternGroupDisplayName()
+{
+  String groupName = settingsStoreGetActivePatternGroup();
+
+  if (groupName.isEmpty())
+  {
+    return "";
+  }
+
+  return groupName;
+
+} //   getActivePatternGroupDisplayName()
+
 //-- Resolve next pattern display text for chain preview.
 static String getNextPatternDisplayName(const SequencerView& view)
 {
@@ -1476,34 +1509,56 @@ static String getNextPatternDisplayName(const SequencerView& view)
 
 } //   getNextPatternDisplayName()
 
-//-- Build compact Groovebox footer line with musical context only.
+//-- Build compact Groovebox footer line with playback and chain context.
 static String formatGrooveboxFooter(const SequencerView& view)
 {
-  char footerLine[48];
-  String currentPatternName;
+  char footerLine[64];
+  char playingPatternLabel[8];
   String nextPatternName;
+  String groupName;
 
   if (view.editMode)
   {
-    snprintf(footerLine, sizeof(footerLine), "%s   STEP:%02u", trackNames[view.selectedTrack],
+    snprintf(footerLine, sizeof(footerLine), "%s S:%02u", trackNames[view.selectedTrack],
              static_cast<unsigned>(view.cursorStep + 1U));
 
     return String(footerLine);
   }
 
-  currentPatternName = getCurrentPatternDisplayName(view);
-  nextPatternName = getNextPatternDisplayName(view);
+  snprintf(playingPatternLabel, sizeof(playingPatternLabel), "p%02u",
+           static_cast<unsigned>(view.playingPatternIndex + 1U));
 
-  if (nextPatternName.length() > 0)
+  nextPatternName = getNextPatternDisplayName(view);
+  groupName = getActivePatternGroupDisplayName();
+
+  if (!nextPatternName.isEmpty())
   {
-    snprintf(footerLine, sizeof(footerLine), "STEP:%02u   %s->%s",
-             static_cast<unsigned>(view.currentStep + 1U), currentPatternName.c_str(),
-             nextPatternName.c_str());
+    if (!groupName.isEmpty())
+    {
+      snprintf(footerLine, sizeof(footerLine), "S:%02u %s->%s %s",
+               static_cast<unsigned>(view.currentStep + 1U), playingPatternLabel,
+               nextPatternName.c_str(), groupName.c_str());
+    }
+    else
+    {
+      snprintf(footerLine, sizeof(footerLine), "S:%02u %s->%s",
+               static_cast<unsigned>(view.currentStep + 1U), playingPatternLabel,
+               nextPatternName.c_str());
+    }
   }
   else
   {
-    snprintf(footerLine, sizeof(footerLine), "STEP:%02u   %s",
-             static_cast<unsigned>(view.currentStep + 1U), currentPatternName.c_str());
+    if (!groupName.isEmpty())
+    {
+      snprintf(footerLine, sizeof(footerLine), "S:%02u %s %s",
+               static_cast<unsigned>(view.currentStep + 1U), playingPatternLabel,
+               groupName.c_str());
+    }
+    else
+    {
+      snprintf(footerLine, sizeof(footerLine), "S:%02u %s",
+               static_cast<unsigned>(view.currentStep + 1U), playingPatternLabel);
+    }
   }
 
   return String(footerLine);
@@ -1882,20 +1937,25 @@ static void drawSystemSettingsScreen()
 
 } //   drawSystemSettingsScreen()
 
-//-- Draw sequencer overview page.
+//-- Draw the main Groovebox sequencer screen.
 static void drawSequencerScreen()
 {
   SequencerView view;
   String lines[9];
   String popupRows[editPopupEntryCount];
   String parameterLine;
+  String viewPatternName;
   int selectedLine = 1;
-  char headerLine[40];
+  char headerLine[48];
 
   sequencerGetView(view);
 
-  snprintf(headerLine, sizeof(headerLine), "BPM %03u  SW %02u  %s", static_cast<unsigned>(view.bpm),
-           static_cast<unsigned>(view.swingPercent), view.playing ? "PLAY" : "STOP");
+  viewPatternName = getCurrentPatternDisplayName(view);
+
+  snprintf(headerLine, sizeof(headerLine), "BPM %03u SW %02u %s %s",
+           static_cast<unsigned>(view.bpm), static_cast<unsigned>(view.swingPercent),
+           view.playing ? "PLAY" : "STOP", viewPatternName.c_str());
+
   lines[0] = fitListRowText(headerLine);
 
   for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
@@ -1915,6 +1975,7 @@ static void drawSequencerScreen()
   lines[8] = fitListRowText(formatGrooveboxFooter(view));
 
   selectedLine = static_cast<int>(view.selectedTrack) + 1;
+
   display.drawListScreen("Groovebox", lines, 9, selectedLine, 0, PROG_VERSION);
 
   if (uiState.tempoEditOpen)
@@ -1924,6 +1985,7 @@ static void drawSequencerScreen()
   else if (uiState.editPopupOpen)
   {
     buildEditPopupRows(view, popupRows);
+
     display.drawSelectionOverlay("Edit Track", popupRows, editPopupEntryCount,
                                  uiState.editPopupSelection);
   }

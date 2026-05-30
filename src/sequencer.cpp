@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 17:15 ***/
+/*** Last Changed: 2026-05-30 - 18:09 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -144,6 +144,7 @@ void sequencerInit()
   state.cursorStep = 0;
   state.selectedTrack = 0;
   state.activePatternIndex = 0;
+  state.playingPatternIndex = 0;
   state.chainLength = 1;
   state.finalStopPatternIndex = 0;
   state.playing = false;
@@ -661,7 +662,7 @@ void sequencerLoadPattern(uint8_t slotIndex)
 
 } //   sequencerLoadPattern()
 
-//-- Export active pattern data for storage.
+//-- Export current pattern data for storage.
 void sequencerExportPattern(PatternData& outData)
 {
   portENTER_CRITICAL(&sequencerMux);
@@ -671,6 +672,7 @@ void sequencerExportPattern(PatternData& outData)
   outData.swingPercent = state.swingPercent;
   outData.chainEnabled = state.chainEnabled;
   outData.chainLength = state.chainLength;
+  outData.chainTarget = "";
 
   portEXIT_CRITICAL(&sequencerMux);
 
@@ -700,6 +702,8 @@ void sequencerExportPatternFromSlot(uint8_t slotIndex, PatternData& outData)
     outData.chainEnabled = false;
     outData.chainLength = 1;
   }
+
+  outData.chainTarget = "";
 
   portEXIT_CRITICAL(&sequencerMux);
 
@@ -811,6 +815,7 @@ void sequencerGetView(SequencerView& outView)
   outView.selectedTrack = state.selectedTrack;
   outView.cursorStep = state.cursorStep;
   outView.activePatternIndex = state.activePatternIndex;
+  outView.playingPatternIndex = state.playingPatternIndex;
   outView.chainLength = state.chainLength;
   outView.playing = state.playing;
   outView.editMode = state.editMode;

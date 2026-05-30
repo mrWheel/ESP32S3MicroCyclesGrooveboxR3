@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 17:15 ***/
+/*** Last Changed: 2026-05-30 - 18:09 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -271,6 +271,42 @@ static String normalizePatternName(const String& patternName)
   return normalizedName;
 
 } //   normalizePatternName()
+
+//-- Normalize one pNN pattern token.
+static String normalizePatternSlotName(const String& patternName)
+{
+  String normalizedName = patternName;
+
+  if (normalizedName.endsWith(".json"))
+  {
+    normalizedName = normalizedName.substring(0, normalizedName.length() - 5);
+  }
+
+  if (normalizedName.length() != 3)
+  {
+    return "";
+  }
+
+  if (normalizedName[0] != 'p' && normalizedName[0] != 'P')
+  {
+    return "";
+  }
+
+  if (!isDigit(normalizedName[1]) || !isDigit(normalizedName[2]))
+  {
+    return "";
+  }
+
+  if (normalizedName == "p00" || normalizedName == "P00")
+  {
+    return "";
+  }
+
+  normalizedName[0] = 'p';
+
+  return normalizedName;
+
+} //   normalizePatternSlotName()
 
 //-- Ensure pattern directory exists.
 static bool ensurePatternDirectory()
@@ -589,6 +625,12 @@ static void buildPatternJsonDocument(const String& normalizedName, const Pattern
   jsonDocument["swing"] = patternData.swingPercent;
   jsonDocument["chainEnabled"] = patternData.chainEnabled;
   jsonDocument["chainLength"] = patternData.chainLength;
+  jsonDocument["chainTarget"] = normalizePatternSlotName(patternData.chainTarget);
+
+  JsonObject chainObject = jsonDocument["chain"].to<JsonObject>();
+  chainObject["enabled"] = patternData.chainEnabled;
+  chainObject["length"] = patternData.chainLength;
+  chainObject["target"] = normalizePatternSlotName(patternData.chainTarget);
   jsonDocument["masterLevel"] = 100;
 
   for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
@@ -630,8 +672,9 @@ static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternDa
 
   patternData.bpm = static_cast<uint16_t>(jsonDocument["bpm"] | 120);
   patternData.swingPercent = static_cast<uint8_t>(jsonDocument["swing"] | 8);
-  patternData.chainEnabled = static_cast<bool>(jsonDocument["chainEnabled"] | false);
-  patternData.chainLength = static_cast<uint8_t>(jsonDocument["chainLength"] | 1);
+
+  readChainSettingsFromJson(jsonDocument, patternData.chainEnabled, patternData.chainLength,
+                            patternData.chainTarget);
 
   if (patternData.chainLength < 1)
   {
@@ -802,7 +845,7 @@ static void readChainSettingsFromJson(const JsonDocument& jsonDocument, bool& ou
 
   outEnabled = chainEnabled;
   outLength = chainLength;
-  outTarget = normalizeStrictPatternToken(chainTarget);
+  outTarget = normalizePatternSlotName(chainTarget);
 
 } //   readChainSettingsFromJson()
 
@@ -810,15 +853,16 @@ static void readChainSettingsFromJson(const JsonDocument& jsonDocument, bool& ou
 static void writeChainSettingsToJson(JsonDocument& jsonDocument, bool enabled, uint8_t length,
                                      const String& target)
 {
+  String normalizedTarget = normalizePatternSlotName(target);
   JsonObject chainObject = jsonDocument["chain"].to<JsonObject>();
 
   jsonDocument["chainEnabled"] = enabled;
   jsonDocument["chainLength"] = length;
-  jsonDocument["chainTarget"] = target;
+  jsonDocument["chainTarget"] = normalizedTarget;
 
   chainObject["enabled"] = enabled;
   chainObject["length"] = length;
-  chainObject["target"] = target;
+  chainObject["target"] = normalizedTarget;
 
 } //   writeChainSettingsToJson()
 
