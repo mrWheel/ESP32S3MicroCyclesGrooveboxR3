@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 10:32 ***/
+/*** Last Changed: 2026-05-31 - 10:59 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 #ifndef SETTINGS_STORE_H
 #define SETTINGS_STORE_H
@@ -115,6 +115,13 @@ bool settingsStoreLoadPatternFromCard(const String& groupName, const String& pat
 
 //-- Copy one complete Card pattern group into Local working storage.
 bool settingsStoreLoadPatternGroupFromCardToLocal(const String& groupName);
+
+//-- Rename one Card pattern group directory.
+bool settingsStoreRenamePatternGroupOnCard(const String& oldGroupName, const String& newGroupName);
+
+//-- Copy one Card pattern group directory.
+bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
+                                         const String& targetGroupName);
 
 //-- Load pattern payload from LittleFS.
 bool settingsStoreLoadPattern(const String& patternName, PatternData& patternData);

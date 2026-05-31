@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 18:09 ***/
+/*** Last Changed: 2026-05-31 - 10:59 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -1523,7 +1523,28 @@ bool settingsStoreSavePattern(const String& patternName, const PatternData& patt
 
 } //   settingsStoreSavePattern()
 
-//-- Save pattern payload to one JSON file on SD card.
+//-- Validate one pattern group name.
+static bool isValidPatternGroupName(const String& groupName)
+{
+  if (groupName.isEmpty() || groupName.length() > 8)
+  {
+    return false;
+  }
+
+  for (size_t charIndex = 0; charIndex < groupName.length(); charIndex++)
+  {
+    char currentChar = groupName[charIndex];
+
+    if (!((currentChar >= 'A' && currentChar <= 'Z') || (currentChar >= '0' && currentChar <= '9')))
+    {
+      return false;
+    }
+  }
+
+  return true;
+
+} //   isValidPatternGroupName()
+
 //-- Save pattern payload to one JSON file on SD card in /patterns/<GroupName>/pNN
 bool settingsStoreSavePatternToCard(const String& groupName, const String& patternName,
                                     const PatternData& patternData)
@@ -1632,6 +1653,166 @@ bool settingsStoreListPatternGroupsOnCard(String groupNames[], size_t maxCount, 
   directory.close();
   return true;
 } //   settingsStoreListPatternGroupsOnCard()
+
+//-- Rename one Card pattern group directory.
+bool settingsStoreRenamePatternGroupOnCard(const String& oldGroupName, const String& newGroupName)
+{
+  String oldPath;
+  String newPath;
+
+  if (SD.cardType() == CARD_NONE)
+  {
+    ESP_LOGW(logTag, "SD card not available for pattern group rename");
+    return false;
+  }
+
+  if (!isValidPatternGroupName(oldGroupName) || !isValidPatternGroupName(newGroupName))
+  {
+    ESP_LOGW(logTag, "Invalid pattern group rename: %s -> %s", oldGroupName.c_str(),
+             newGroupName.c_str());
+
+    return false;
+  }
+
+  oldPath = String(sdPatternDirectoryPath) + "/" + oldGroupName;
+  newPath = String(sdPatternDirectoryPath) + "/" + newGroupName;
+
+  if (!SD.exists(oldPath))
+  {
+    ESP_LOGW(logTag, "Source pattern group does not exist: %s", oldPath.c_str());
+    return false;
+  }
+
+  if (SD.exists(newPath))
+  {
+    ESP_LOGW(logTag, "Target pattern group already exists: %s", newPath.c_str());
+    return false;
+  }
+
+  if (!SD.rename(oldPath, newPath))
+  {
+    ESP_LOGW(logTag, "Failed to rename pattern group %s to %s", oldPath.c_str(), newPath.c_str());
+
+    return false;
+  }
+
+  ESP_LOGI(logTag, "Renamed pattern group %s to %s", oldGroupName.c_str(), newGroupName.c_str());
+
+  return true;
+
+} //   settingsStoreRenamePatternGroupOnCard()
+
+//-- Copy one Card pattern group directory.
+bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
+                                         const String& targetGroupName)
+{
+  String sourcePath;
+  String targetPath;
+
+  if (SD.cardType() == CARD_NONE)
+  {
+    ESP_LOGW(logTag, "SD card not available for pattern group copy");
+    return false;
+  }
+
+  if (!isValidPatternGroupName(sourceGroupName) || !isValidPatternGroupName(targetGroupName))
+  {
+    ESP_LOGW(logTag, "Invalid pattern group copy: %s -> %s", sourceGroupName.c_str(),
+             targetGroupName.c_str());
+
+    return false;
+  }
+
+  sourcePath = String(sdPatternDirectoryPath) + "/" + sourceGroupName;
+  targetPath = String(sdPatternDirectoryPath) + "/" + targetGroupName;
+
+  if (!SD.exists(sourcePath))
+  {
+    ESP_LOGW(logTag, "Source pattern group does not exist: %s", sourcePath.c_str());
+    return false;
+  }
+
+  if (SD.exists(targetPath))
+  {
+    ESP_LOGW(logTag, "Target pattern group already exists: %s", targetPath.c_str());
+    return false;
+  }
+
+  if (!SD.mkdir(targetPath))
+  {
+    ESP_LOGW(logTag, "Failed to create target pattern group: %s", targetPath.c_str());
+    return false;
+  }
+
+  File sourceDirectory = SD.open(sourcePath, FILE_READ);
+
+  if (!sourceDirectory || !sourceDirectory.isDirectory())
+  {
+    if (sourceDirectory)
+    {
+      sourceDirectory.close();
+    }
+
+    ESP_LOGW(logTag, "Failed to open source pattern group: %s", sourcePath.c_str());
+    SD.rmdir(targetPath);
+
+    return false;
+  }
+
+  File entry = sourceDirectory.openNextFile();
+
+  while (entry)
+  {
+    if (!entry.isDirectory())
+    {
+      String sourceFilePath = String(entry.name());
+      String fileName = sourceFilePath;
+      int slashIndex = fileName.lastIndexOf('/');
+
+      if (slashIndex >= 0)
+      {
+        fileName = fileName.substring(slashIndex + 1);
+      }
+
+      String targetFilePath = targetPath + "/" + fileName;
+      File targetFile = SD.open(targetFilePath, FILE_WRITE);
+
+      if (!targetFile)
+      {
+        ESP_LOGW(logTag, "Failed to create copied pattern file: %s", targetFilePath.c_str());
+        entry.close();
+        sourceDirectory.close();
+
+        return false;
+      }
+
+      uint8_t buffer[256];
+
+      while (entry.available())
+      {
+        size_t bytesRead = entry.read(buffer, sizeof(buffer));
+
+        if (bytesRead > 0)
+        {
+          targetFile.write(buffer, bytesRead);
+        }
+      }
+
+      targetFile.close();
+    }
+
+    entry.close();
+    entry = sourceDirectory.openNextFile();
+  }
+
+  sourceDirectory.close();
+
+  ESP_LOGI(logTag, "Copied pattern group %s to %s", sourceGroupName.c_str(),
+           targetGroupName.c_str());
+
+  return true;
+
+} //   settingsStoreCopyPatternGroupOnCard()
 
 //-- List available pattern names in a group on SD card: /patterns/<groupName>/pNN.
 bool settingsStoreListPatternsInGroupOnCard(const String& groupName, String patternNames[],
