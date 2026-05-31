@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 08:31 ***/
+/*** Last Changed: 2026-05-31 - 08:52 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -1211,22 +1211,6 @@ static bool loadSelectedPattern()
 
 } //   loadSelectedPattern()
 
-//-- Return pattern name for a loaded pattern slot.
-static String getPatternNameForSlot(uint8_t slotIndex)
-{
-  char fallbackName[8];
-
-  if (slotIndex < sequencerPatternCount && !uiState.chainSlotPatternNames[slotIndex].isEmpty())
-  {
-    return uiState.chainSlotPatternNames[slotIndex];
-  }
-
-  snprintf(fallbackName, sizeof(fallbackName), "p%02u", static_cast<unsigned>(slotIndex + 1U));
-
-  return String(fallbackName);
-
-} //   getPatternNameForSlot()
-
 //-- Count loaded pattern slots currently known by the UI.
 static uint8_t getLoadedPatternSlotCount()
 {
@@ -1248,6 +1232,22 @@ static uint8_t getLoadedPatternSlotCount()
   return loadedPatternCount;
 
 } //   getLoadedPatternSlotCount()
+
+//-- Return pattern name for a loaded pattern slot.
+static String getPatternNameForSlot(uint8_t slotIndex)
+{
+  char fallbackName[8];
+
+  if (slotIndex < sequencerPatternCount && !uiState.chainSlotPatternNames[slotIndex].isEmpty())
+  {
+    return uiState.chainSlotPatternNames[slotIndex];
+  }
+
+  snprintf(fallbackName, sizeof(fallbackName), "p%02u", static_cast<unsigned>(slotIndex + 1U));
+
+  return String(fallbackName);
+
+} //   getPatternNameForSlot()
 
 //-- Move Groovebox cursor across tracks and loaded pattern slots.
 static void moveGrooveboxCursorAcrossPatterns(int delta)
@@ -2835,7 +2835,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     }
     else
     {
-      sequencerMoveTrack(-1);
+      moveGrooveboxCursorAcrossPatterns(-1);
     }
   }
   else if (encoderEvent == ENCODER_EVENT_RIGHT)
@@ -2875,7 +2875,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     }
     else
     {
-      sequencerMoveTrack(1);
+      moveGrooveboxCursorAcrossPatterns(1);
     }
   }
   else if (encoderEvent == ENCODER_EVENT_SHORT_PRESS)

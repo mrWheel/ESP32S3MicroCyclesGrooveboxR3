@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 08:31 ***/
+/*** Last Changed: 2026-05-31 - 08:52 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -75,6 +75,7 @@ void sequencerRequestStopAfterFinalPattern(uint8_t finalPatternIndex);
 void sequencerToggleEditMode();
 void sequencerMoveCursor(int delta);
 void sequencerMoveTrack(int delta);
+void sequencerMoveTrackAndPattern(int delta, uint8_t loadedPatternCount);
 void sequencerAdjustActivePatternIndex(int delta);
 void sequencerSetActivePatternIndex(uint8_t slotIndex);
 void sequencerToggleCurrentStep();
