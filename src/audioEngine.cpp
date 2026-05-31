@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 12:24 ***/
+/*** Last Changed: 2026-05-31 - 13:45 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -15,7 +15,10 @@ static const char* logTag = "AudioEngine";
 static const int audioSampleRate = 44100;
 static const int audioChannelCount = 2;
 static const int audioBlockFrames = 128;
-static const int MAX_VOICES = 8; //-- Phase 4: fixed voice pool size
+//-- Phase 4: fixed voice pool size
+static const int MAX_VOICES = 8;
+//-- Release fade length for voices that are being stopped or stolen.
+static const uint16_t voiceReleaseFrames = 256;
 static const i2s_port_t audioI2sPort = I2S_NUM_0;
 
 #ifndef AUDIO_MASTER_GAIN_PERCENT
@@ -122,6 +125,22 @@ static int16_t applyMasterGainAndClamp(int32_t sampleValue)
 
 } //   applyMasterGainAndClamp()
 
+//-- Start release fade for one active voice.
+static void startVoiceRelease(Voice& voice)
+{
+  if (!voice.active)
+  {
+    return;
+  }
+
+  if (!voice.releaseActive)
+  {
+    voice.releaseActive = true;
+    voice.releaseCounter = 0;
+  }
+
+} //   startVoiceRelease()
+
 //-- Mix one mono frame from active voices.
 static int16_t mixNextFrame(bool& hadVoices)
 {
@@ -142,6 +161,7 @@ static int16_t mixNextFrame(bool& hadVoices)
   return applyMasterGainAndClamp(mixed);
 #else
   int32_t mixed = 0;
+
   hadVoices = false;
 
   for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
@@ -162,13 +182,41 @@ static int16_t mixNextFrame(bool& hadVoices)
     int32_t leveledSample = (sampleValue * static_cast<int32_t>(voice.level)) / 255;
     int32_t gainedSample = (leveledSample * static_cast<int32_t>(sampleGain)) / 100;
 
+    if (voice.releaseActive)
+    {
+      uint16_t remainingFrames = 0;
+
+      if (voice.releaseCounter < voiceReleaseFrames)
+      {
+        remainingFrames = static_cast<uint16_t>(voiceReleaseFrames - voice.releaseCounter);
+      }
+
+      gainedSample = (gainedSample * static_cast<int32_t>(remainingFrames)) /
+                     static_cast<int32_t>(voiceReleaseFrames);
+
+      voice.releaseCounter++;
+
+      if (voice.releaseCounter >= voiceReleaseFrames)
+      {
+        voice.active = false;
+        voice.releaseActive = false;
+        voice.releaseCounter = 0;
+        continue;
+      }
+    }
+
     mixed += gainedSample;
 
     voice.position++;
 
     if (voice.position >= voice.frameCount)
     {
-      voice.active = false;
+      startVoiceRelease(voice);
+
+      if (voice.position >= voice.frameCount)
+      {
+        voice.position = static_cast<uint32_t>(voice.frameCount - 1U);
+      }
     }
   }
 
@@ -177,6 +225,7 @@ static int16_t mixNextFrame(bool& hadVoices)
     float sineValue = sinf(sinePhase);
 
     mixed = static_cast<int32_t>(sineValue * 9000.0f);
+
     sinePhase += 2.0f * static_cast<float>(M_PI) * 220.0f / static_cast<float>(audioSampleRate);
 
     if (sinePhase > 2.0f * static_cast<float>(M_PI))
@@ -314,7 +363,7 @@ bool audioEngineIsOutputReady()
 
 } //   audioEngineIsOutputReady()
 
-//-- Trigger sample playback with full voice params (Phase 4)
+//-- Trigger sample playback with full voice params.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
                               uint8_t chokeGroup)
 {
@@ -328,6 +377,7 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
   return;
 #else
   const SampleSlot& sample = sampleManagerGetSample(sampleId);
+  int selectedVoice = -1;
 
   if (!sample.valid || sample.data == nullptr || sample.frameCount == 0)
   {
@@ -339,14 +389,24 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
     return;
   }
 
-  int selectedVoice = -1;
-
   for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     if (!voices[voiceIndex].active)
     {
       selectedVoice = voiceIndex;
       break;
+    }
+  }
+
+  if (selectedVoice < 0)
+  {
+    for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
+    {
+      if (voices[voiceIndex].releaseActive)
+      {
+        selectedVoice = voiceIndex;
+        break;
+      }
     }
   }
 
