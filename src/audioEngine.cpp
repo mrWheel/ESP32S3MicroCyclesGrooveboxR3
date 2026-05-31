@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 13:45 ***/
+/*** Last Changed: 2026-05-31 - 13:55 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -141,6 +141,31 @@ static void startVoiceRelease(Voice& voice)
 
 } //   startVoiceRelease()
 
+//-- Release all active voices in the same choke group.
+static void releaseVoicesInChokeGroup(uint8_t chokeGroup)
+{
+  if (chokeGroup == 0)
+  {
+    return;
+  }
+
+  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
+  {
+    Voice& voice = voices[voiceIndex];
+
+    if (!voice.active)
+    {
+      continue;
+    }
+
+    if (voice.chokeGroup == chokeGroup)
+    {
+      startVoiceRelease(voice);
+    }
+  }
+
+} //   releaseVoicesInChokeGroup()
+
 //-- Mix one mono frame from active voices.
 static int16_t mixNextFrame(bool& hadVoices)
 {
@@ -212,11 +237,7 @@ static int16_t mixNextFrame(bool& hadVoices)
     if (voice.position >= voice.frameCount)
     {
       startVoiceRelease(voice);
-
-      if (voice.position >= voice.frameCount)
-      {
-        voice.position = static_cast<uint32_t>(voice.frameCount - 1U);
-      }
+      voice.position = static_cast<uint32_t>(voice.frameCount - 1U);
     }
   }
 
@@ -389,6 +410,9 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
     return;
   }
 
+  //-- Start release fade for older voices in the same choke group.
+  releaseVoicesInChokeGroup(chokeGroup);
+
   for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     if (!voices[voiceIndex].active)
@@ -433,7 +457,7 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
 //-- Backward compatibility: old trigger function
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
 {
-  audioEngineTriggerSample(sampleId, level, 65535, 0, 0);
+  audioEngineTriggerSample(sampleId, level, 100, 0, 0);
 }
 
 //-- Render one audio block and write to I2S.
