@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 10:32 ***/
+/*** Last Changed: 2026-05-31 - 13:14 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -31,6 +31,10 @@ struct SequencerState
   uint8_t playingPatternIndex;
   uint8_t chainLength;
   uint8_t finalStopPatternIndex;
+  uint8_t loadedPatternCount;
+
+  uint8_t chainTargetIndex[sequencerPatternCount];
+  bool chainTargetValid[sequencerPatternCount];
 
   bool playing;
   bool editMode;
@@ -190,14 +194,18 @@ void sequencerInit()
   state.playingPatternIndex = 0;
   state.chainLength = 1;
   state.finalStopPatternIndex = 0;
+  state.loadedPatternCount = 1;
   state.playing = false;
   state.editMode = false;
   state.chainEnabled = false;
+  state.transportState = transportStopped;
   state.nextStepDueUs = 0;
 
   for (uint8_t patternIndex = 0; patternIndex < sequencerPatternCount; patternIndex++)
   {
     loadDefaultPattern(state.patterns[patternIndex]);
+    state.chainTargetIndex[patternIndex] = 0;
+    state.chainTargetValid[patternIndex] = false;
   }
 
   portEXIT_CRITICAL(&sequencerMux);
@@ -276,10 +284,34 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
       state.nextStepDueUs += intervalUs;
       state.currentStep = static_cast<uint8_t>((state.currentStep + 1U) % sequencerStepCount);
 
-      if (state.currentStep == 0 && state.chainEnabled && state.chainLength > 1U)
+      if (state.currentStep == 0)
       {
-        state.playingPatternIndex =
-            static_cast<uint8_t>((state.playingPatternIndex + 1U) % state.chainLength);
+        if (state.transportState == transportStopRequested)
+        {
+          if (state.playingPatternIndex == state.finalStopPatternIndex)
+          {
+            state.playing = false;
+            state.transportState = transportStopped;
+            state.nextStepDueUs = 0;
+          }
+          else
+          {
+            state.playingPatternIndex = state.finalStopPatternIndex;
+            state.transportState = transportPlayingFinalPattern;
+            state.nextStepDueUs = 0;
+          }
+        }
+        else if (state.transportState == transportPlayingFinalPattern)
+        {
+          state.playing = false;
+          state.transportState = transportStopped;
+          state.nextStepDueUs = 0;
+        }
+        else if (state.chainEnabled && state.chainTargetValid[state.playingPatternIndex] &&
+                 state.chainTargetIndex[state.playingPatternIndex] < state.loadedPatternCount)
+        {
+          state.playingPatternIndex = state.chainTargetIndex[state.playingPatternIndex];
+        }
       }
     }
   }
@@ -308,6 +340,7 @@ void sequencerTogglePlay()
 
 } //   sequencerTogglePlay()
 
+//=========
 //-- Stop immediately without waiting for musical pattern boundaries.
 void sequencerStopImmediately()
 {
@@ -322,23 +355,89 @@ void sequencerStopImmediately()
 
 } //   sequencerStopImmediately()
 
+//-- Store how many pattern slots are currently loaded in RAM.
+void sequencerSetLoadedPatternCount(uint8_t loadedPatternCount)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (loadedPatternCount < 1)
+  {
+    loadedPatternCount = 1;
+  }
+
+  if (loadedPatternCount > sequencerPatternCount)
+  {
+    loadedPatternCount = sequencerPatternCount;
+  }
+
+  state.loadedPatternCount = loadedPatternCount;
+
+  if (state.playingPatternIndex >= state.loadedPatternCount)
+  {
+    state.playingPatternIndex = 0;
+  }
+
+  if (state.activePatternIndex >= state.loadedPatternCount)
+  {
+    state.activePatternIndex = static_cast<uint8_t>(state.loadedPatternCount - 1U);
+  }
+
+  if (state.chainLength > state.loadedPatternCount)
+  {
+    state.chainLength = state.loadedPatternCount;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerSetLoadedPatternCount()
+
+//-- Clear all explicit pattern chain targets.
+void sequencerClearPatternChainTargets()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
+  {
+    state.chainTargetIndex[slotIndex] = 0;
+    state.chainTargetValid[slotIndex] = false;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerClearPatternChainTargets()
+
+//-- Set one explicit chain target for one pattern slot.
+void sequencerSetPatternChainTarget(uint8_t slotIndex, uint8_t targetSlotIndex, bool hasTarget)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (slotIndex < sequencerPatternCount && targetSlotIndex < sequencerPatternCount)
+  {
+    state.chainTargetIndex[slotIndex] = targetSlotIndex;
+    state.chainTargetValid[slotIndex] = hasTarget;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerSetPatternChainTarget()
+
 //-- Request musical stop: finish current pattern, play final pattern, then stop.
 void sequencerRequestStopAfterFinalPattern(uint8_t finalPatternIndex)
 {
   portENTER_CRITICAL(&sequencerMux);
 
-  if (finalPatternIndex >= sequencerPatternCount)
+  if (finalPatternIndex >= state.loadedPatternCount)
   {
-    finalPatternIndex = static_cast<uint8_t>(sequencerPatternCount - 1U);
+    finalPatternIndex = static_cast<uint8_t>(state.loadedPatternCount - 1U);
   }
 
   if (!state.playing)
   {
-    state.activePatternIndex = 0;
-    state.currentStep = 0;
-    state.nextStepDueUs = 0;
     state.playing = true;
     state.transportState = transportRunning;
+    state.playingPatternIndex = 0;
+    state.currentStep = 0;
+    state.nextStepDueUs = 0;
   }
   else
   {
@@ -482,29 +581,18 @@ void sequencerAdjustActivePatternIndex(int delta)
 
 } //   sequencerAdjustActivePatternIndex()
 
-//-- Set active pattern slot directly, clamped to current chain length.
+//-- Set active pattern slot directly, used only for view/edit selection.
 void sequencerSetActivePatternIndex(uint8_t slotIndex)
 {
-  uint8_t chainLimit;
-
   portENTER_CRITICAL(&sequencerMux);
 
-  chainLimit = state.chainLength;
-
-  if (chainLimit < 1)
+  if (slotIndex >= state.loadedPatternCount)
   {
-    chainLimit = 1;
-  }
-
-  if (slotIndex >= chainLimit)
-  {
-    slotIndex = static_cast<uint8_t>(chainLimit - 1U);
+    slotIndex = static_cast<uint8_t>(state.loadedPatternCount - 1U);
   }
 
   state.activePatternIndex = slotIndex;
-  state.currentStep = 0;
   state.cursorStep = 0;
-  state.nextStepDueUs = 0;
 
   portEXIT_CRITICAL(&sequencerMux);
 
@@ -758,18 +846,8 @@ void sequencerExportPatternFromSlot(uint8_t slotIndex, PatternData& outData)
   outData.pattern = state.patterns[slotIndex];
   outData.bpm = state.bpm;
   outData.swingPercent = state.swingPercent;
-
-  if (slotIndex == state.activePatternIndex)
-  {
-    outData.chainEnabled = state.chainEnabled;
-    outData.chainLength = state.chainLength;
-  }
-  else
-  {
-    outData.chainEnabled = false;
-    outData.chainLength = 1;
-  }
-
+  outData.chainEnabled = false;
+  outData.chainLength = state.loadedPatternCount;
   outData.chainTarget = "";
 
   portEXIT_CRITICAL(&sequencerMux);

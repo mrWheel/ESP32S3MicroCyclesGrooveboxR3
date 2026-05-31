@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 12:29 ***/
+/*** Last Changed: 2026-05-31 - 13:14 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -242,6 +242,172 @@ static uint8_t getLoadedPatternSlotCount()
   return loadedPatternCount;
 
 } //   getLoadedPatternSlotCount()
+
+//-- Return pattern slot number from pNN name.
+static int patternSlotNumberFromName(const String& patternName)
+{
+  String normalizedName = patternName;
+
+  if (normalizedName.endsWith(".json"))
+  {
+    normalizedName = normalizedName.substring(0, normalizedName.length() - 5);
+  }
+
+  if (normalizedName.length() != 3)
+  {
+    return -1;
+  }
+
+  if (normalizedName[0] != 'p' && normalizedName[0] != 'P')
+  {
+    return -1;
+  }
+
+  if (!isDigit(normalizedName[1]) || !isDigit(normalizedName[2]))
+  {
+    return -1;
+  }
+
+  int slotNumber = normalizedName.substring(1).toInt();
+
+  if (slotNumber < 1)
+  {
+    return -1;
+  }
+
+  return slotNumber;
+
+} //   patternSlotNumberFromName()
+
+//-- Resolve pNN pattern name to zero-based RAM slot index.
+static bool patternSlotIndexFromName(const String& patternName, uint8_t& outSlotIndex)
+{
+  int slotNumber = patternSlotNumberFromName(patternName);
+
+  if (slotNumber < 1)
+  {
+    return false;
+  }
+
+  if (slotNumber > sequencerPatternCount)
+  {
+    return false;
+  }
+
+  outSlotIndex = static_cast<uint8_t>(slotNumber - 1);
+
+  return true;
+
+} //   patternSlotIndexFromName()
+
+//-- Persist the currently active pattern name for one in-memory chain slot.
+static void assignActivePatternNameToCurrentSlot()
+{
+  SequencerView view;
+
+  sequencerGetView(view);
+
+  if (view.activePatternIndex < sequencerPatternCount)
+  {
+    uiState.chainSlotPatternNames[view.activePatternIndex] = uiState.activePatternName;
+  }
+
+} //   assignActivePatternNameToCurrentSlot()
+
+//-- Apply slot name back to active pattern label when known.
+static void syncActivePatternNameFromSlot(uint8_t slotIndex)
+{
+  if (slotIndex >= sequencerPatternCount)
+  {
+    return;
+  }
+
+  if (!uiState.chainSlotPatternNames[slotIndex].isEmpty())
+  {
+    uiState.activePatternName = uiState.chainSlotPatternNames[slotIndex];
+  }
+
+} //   syncActivePatternNameFromSlot()
+
+//-- Synchronize UI chain target names into the realtime sequencer table.
+static void syncSequencerChainTargetsFromUi()
+{
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+
+  sequencerSetLoadedPatternCount(loadedPatternCount);
+  sequencerClearPatternChainTargets();
+
+  for (uint8_t slotIndex = 0; slotIndex < loadedPatternCount; slotIndex++)
+  {
+    uint8_t targetSlotIndex = 0;
+    String targetName = uiState.chainSlotTargetPatternNames[slotIndex];
+
+    if (patternSlotIndexFromName(targetName, targetSlotIndex) &&
+        targetSlotIndex < loadedPatternCount)
+    {
+      sequencerSetPatternChainTarget(slotIndex, targetSlotIndex, true);
+    }
+  }
+
+} //   syncSequencerChainTargetsFromUi()
+
+//-- Return true when every loaded pattern is part of the chain starting at p01.
+static bool areAllLoadedPatternsIncludedInPlaybackChain()
+{
+  bool visited[sequencerPatternCount];
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+  uint8_t currentSlotIndex = 0;
+  uint8_t visitedCount = 0;
+
+  if (loadedPatternCount <= 1U)
+  {
+    return true;
+  }
+
+  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
+  {
+    visited[slotIndex] = false;
+  }
+
+  for (uint8_t guard = 0; guard < loadedPatternCount + 1U; guard++)
+  {
+    uint8_t nextSlotIndex = 0;
+    String targetName;
+
+    if (currentSlotIndex >= loadedPatternCount)
+    {
+      return false;
+    }
+
+    if (!visited[currentSlotIndex])
+    {
+      visited[currentSlotIndex] = true;
+      visitedCount++;
+    }
+
+    targetName = uiState.chainSlotTargetPatternNames[currentSlotIndex];
+
+    if (!patternSlotIndexFromName(targetName, nextSlotIndex))
+    {
+      return false;
+    }
+
+    if (nextSlotIndex >= loadedPatternCount)
+    {
+      return false;
+    }
+
+    currentSlotIndex = nextSlotIndex;
+
+    if (currentSlotIndex == 0)
+    {
+      break;
+    }
+  }
+
+  return visitedCount == loadedPatternCount;
+
+} //   areAllLoadedPatternsIncludedInPlaybackChain()
 
 //-- Resolve storage target directly from pattern letter: A-H Local, I-Z Card.
 static PatternStorageTarget storageTargetFromPatternLetter(char patternLetter)
@@ -561,71 +727,6 @@ static String fitListRowText(const String& text)
 
 } //   fitListRowText()
 
-//-- Return pattern slot number from pNN name.
-static int patternSlotNumberFromName(const String& patternName)
-{
-  String normalizedName = patternName;
-
-  if (normalizedName.endsWith(".json"))
-  {
-    normalizedName = normalizedName.substring(0, normalizedName.length() - 5);
-  }
-
-  if (normalizedName.length() != 3)
-  {
-    return -1;
-  }
-
-  if (normalizedName[0] != 'p' && normalizedName[0] != 'P')
-  {
-    return -1;
-  }
-
-  if (!isDigit(normalizedName[1]) || !isDigit(normalizedName[2]))
-  {
-    return -1;
-  }
-
-  int slotNumber = normalizedName.substring(1).toInt();
-
-  if (slotNumber < 1)
-  {
-    return -1;
-  }
-
-  return slotNumber;
-
-} //   patternSlotNumberFromName()
-
-//-- Persist the currently active pattern name for one in-memory chain slot.
-static void assignActivePatternNameToCurrentSlot()
-{
-  SequencerView view;
-
-  sequencerGetView(view);
-
-  if (view.activePatternIndex < sequencerPatternCount)
-  {
-    uiState.chainSlotPatternNames[view.activePatternIndex] = uiState.activePatternName;
-  }
-
-} //   assignActivePatternNameToCurrentSlot()
-
-//-- Apply slot name back to active pattern label when known.
-static void syncActivePatternNameFromSlot(uint8_t slotIndex)
-{
-  if (slotIndex >= sequencerPatternCount)
-  {
-    return;
-  }
-
-  if (!uiState.chainSlotPatternNames[slotIndex].isEmpty())
-  {
-    uiState.activePatternName = uiState.chainSlotPatternNames[slotIndex];
-  }
-
-} //   syncActivePatternNameFromSlot()
-
 //-- Scan existing patterns for one series letter.
 static int scanPatternsForSeries(char seriesLetter, String outNames[patternStoreMaxEntries])
 {
@@ -782,6 +883,8 @@ static void saveChainSettingsForPattern()
   {
     uiState.chainSlotTargetPatternNames[view.activePatternIndex] = "";
   }
+
+  syncSequencerChainTargetsFromUi();
 
 } //   saveChainSettingsForPattern()
 
@@ -1819,6 +1922,8 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
     uiState.chainSlotTargetPatternNames[patternIndex] = patternData.chainTarget;
   }
 
+  sequencerSetLoadedPatternCount(static_cast<uint8_t>(cardPatternCount));
+  syncSequencerChainTargetsFromUi();
   sequencerSetActivePatternIndex(0);
 
   uiState.activePatternName = cardPatternNames[0];
@@ -1848,6 +1953,7 @@ static bool saveLoadedPatternGroupToCard()
   PatternData patternData;
   SequencerView view;
   String groupName = settingsStoreGetActivePatternGroup();
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
   int savedCount = 0;
 
   if (groupName.isEmpty())
@@ -1864,10 +1970,9 @@ static bool saveLoadedPatternGroupToCard()
   }
 
   flushPendingChainSettings();
+  syncSequencerChainTargetsFromUi();
 
   drawBusyPopupNow("Save Pattern", "Saving " + groupName);
-
-  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
 
   for (uint8_t slotIndex = 0; slotIndex < loadedPatternCount; slotIndex++)
   {
@@ -1875,17 +1980,14 @@ static bool saveLoadedPatternGroupToCard()
 
     if (patternName.isEmpty())
     {
-      char patternNameBuffer[8];
-
-      snprintf(patternNameBuffer, sizeof(patternNameBuffer), "p%02u",
-               static_cast<unsigned>(slotIndex + 1U));
-
-      patternName = String(patternNameBuffer);
+      patternName = buildPatternNameForSlot(slotIndex);
     }
 
     sequencerExportPatternFromSlot(slotIndex, patternData);
 
     patternData.chainTarget = uiState.chainSlotTargetPatternNames[slotIndex];
+    patternData.chainEnabled = !patternData.chainTarget.isEmpty();
+    patternData.chainLength = loadedPatternCount;
 
     if (!settingsStoreSavePatternToCard(groupName, patternName, patternData))
     {
@@ -2054,21 +2156,14 @@ static String formatGrooveboxFooter(const SequencerView& view)
     return String(footerLine);
   }
 
-  if (view.chainEnabled && view.chainLength > 1U)
+  if (view.chainEnabled)
   {
-    uint8_t loadedPatternCount = getLoadedPatternSlotCount();
-    uint8_t effectiveChainLength = view.chainLength;
+    uint8_t nextSlotIndex = 0;
 
-    if (effectiveChainLength > loadedPatternCount)
+    if (view.playingPatternIndex < sequencerPatternCount &&
+        patternSlotIndexFromName(uiState.chainSlotTargetPatternNames[view.playingPatternIndex],
+                                 nextSlotIndex))
     {
-      effectiveChainLength = loadedPatternCount;
-    }
-
-    if (effectiveChainLength > 1U)
-    {
-      uint8_t nextSlotIndex =
-          static_cast<uint8_t>((view.playingPatternIndex + 1U) % effectiveChainLength);
-
       nextPatternName = getPatternNameForSlot(nextSlotIndex);
     }
   }
@@ -2180,20 +2275,25 @@ static void stopPlaybackForStorageAction()
 static void handleGrooveboxTransportButton()
 {
   SequencerView view;
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
   uint8_t finalPatternIndex = 0;
 
   sequencerGetView(view);
 
   if (!view.playing)
   {
+    syncSequencerChainTargetsFromUi();
     sequencerTogglePlay();
     return;
   }
 
-  if (!settingsStoreFindHighestLocalPatternIndex(finalPatternIndex))
+  if (areAllLoadedPatternsIncludedInPlaybackChain())
   {
-    finalPatternIndex = view.activePatternIndex;
+    sequencerStopImmediately();
+    return;
   }
+
+  finalPatternIndex = static_cast<uint8_t>(loadedPatternCount - 1U);
 
   sequencerRequestStopAfterFinalPattern(finalPatternIndex);
 

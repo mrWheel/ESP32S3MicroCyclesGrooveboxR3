@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 10:32 ***/
+/*** Last Changed: 2026-05-31 - 13:14 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -72,6 +72,9 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
 void sequencerTogglePlay();
 void sequencerStopImmediately();
 void sequencerRequestStopAfterFinalPattern(uint8_t finalPatternIndex);
+void sequencerSetLoadedPatternCount(uint8_t loadedPatternCount);
+void sequencerClearPatternChainTargets();
+void sequencerSetPatternChainTarget(uint8_t slotIndex, uint8_t targetSlotIndex, bool hasTarget);
 void sequencerToggleEditMode();
 void sequencerMoveCursor(int delta);
 void sequencerMoveTrack(int delta);
