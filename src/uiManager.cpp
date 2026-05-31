@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 08:52 ***/
+/*** Last Changed: 2026-05-31 - 10:32 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -35,9 +35,10 @@ enum ParameterPage : uint8_t
 };
 
 //-- Settings menu entries.
-static const int settingsEntryCount = 13;
+static const int settingsEntryCount = 14;
 //-- Special list mode for Card pattern groups.
 static const int patternListModeCardGroups = 1001;
+static const int patternListModeMemoryPatterns = 1002;
 //-- Card Storage menu item count.
 static const int cardStorageMenuEntryCount = 5;
 static const int sampleSetListMaxEntries = 9;
@@ -927,12 +928,71 @@ static void updateListFirstVisibleIndex(int selectedIndex, int itemCount, int& f
 
 } //   updateListFirstVisibleIndex()
 
+//-- Return pattern name for a loaded pattern slot.
+static String getPatternNameForSlot(uint8_t slotIndex)
+{
+  char fallbackName[8];
+
+  if (slotIndex < sequencerPatternCount && !uiState.chainSlotPatternNames[slotIndex].isEmpty())
+  {
+    return uiState.chainSlotPatternNames[slotIndex];
+  }
+
+  snprintf(fallbackName, sizeof(fallbackName), "p%02u", static_cast<unsigned>(slotIndex + 1U));
+
+  return String(fallbackName);
+
+} //   getPatternNameForSlot()
+
+//-- Count loaded pattern slots currently known by the UI.
+static uint8_t getLoadedPatternSlotCount()
+{
+  uint8_t loadedPatternCount = 0;
+
+  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
+  {
+    if (!uiState.chainSlotPatternNames[slotIndex].isEmpty())
+    {
+      loadedPatternCount = static_cast<uint8_t>(slotIndex + 1U);
+    }
+  }
+
+  if (loadedPatternCount < 1)
+  {
+    loadedPatternCount = 1;
+  }
+
+  return loadedPatternCount;
+
+} //   getLoadedPatternSlotCount()
+
 //-- Refresh cached pattern names.
 static void refreshPatternList()
 {
   size_t listedCount = 0;
 
   uiState.patternCount = 0;
+
+  if (uiState.patternListSourceFilter == patternListModeMemoryPatterns)
+  {
+    uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+
+    for (uint8_t slotIndex = 0;
+         slotIndex < loadedPatternCount && uiState.patternCount < patternListMaxEntries;
+         slotIndex++)
+    {
+      uiState.patternNames[uiState.patternCount] = getPatternNameForSlot(slotIndex);
+      uiState.patternSources[uiState.patternCount] = PatternEntrySource::Local;
+      uiState.patternCount++;
+    }
+
+    if (uiState.patternListSelection >= uiState.patternCount)
+    {
+      uiState.patternListSelection = (uiState.patternCount > 0) ? (uiState.patternCount - 1) : 0;
+    }
+
+    return;
+  }
 
   if (uiState.patternListSourceFilter == patternListModeCardGroups)
   {
@@ -1211,43 +1271,146 @@ static bool loadSelectedPattern()
 
 } //   loadSelectedPattern()
 
-//-- Count loaded pattern slots currently known by the UI.
-static uint8_t getLoadedPatternSlotCount()
+//-- Build a canonical pNN name for one zero-based pattern slot.
+static String buildPatternNameForSlot(uint8_t slotIndex)
 {
-  uint8_t loadedPatternCount = 0;
+  char patternName[8];
+
+  snprintf(patternName, sizeof(patternName), "p%02u", static_cast<unsigned>(slotIndex + 1U));
+
+  return String(patternName);
+
+} //   buildPatternNameForSlot()
+
+//-- Rebuild loaded RAM pattern names after add/delete operations.
+static void rebuildLoadedPatternNames(uint8_t loadedPatternCount)
+{
+  if (loadedPatternCount > sequencerPatternCount)
+  {
+    loadedPatternCount = sequencerPatternCount;
+  }
 
   for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
   {
-    if (!uiState.chainSlotPatternNames[slotIndex].isEmpty())
+    if (slotIndex < loadedPatternCount)
     {
-      loadedPatternCount = static_cast<uint8_t>(slotIndex + 1U);
+      uiState.chainSlotPatternNames[slotIndex] = buildPatternNameForSlot(slotIndex);
+    }
+    else
+    {
+      uiState.chainSlotPatternNames[slotIndex] = "";
+      uiState.chainSlotTargetPatternNames[slotIndex] = "";
     }
   }
 
-  if (loadedPatternCount < 1)
+} //   rebuildLoadedPatternNames()
+
+//-- Add a new RAM pattern after the last loaded pattern.
+static bool addPatternInMemory()
+{
+  SequencerView view;
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+  uint8_t newSlotIndex = loadedPatternCount;
+  uint8_t newPatternNumber = static_cast<uint8_t>(loadedPatternCount + 1U);
+
+  sequencerGetView(view);
+
+  if (view.playing)
+  {
+    sequencerStopImmediately();
+  }
+
+  flushPendingChainSettings();
+
+  if (loadedPatternCount >= sequencerPatternCount)
+  {
+    showPatternStatus("Pattern memory\nfull", 2500);
+    return false;
+  }
+
+  sequencerCreatePatternSlot(newSlotIndex, newPatternNumber);
+
+  uiState.chainSlotPatternNames[newSlotIndex] = buildPatternNameForSlot(newSlotIndex);
+  uiState.chainSlotTargetPatternNames[newSlotIndex] = "";
+  uiState.activePatternName = uiState.chainSlotPatternNames[newSlotIndex];
+
+  refreshChainSeriesPatternCache();
+  loadChainSettingsForActivePattern();
+
+  showPatternStatus("Added pattern\n" + uiState.activePatternName, 2000);
+
+  uiState.dirty = true;
+
+  return true;
+
+} //   addPatternInMemory()
+
+//-- Open RAM pattern delete selector.
+static void openDeletePatternFromMemory()
+{
+  uiState.patternListOpen = true;
+  uiState.patternDeleteMode = true;
+  uiState.patternListSourceFilter = patternListModeMemoryPatterns;
+  uiState.patternListSelection = 0;
+  uiState.patternListFirstVisibleIndex = 0;
+  uiState.patternListNeedsRefresh = true;
+
+} //   openDeletePatternFromMemory()
+
+//-- Delete selected RAM pattern and compact remaining RAM patterns.
+static bool deleteSelectedPatternFromMemory()
+{
+  SequencerView view;
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+  uint8_t deleteSlotIndex;
+
+  if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 ||
+      uiState.patternListSelection >= uiState.patternCount)
+  {
+    return false;
+  }
+
+  deleteSlotIndex = static_cast<uint8_t>(uiState.patternListSelection);
+
+  sequencerGetView(view);
+
+  if (view.playing)
+  {
+    sequencerStopImmediately();
+  }
+
+  flushPendingChainSettings();
+
+  sequencerDeletePatternSlot(deleteSlotIndex, loadedPatternCount);
+
+  if (loadedPatternCount > 1U)
+  {
+    loadedPatternCount--;
+  }
+  else
   {
     loadedPatternCount = 1;
   }
 
-  return loadedPatternCount;
+  rebuildLoadedPatternNames(loadedPatternCount);
 
-} //   getLoadedPatternSlotCount()
+  sequencerGetView(view);
+  uiState.activePatternName = getPatternNameForSlot(view.activePatternIndex);
+  uiState.chainTargetPatternName = "";
+  uiState.chainTargetValid = false;
+  uiState.chainSettingsDirty = false;
 
-//-- Return pattern name for a loaded pattern slot.
-static String getPatternNameForSlot(uint8_t slotIndex)
-{
-  char fallbackName[8];
+  refreshChainSeriesPatternCache();
+  loadChainSettingsForActivePattern();
 
-  if (slotIndex < sequencerPatternCount && !uiState.chainSlotPatternNames[slotIndex].isEmpty())
-  {
-    return uiState.chainSlotPatternNames[slotIndex];
-  }
+  uiState.patternListNeedsRefresh = true;
+  uiState.dirty = true;
 
-  snprintf(fallbackName, sizeof(fallbackName), "p%02u", static_cast<unsigned>(slotIndex + 1U));
+  showPatternStatus("Deleted pattern", 2000);
 
-  return String(fallbackName);
+  return true;
 
-} //   getPatternNameForSlot()
+} //   deleteSelectedPatternFromMemory()
 
 //-- Move Groovebox cursor across tracks and loaded pattern slots.
 static void moveGrooveboxCursorAcrossPatterns(int delta)
@@ -1417,7 +1580,9 @@ static bool saveLoadedPatternGroupToCard()
   }
 
   flushPendingChainSettings();
-  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+
+  for (uint8_t slotIndex = 0; slotIndex < loadedPatternCount; slotIndex++)
   {
     String patternName = uiState.chainSlotPatternNames[slotIndex];
 
@@ -1443,6 +1608,23 @@ static bool saveLoadedPatternGroupToCard()
     savedCount++;
   }
 
+  String existingPatternNames[patternStoreMaxEntries];
+  size_t existingPatternCount = 0;
+
+  if (settingsStoreListPatternsInGroupOnCard(groupName, existingPatternNames,
+                                             patternStoreMaxEntries, existingPatternCount))
+  {
+    for (size_t patternIndex = 0; patternIndex < existingPatternCount; patternIndex++)
+    {
+      String existingName = existingPatternNames[patternIndex];
+      int existingNumber = existingName.substring(1).toInt();
+
+      if (existingNumber > loadedPatternCount)
+      {
+        settingsStoreDeletePatternFromCard(groupName, existingName);
+      }
+    }
+  }
   saveRuntimeSettingsFromCurrentState();
 
   showPatternStatus("Saved group\n" + groupName, 2500);
@@ -1940,7 +2122,7 @@ static void drawSystemSettingsScreen()
 
   String items[settingsEntryCount];
   bool disabledItems[settingsEntryCount] = {true,  true,  true,  false, false, false, false,
-                                            false, false, false, false, false, false};
+                                            false, false, false, false, false, false, false};
   String ssidValue = systemManagerGetSsid();
   String ipValue = systemManagerGetIpAddress();
   String macValue = systemManagerGetMacAddress();
@@ -1951,13 +2133,11 @@ static void drawSystemSettingsScreen()
   int displayRotation = displayGetRotation();
   bool encoderReversed = input.getEncoderDirectionReversed();
 
-  char localStorageEntry[40];
   char cardStorageEntry[40];
   char themeEntry[32];
   char rotationEntry[40];
   char encoderOrderEntry[32];
 
-  snprintf(localStorageEntry, sizeof(localStorageEntry), "Local Storage");
   snprintf(cardStorageEntry, sizeof(cardStorageEntry), "Card Storage");
   snprintf(themeEntry, sizeof(themeEntry), "Set Theme (%s)", themeName);
   snprintf(rotationEntry, sizeof(rotationEntry), "Rotate Display (%d)", displayRotation);
@@ -1967,16 +2147,17 @@ static void drawSystemSettingsScreen()
   items[0] = fitListRowText("SSID: " + ssidValue);
   items[1] = fitListRowText("IP: " + ipValue);
   items[2] = fitListRowText("MAC: " + macValue);
-  items[3] = fitListRowText(localStorageEntry);
-  items[4] = fitListRowText(cardStorageEntry);
-  items[5] = "Load Sample Set";
-  items[6] = "Erase WiFi credentials";
-  items[7] = "Start WiFiManager";
-  items[8] = fitListRowText(themeEntry);
-  items[9] = fitListRowText(rotationEntry);
-  items[10] = fitListRowText(encoderOrderEntry);
-  items[11] = "Restart Groovebox";
-  items[12] = "Exit";
+  items[3] = "Add Pattern";
+  items[4] = "Delete Pattern";
+  items[5] = fitListRowText(cardStorageEntry);
+  items[6] = "Load Sample Set";
+  items[7] = "Erase WiFi credentials";
+  items[8] = "Start WiFiManager";
+  items[9] = fitListRowText(themeEntry);
+  items[10] = fitListRowText(rotationEntry);
+  items[11] = fitListRowText(encoderOrderEntry);
+  items[12] = "Restart Groovebox";
+  items[13] = "Exit";
 
   updateListFirstVisibleIndex(uiState.menuSelection, settingsEntryCount,
                               uiState.menuFirstVisibleIndex);
@@ -2088,7 +2269,7 @@ static void drawSequencerFooterUpdate(const SequencerView& view)
 
 } //   drawSequencerFooterUpdate()
 
-//-- Run selected action from settings menu.
+//-- Execute selected System Settings menu action.
 static void executeMenuAction()
 {
   int activeThemeIndex;
@@ -2097,61 +2278,71 @@ static void executeMenuAction()
 
   if (uiState.menuSelection == 3)
   {
-    uiState.localStorageMenuOpen = true;
-    uiState.menuOpen = false;
-    uiState.dirty = true;
-    return;
+    addPatternInMemory();
   }
   else if (uiState.menuSelection == 4)
+  {
+    openDeletePatternFromMemory();
+  }
+  else if (uiState.menuSelection == 5)
   {
     uiState.cardStorageMenuOpen = true;
     uiState.cardStorageMenuSelection = 0;
     uiState.cardStorageMenuFirstVisibleIndex = 0;
-    // Keep menuOpen true, Card Storage is a submenu
-    uiState.dirty = true;
-    return;
-  }
-  else if (uiState.menuSelection == 5)
-  {
-    stopPlaybackForStorageAction();
-    refreshSampleSetList();
-    uiState.sampleSetListOpen = true;
     uiState.dirty = true;
     return;
   }
   else if (uiState.menuSelection == 6)
   {
+    SequencerView view;
+
+    sequencerGetView(view);
+
+    if (view.playing)
+    {
+      sequencerStopImmediately();
+    }
+
+    refreshSampleSetList();
+    uiState.sampleSetListOpen = true;
+    uiState.dirty = true;
+    return;
+  }
+  else if (uiState.menuSelection == 7)
+  {
     uiState.eraseWifiConfirmOpen = true;
     uiState.eraseWifiConfirmSelection = 1;
   }
-  else if (uiState.menuSelection == 7)
+  else if (uiState.menuSelection == 8)
   {
     uiState.wifiManagerConfirmOpen = true;
     uiState.wifiManagerConfirmSelection = 1;
   }
-  else if (uiState.menuSelection == 8)
+  else if (uiState.menuSelection == 9)
   {
     activeThemeIndex = displayGetThemeColorIndex();
     nextThemeIndex = (activeThemeIndex + 1) % colorProfileCount;
+
     displaySetThemeColorIndex(nextThemeIndex);
-    saveRuntimeSettingsFromCurrentState();
-  }
-  else if (uiState.menuSelection == 9)
-  {
-    nextRotation = (displayGetRotation() == 1) ? 3 : 1;
-    displaySetRotation(nextRotation);
     saveRuntimeSettingsFromCurrentState();
   }
   else if (uiState.menuSelection == 10)
   {
-    input.setEncoderDirectionReversed(!input.getEncoderDirectionReversed());
+    nextRotation = (displayGetRotation() == 1) ? 3 : 1;
+
+    displaySetRotation(nextRotation);
     saveRuntimeSettingsFromCurrentState();
   }
   else if (uiState.menuSelection == 11)
   {
-    systemManagerQueueCommand(SystemCommand::restartNow);
+    input.setEncoderDirectionReversed(!input.getEncoderDirectionReversed());
+    saveRuntimeSettingsFromCurrentState();
   }
   else if (uiState.menuSelection == 12)
+  {
+    systemManagerQueueCommand(SystemCommand::restartNow);
+  }
+  else if (uiState.menuSelection == 13)
   {
     uiState.menuOpen = false;
   }
@@ -2618,6 +2809,16 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
             if (loadSelectedCardPatternGroup())
             {
               uiState.patternListOpen = false;
+              uiState.patternListSourceFilter = -1;
+              uiState.patternListFirstVisibleIndex = 0;
+            }
+          }
+          if (uiState.patternListSourceFilter == patternListModeMemoryPatterns)
+          {
+            if (deleteSelectedPatternFromMemory())
+            {
+              uiState.patternListOpen = false;
+              uiState.patternDeleteMode = false;
               uiState.patternListSourceFilter = -1;
               uiState.patternListFirstVisibleIndex = 0;
             }

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 08:52 ***/
+/*** Last Changed: 2026-05-31 - 10:32 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -7,7 +7,7 @@
 
 static const uint8_t sequencerTrackCount = 6;
 static const uint8_t sequencerStepCount = 16;
-static const uint8_t sequencerPatternCount = 8;
+static const uint8_t sequencerPatternCount = 48;
 
 //-- Trigger metadata for one step.
 struct Step
@@ -86,7 +86,6 @@ void sequencerAdjustCurrentStepLockDecay(int delta);
 void sequencerToggleCurrentStepLock();
 void sequencerAdjustBpm(int delta);
 void sequencerAdjustSwing(int delta);
-void sequencerMoveTrackAndPattern(int delta, uint8_t loadedPatternCount);
 void sequencerToggleMuteForSelectedTrack();
 void sequencerAdjustChainLength(int delta);
 void sequencerToggleChainEnabled();
@@ -94,6 +93,8 @@ void sequencerToggleChainEnabled();
 //-- Pattern memory actions.
 void sequencerStorePattern(uint8_t slotIndex);
 void sequencerLoadPattern(uint8_t slotIndex);
+void sequencerCreatePatternSlot(uint8_t slotIndex, uint8_t patternNumber);
+void sequencerDeletePatternSlot(uint8_t slotIndex, uint8_t loadedPatternCount);
 
 //-- Import/export helpers for pattern storage.
 void sequencerExportPattern(PatternData& outData);

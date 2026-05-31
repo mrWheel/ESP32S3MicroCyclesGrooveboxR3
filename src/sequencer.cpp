@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 08:52 ***/
+/*** Last Changed: 2026-05-31 - 10:32 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -109,6 +109,49 @@ static void loadDefaultPattern(Pattern& pattern)
   pattern.tracks[3].steps[11].velocity = 220;
 
 } //   loadDefaultPattern()
+
+//-- Clear one pattern to a deterministic empty state.
+static void clearPattern(Pattern& pattern)
+{
+  for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
+  {
+    pattern.tracks[trackIndex].mute = false;
+
+    for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
+    {
+      pattern.tracks[trackIndex].steps[stepIndex].trigger = false;
+      pattern.tracks[trackIndex].steps[stepIndex].velocity = 255;
+      pattern.tracks[trackIndex].steps[stepIndex].probability = 100;
+      pattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
+      pattern.tracks[trackIndex].steps[stepIndex].lockPitch = 0;
+      pattern.tracks[trackIndex].steps[stepIndex].lockDecay = 100;
+    }
+  }
+
+} //   clearPattern()
+
+//-- Seed a new pattern with a progressive visual test shape.
+static void seedPatternByNumber(Pattern& pattern, uint8_t patternNumber)
+{
+  uint16_t remainingSteps = patternNumber;
+
+  clearPattern(pattern);
+
+  for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
+  {
+    for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
+    {
+      if (remainingSteps == 0)
+      {
+        return;
+      }
+
+      pattern.tracks[trackIndex].steps[stepIndex].trigger = true;
+      remainingSteps--;
+    }
+  }
+
+} //   seedPatternByNumber()
 
 //-- Convert BPM and swing into next step interval in microseconds.
 static uint32_t getStepIntervalUs(uint16_t bpm, uint8_t swingPercent, uint8_t stepIndex)
@@ -796,6 +839,89 @@ void sequencerImportPatternToSlot(uint8_t slotIndex, const PatternData& patternD
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerImportPatternToSlot()
+
+//-- Create a new seeded pattern in a specific RAM slot.
+void sequencerCreatePatternSlot(uint8_t slotIndex, uint8_t patternNumber)
+{
+  if (slotIndex >= sequencerPatternCount)
+  {
+    return;
+  }
+
+  portENTER_CRITICAL(&sequencerMux);
+
+  seedPatternByNumber(state.patterns[slotIndex], patternNumber);
+
+  state.activePatternIndex = slotIndex;
+  state.selectedTrack = 0;
+  state.cursorStep = 0;
+
+  if (state.chainLength < patternNumber)
+  {
+    state.chainLength = patternNumber;
+  }
+
+  if (state.chainLength > sequencerPatternCount)
+  {
+    state.chainLength = sequencerPatternCount;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerCreatePatternSlot()
+
+//-- Delete one RAM pattern slot and compact following slots upward.
+void sequencerDeletePatternSlot(uint8_t slotIndex, uint8_t loadedPatternCount)
+{
+  if (loadedPatternCount < 1)
+  {
+    return;
+  }
+
+  if (loadedPatternCount > sequencerPatternCount)
+  {
+    loadedPatternCount = sequencerPatternCount;
+  }
+
+  if (slotIndex >= loadedPatternCount)
+  {
+    return;
+  }
+
+  portENTER_CRITICAL(&sequencerMux);
+
+  for (uint8_t moveIndex = slotIndex; moveIndex < loadedPatternCount - 1U; moveIndex++)
+  {
+    state.patterns[moveIndex] = state.patterns[moveIndex + 1U];
+  }
+
+  clearPattern(state.patterns[loadedPatternCount - 1U]);
+
+  if (state.activePatternIndex >= loadedPatternCount - 1U)
+  {
+    state.activePatternIndex =
+        (loadedPatternCount > 1U) ? static_cast<uint8_t>(loadedPatternCount - 2U) : 0;
+  }
+
+  if (state.playingPatternIndex >= loadedPatternCount - 1U)
+  {
+    state.playingPatternIndex = 0;
+  }
+
+  if (state.chainLength > loadedPatternCount - 1U)
+  {
+    state.chainLength =
+        (loadedPatternCount > 1U) ? static_cast<uint8_t>(loadedPatternCount - 1U) : 1;
+  }
+
+  state.selectedTrack = 0;
+  state.cursorStep = 0;
+  state.currentStep = 0;
+  state.nextStepDueUs = 0;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerDeletePatternSlot()
 
 //-- Reset active pattern to an empty pattern.
 void sequencerClearActivePattern()
