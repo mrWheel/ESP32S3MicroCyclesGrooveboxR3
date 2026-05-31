@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 10:59 ***/
+/*** Last Changed: 2026-05-31 - 11:29 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -978,16 +978,36 @@ static void commitPatternGroupNameInput()
 {
   String oldGroupName = settingsStoreGetActivePatternGroup();
   String newGroupName = getTrimmedPatternGroupNameInput();
+  bool copyMode = uiState.patternGroupNameInputCopyMode;
   bool success = false;
 
   if (newGroupName.isEmpty())
   {
-    showPatternStatus("Name empty", 2000);
     uiState.patternGroupNameInputOpen = false;
+    showPatternStatus("Name empty", 2000);
+    uiState.dirty = true;
+
     return;
   }
 
-  if (uiState.patternGroupNameInputCopyMode)
+  //-- Close input first so the busy popup can be drawn before the SD action starts.
+  uiState.patternGroupNameInputOpen = false;
+  uiState.patternStatusOpen = false;
+  uiState.patternStatusText = "";
+  uiState.dirty = true;
+
+  if (copyMode)
+  {
+    display.drawMessage("Copy Pattern", "Copying...");
+  }
+  else
+  {
+    display.drawMessage("Rename Pattern", "Renaming...");
+  }
+
+  delay(50);
+
+  if (copyMode)
   {
     success = settingsStoreCopyPatternGroupOnCard(oldGroupName, newGroupName);
   }
@@ -999,13 +1019,14 @@ static void commitPatternGroupNameInput()
   if (!success)
   {
     showPatternStatus("Group failed\n" + newGroupName, 2500);
-    uiState.patternGroupNameInputOpen = false;
+    uiState.dirty = true;
+
     return;
   }
 
   settingsStoreSetActivePatternGroup(newGroupName);
 
-  if (uiState.patternGroupNameInputCopyMode)
+  if (copyMode)
   {
     loadCardPatternGroupIntoMemory(newGroupName, false);
     showPatternStatus("Copied group\n" + newGroupName, 2500);
@@ -1015,7 +1036,6 @@ static void commitPatternGroupNameInput()
     showPatternStatus("Renamed group\n" + newGroupName, 2500);
   }
 
-  uiState.patternGroupNameInputOpen = false;
   uiState.patternListNeedsRefresh = true;
   uiState.dirty = true;
 
@@ -2647,7 +2667,7 @@ void uiManagerInit()
 
 } //   uiManagerInit()
 
-//-- Periodic UI redraw/update.
+//-- Update UI rendering at controlled refresh cadence.
 void uiManagerUpdate()
 {
   uint32_t nowMs = millis();
@@ -2696,6 +2716,7 @@ void uiManagerUpdate()
 
     footerStateChanged =
         (view.currentStep != lastSequencerStep) || (view.cursorStep != lastSequencerCursor);
+
     transportStateChanged = (view.playing != lastSequencerPlaying);
 
     if (transportStateChanged)
@@ -2713,6 +2734,7 @@ void uiManagerUpdate()
     }
 
     uiState.lastDrawMs = nowMs;
+
     drawSequencerFooterUpdate(view);
 
     lastSequencerStep = view.currentStep;
@@ -2734,8 +2756,11 @@ void uiManagerUpdate()
   if (uiState.editPopupOpen && !uiState.menuOpen && !uiState.tempoEditOpen)
   {
     uiState.lastDrawMs = nowMs;
+
     drawEditPopupOverlayOnly();
+
     uiState.dirty = false;
+
     return;
   }
 
@@ -2743,16 +2768,16 @@ void uiManagerUpdate()
 
   if (uiState.menuOpen)
   {
+    sequencerScreenDrawn = false;
+
     if (uiState.patternGroupNameInputOpen)
     {
       drawPatternGroupNameInput();
     }
-    else if (uiState.cardStorageMenuOpen)
+    else
     {
-      drawCardStorageMenu();
+      drawSystemSettingsScreen();
     }
-    sequencerScreenDrawn = false;
-    drawSystemSettingsScreen();
   }
   else
   {
