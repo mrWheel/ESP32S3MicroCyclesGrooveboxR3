@@ -470,9 +470,9 @@ Recommendation:
 
 Implement in this order:
 
-1. voice stealing policy
-2. release fade
-3. choke group behavior
+1. voice stealing policy     [Done]
+2. release fade              [Done]
+3. choke group behavior      [Done]
 4. pan application
 5. stereo output
 6. optional limiter refinement

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 14:03 ***/
+/*** Last Changed: 2026-05-31 - 14:11 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -166,6 +166,33 @@ static void releaseVoicesInChokeGroup(uint8_t chokeGroup)
 
 } //   releaseVoicesInChokeGroup()
 
+//-- Apply musical velocity curve for drum dynamics.
+static uint8_t applyVelocityCurve(uint8_t velocity)
+{
+  uint16_t curvedVelocity;
+
+  if (velocity == 0)
+  {
+    return 0;
+  }
+
+  curvedVelocity = static_cast<uint16_t>(
+      (static_cast<uint16_t>(velocity) * static_cast<uint16_t>(velocity) + 127U) / 255U);
+
+  if (curvedVelocity < 1U)
+  {
+    curvedVelocity = 1U;
+  }
+
+  if (curvedVelocity > 255U)
+  {
+    curvedVelocity = 255U;
+  }
+
+  return static_cast<uint8_t>(curvedVelocity);
+
+} //   applyVelocityCurve()
+
 //-- Mix one mono frame from active voices.
 static int16_t mixNextFrame(bool& hadVoices)
 {
@@ -204,7 +231,8 @@ static int16_t mixNextFrame(bool& hadVoices)
     uint16_t sampleGain = sampleManagerGetSampleGainPercent(static_cast<SampleId>(sampleIndex));
 
     int32_t sampleValue = static_cast<int32_t>(voice.sampleData[voice.position]);
-    int32_t leveledSample = (sampleValue * static_cast<int32_t>(voice.level)) / 255;
+    uint8_t curvedVelocity = applyVelocityCurve(voice.level);
+    int32_t leveledSample = (sampleValue * static_cast<int32_t>(curvedVelocity)) / 255;
     int32_t gainedSample = (leveledSample * static_cast<int32_t>(sampleGain)) / 100;
 
     if (voice.releaseActive)
