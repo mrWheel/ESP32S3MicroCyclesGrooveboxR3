@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 18:09 ***/
+/*** Last Changed: 2026-05-31 - 08:31 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -1211,6 +1211,64 @@ static bool loadSelectedPattern()
 
 } //   loadSelectedPattern()
 
+//-- Return pattern name for a loaded pattern slot.
+static String getPatternNameForSlot(uint8_t slotIndex)
+{
+  char fallbackName[8];
+
+  if (slotIndex < sequencerPatternCount && !uiState.chainSlotPatternNames[slotIndex].isEmpty())
+  {
+    return uiState.chainSlotPatternNames[slotIndex];
+  }
+
+  snprintf(fallbackName, sizeof(fallbackName), "p%02u", static_cast<unsigned>(slotIndex + 1U));
+
+  return String(fallbackName);
+
+} //   getPatternNameForSlot()
+
+//-- Count loaded pattern slots currently known by the UI.
+static uint8_t getLoadedPatternSlotCount()
+{
+  uint8_t loadedPatternCount = 0;
+
+  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
+  {
+    if (!uiState.chainSlotPatternNames[slotIndex].isEmpty())
+    {
+      loadedPatternCount = static_cast<uint8_t>(slotIndex + 1U);
+    }
+  }
+
+  if (loadedPatternCount < 1)
+  {
+    loadedPatternCount = 1;
+  }
+
+  return loadedPatternCount;
+
+} //   getLoadedPatternSlotCount()
+
+//-- Move Groovebox cursor across tracks and loaded pattern slots.
+static void moveGrooveboxCursorAcrossPatterns(int delta)
+{
+  SequencerView view;
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+
+  flushPendingChainSettings();
+
+  sequencerMoveTrackAndPattern(delta, loadedPatternCount);
+
+  sequencerGetView(view);
+
+  uiState.activePatternName = getPatternNameForSlot(view.activePatternIndex);
+
+  loadChainSettingsForActivePattern();
+
+  uiState.dirty = true;
+
+} //   moveGrooveboxCursorAcrossPatterns()
+
 //-- Load selected Card pattern group directly into sequencer memory.
 static bool loadSelectedCardPatternGroup()
 {
@@ -1513,9 +1571,9 @@ static String getNextPatternDisplayName(const SequencerView& view)
 static String formatGrooveboxFooter(const SequencerView& view)
 {
   char footerLine[64];
-  char playingPatternLabel[8];
-  String nextPatternName;
-  String groupName;
+  String playingPatternName = getPatternNameForSlot(view.playingPatternIndex);
+  String nextPatternName = "";
+  String groupName = settingsStoreGetActivePatternGroup();
 
   if (view.editMode)
   {
@@ -1525,40 +1583,36 @@ static String formatGrooveboxFooter(const SequencerView& view)
     return String(footerLine);
   }
 
-  snprintf(playingPatternLabel, sizeof(playingPatternLabel), "p%02u",
-           static_cast<unsigned>(view.playingPatternIndex + 1U));
-
-  nextPatternName = getNextPatternDisplayName(view);
-  groupName = getActivePatternGroupDisplayName();
-
-  if (!nextPatternName.isEmpty())
+  if (view.chainEnabled && view.chainLength > 1U)
   {
-    if (!groupName.isEmpty())
-    {
-      snprintf(footerLine, sizeof(footerLine), "S:%02u %s->%s %s",
-               static_cast<unsigned>(view.currentStep + 1U), playingPatternLabel,
-               nextPatternName.c_str(), groupName.c_str());
-    }
-    else
-    {
-      snprintf(footerLine, sizeof(footerLine), "S:%02u %s->%s",
-               static_cast<unsigned>(view.currentStep + 1U), playingPatternLabel,
-               nextPatternName.c_str());
-    }
+    uint8_t nextSlotIndex =
+        static_cast<uint8_t>((view.playingPatternIndex + 1U) % view.chainLength);
+
+    nextPatternName = getPatternNameForSlot(nextSlotIndex);
+  }
+
+  if (!nextPatternName.isEmpty() && !groupName.isEmpty())
+  {
+    snprintf(footerLine, sizeof(footerLine), "S:%02u %s->%s %s",
+             static_cast<unsigned>(view.currentStep + 1U), playingPatternName.c_str(),
+             nextPatternName.c_str(), groupName.c_str());
+  }
+  else if (!nextPatternName.isEmpty())
+  {
+    snprintf(footerLine, sizeof(footerLine), "S:%02u %s->%s",
+             static_cast<unsigned>(view.currentStep + 1U), playingPatternName.c_str(),
+             nextPatternName.c_str());
+  }
+  else if (!groupName.isEmpty())
+  {
+    snprintf(footerLine, sizeof(footerLine), "S:%02u %s %s",
+             static_cast<unsigned>(view.currentStep + 1U), playingPatternName.c_str(),
+             groupName.c_str());
   }
   else
   {
-    if (!groupName.isEmpty())
-    {
-      snprintf(footerLine, sizeof(footerLine), "S:%02u %s %s",
-               static_cast<unsigned>(view.currentStep + 1U), playingPatternLabel,
-               groupName.c_str());
-    }
-    else
-    {
-      snprintf(footerLine, sizeof(footerLine), "S:%02u %s",
-               static_cast<unsigned>(view.currentStep + 1U), playingPatternLabel);
-    }
+    snprintf(footerLine, sizeof(footerLine), "S:%02u %s",
+             static_cast<unsigned>(view.currentStep + 1U), playingPatternName.c_str());
   }
 
   return String(footerLine);
@@ -1950,7 +2004,7 @@ static void drawSequencerScreen()
 
   sequencerGetView(view);
 
-  viewPatternName = getCurrentPatternDisplayName(view);
+  viewPatternName = getPatternNameForSlot(view.activePatternIndex);
 
   snprintf(headerLine, sizeof(headerLine), "BPM %03u SW %02u %s %s",
            static_cast<unsigned>(view.bpm), static_cast<unsigned>(view.swingPercent),
@@ -2770,7 +2824,8 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
       }
       else if (uiState.parameterPageIndex == parameterPageMute)
       {
-        sequencerMoveTrack(-1);
+        //-weg- sequencerMoveTrack(-1);
+        moveGrooveboxCursorAcrossPatterns(-1);
       }
       else
       {
@@ -2809,7 +2864,8 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
       }
       else if (uiState.parameterPageIndex == parameterPageMute)
       {
-        sequencerMoveTrack(1);
+        //-weg- sequencerMoveTrack(1);
+        moveGrooveboxCursorAcrossPatterns(1);
       }
       else
       {

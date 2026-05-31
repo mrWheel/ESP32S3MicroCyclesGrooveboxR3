@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-30 - 18:09 ***/
+/*** Last Changed: 2026-05-31 - 08:31 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -85,6 +85,7 @@ void sequencerAdjustCurrentStepLockDecay(int delta);
 void sequencerToggleCurrentStepLock();
 void sequencerAdjustBpm(int delta);
 void sequencerAdjustSwing(int delta);
+void sequencerMoveTrackAndPattern(int delta, uint8_t loadedPatternCount);
 void sequencerToggleMuteForSelectedTrack();
 void sequencerAdjustChainLength(int delta);
 void sequencerToggleChainEnabled();
