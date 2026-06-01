@@ -1,817 +1,468 @@
 # Code Review - ESP32 MicroCycles Groovebox R3
 
-Review date: 2026-05-31  
+Review date: 2026-06-01  
 Repository: `mrWheel/ESP32MicroCyclesGroovebox`  
 Branch reviewed: `main`  
-Focus: RAM-based pattern workflow, Card Storage, chain playback, NVS/LittleFS/SD responsibilities, UI state handling, and realtime safety.
+PROG_VERSION: `v0.8.5`  
+Focus: UI refactor status, RAM/Card pattern workflow, LittleFS cleanup, chain/runtime responsibilities, boot order, and audio-quality architecture.
 
-## Executive Summary
+## 1. Executive Summary
 
-The project has made a major architectural transition from a LittleFS/local-pattern model to a RAM-based pattern workflow with SD Card pattern groups. That direction is correct for the ESP32-WROVER target because LittleFS space is too limited for full pattern group mirroring.
+This review uses the current `main` branch after the latest UI refactor commits.
 
-The current codebase is close to the desired architecture, but there are still several leftover assumptions from the older Local/LittleFS model. These leftovers are now the main source of risk.
+The firmware is now at:
 
-The most important issues are:
+```cpp
+const char* PROG_VERSION = "v0.8.5";
+```
 
-1. Startup still contains legacy LittleFS pattern initialization/listing logic.
-2. `settingsStore.cpp` still contains legacy pattern path concepts such as extensionless pattern files and older chain functions.
-3. Runtime chain playback is now partly table-driven, but it needs full verification after save/load.
-4. Stop behavior depends on the UI chain table being synchronized before playback and before STOP requests.
-5. Card Storage Save now writes `.json`, but older extensionless files and older delete/list paths must be audited thoroughly.
-6. Pattern group copy/rename now exists, but copy failure cleanup is not robust yet.
-7. UI popup rendering is improving, but the pattern group input popup still depends on exact overlay row coordinates and should be consolidated in `DisplayDriver`.
+The codebase is in a significantly better state than during the earlier reviews.
 
-Overall recommendation: do a short stabilization pass before adding more features.
+Major improvements now visible in the current code:
+
+- `uiManager.cpp` has been split into multiple focused UI modules.
+- Normal startup no longer initializes LittleFS as pattern storage.
+- SD/sample initialization still happens before display initialization, which is correct for R3 shared SPI behavior.
+- Pattern storage architecture is now clearer:
+  - SD Card = persistent pattern groups
+  - RAM = active editable patterns
+  - LittleFS = settings/configuration only
+- Audio quality work has started and includes release fade, choke groups, improved voice stealing, and velocity curve.
+
+Overall assessment:
+
+The project is now more maintainable and architecturally healthier, but the next focus should be functional validation on hardware before doing another large refactor.
 
 ---
 
-# 1. High-Priority Findings
+## 2. Startup / Boot Order
 
-## 1.1 Startup still contains legacy LittleFS pattern flow
+### Status
 
-### Severity
+Good.
 
-High
-
-### Evidence
-
-In `main.cpp`, setup still performs SD/sample initialization first, which is correct for the shared SPI bus. However, after display init and sequencer init, the code still performs:
-
-- `settingsStoreLoadRuntimeSettings()` a second time
-- `displaySetRotation(...)`
-- `displaySetThemeColorIndex(...)`
-- `input.setEncoderDirectionReversed(...)`
-- `settingsStoreInitPatternStorage()`
-- `settingsStoreListPatterns(...)`
-- LittleFS pattern listing/status messages
-
-This is visible in the current `setup()` structure.
-
-### Why this matters
-
-The new architecture says:
-
-```text
-SD Card = permanent pattern group storage
-RAM     = active editable patterns
-LittleFS = settings/cache/recovery only
-```
-
-Therefore, startup should not present LittleFS pattern storage as part of the normal boot path.
-
-### Recommended action
-
-Keep:
+The current `setup()` keeps SD/sample initialization before display initialization:
 
 ```text
 sampleManagerInit()
 settingsStoreLoadRuntimeSettings()
 input.begin()
-display init
+display init / bootStatusInit()
 sequencerInit()
 audioEngineInit()
 systemManagerInit()
 uiManagerInit()
 ```
 
-Remove or demote the old LittleFS pattern scan to diagnostics only.
+This is important because R3 shares SPI lines between SD and TFT.
 
-Suggested replacement:
+### Positive finding
 
-```text
-bootStatusPush("Pattern storage: SD/Card model");
-```
+The old normal boot flow that initialized LittleFS pattern storage is no longer visible in current `main.cpp`.
 
-Do not list `/patterns` from LittleFS during normal boot.
-
----
-
-## 1.2 Runtime settings are loaded twice during setup
-
-### Severity
-
-Medium
-
-### Evidence
-
-`main.cpp` loads runtime settings once after SD/sample init, then later loads them again after `sequencerInit()`.
-
-### Why this matters
-
-It is not dangerous by itself, but it creates confusion and makes logs misleading. It also increases the chance that future changes accidentally depend on the second load.
-
-### Recommended action
-
-Load runtime settings exactly once:
+The startup now uses:
 
 ```text
-after SD/sample init
-before input/display setup
+Pattern storage: SD/Card model
 ```
 
-Then remove the later duplicate block.
-
----
-
-## 1.3 Chain playback now uses explicit targets, but runtime chain enable is still global
-
-### Severity
-
-High
-
-### Evidence
-
-The new chain flow uses:
-
-```cpp
-uiState.chainSlotTargetPatternNames[slotIndex]
-sequencerSetPatternChainTarget(...)
-state.chainTargetIndex[]
-state.chainTargetValid[]
-```
-
-This is the right direction.
-
-However, playback still depends on a global:
-
-```cpp
-state.chainEnabled
-```
-
-while the actual chain relationship is now per pattern slot.
-
-### Why this matters
-
-If `state.chainEnabled` is false while valid per-slot targets exist, playback may not follow the chain.
-
-If `state.chainEnabled` is true while the active/playing slot has no valid target, behavior depends on fallback logic.
-
-### Recommended action
-
-For the new model, playback should be based primarily on:
-
-```cpp
-state.chainTargetValid[state.playingPatternIndex]
-```
-
-A global `chainEnabled` may still exist for UI display, but the actual decision to advance should be:
-
-```cpp
-if (state.chainTargetValid[state.playingPatternIndex])
-{
-  state.playingPatternIndex = state.chainTargetIndex[state.playingPatternIndex];
-}
-else
-{
-  // no chain target; stay or stop depending on transport state
-}
-```
-
-The UI can still show `ON/OFF`, but runtime should not rely on only one global flag for all pattern slots.
-
----
-
-## 1.4 Save/load chain round-trip needs a focused test
-
-### Severity
-
-High
-
-### Evidence
-
-`saveLoadedPatternGroupToCard()` now sets:
-
-```cpp
-patternData.chainTarget = uiState.chainSlotTargetPatternNames[slotIndex];
-patternData.chainEnabled = !patternData.chainTarget.isEmpty();
-patternData.chainLength = loadedPatternCount;
-```
-
-This is the correct intended behavior.
-
-`loadCardPatternGroupIntoMemory()` loads:
-
-```cpp
-uiState.chainSlotTargetPatternNames[patternIndex] = patternData.chainTarget;
-```
-
-This is also correct.
-
-### Risk
-
-The chain can still disappear if any of these are wrong:
-
-- parser fails to read `chainTarget`
-- `buildPatternJsonDocument()` does not write `chainTarget`
-- `saveLoadedPatternGroupToCard()` is not reached after editing
-- `flushPendingChainSettings()` is not called before save
-- `syncSequencerChainTargetsFromUi()` is not called after load or after edit
-
-### Recommended test
-
-Use a four-pattern group:
-
-```text
-p01 -> p02
-p02 -> p03
-p03 -> p02
-p04 -> --
-```
-
-Then:
-
-1. Save group.
-2. Power cycle.
-3. Load group.
-4. Inspect JSON files on SD.
-5. Verify Edit Track popup shows:
-   - p01 target p02
-   - p02 target p03
-   - p03 target p02
-   - p04 target --
-6. Start playback and confirm:
-   - p01 -> p02 -> p03 -> p02 ...
-7. Press STOP during p02 and confirm:
-   - finish p02
-   - play p04
-   - stop
-
----
-
-# 2. Storage Findings
-
-## 2.1 `patternFileExtension` is still an empty string
-
-### Severity
-
-Medium
-
-### Evidence
-
-`settingsStore.cpp` still contains:
-
-```cpp
-static const char* patternFileExtension = "";
-```
-
-At least one older function still builds paths using this extension.
-
-### Why this matters
-
-The intended Card format is now:
-
-```text
-/patterns/<group>/pNN.json
-```
-
-The empty extension caused earlier duplicate files:
-
-```text
-p01
-p01.json
-```
-
-### Recommended action
-
-Eventually change the constant to:
-
-```cpp
-static const char* patternFileExtension = ".json";
-```
-
-or remove it entirely and make all Card pattern path construction explicit:
-
-```cpp
-groupDir + "/" + normalizedName + ".json"
-```
-
-Also audit all functions that still use `patternFileExtension`.
-
----
-
-## 2.2 Legacy chain settings functions still point to old paths
-
-### Severity
-
-Medium
-
-### Evidence
-
-There are still functions such as:
-
-```cpp
-settingsStoreLoadPatternChainSettingsFromCard(...)
-```
-
-that appear to build paths without the pattern group directory.
-
-### Why this matters
-
-The new Card structure is:
-
-```text
-/patterns/<group>/pNN.json
-```
-
-A function that loads:
-
-```text
-/patterns/pNN
-```
-
-or:
-
-```text
-/patterns/pNN.json
-```
-
-is wrong in the new architecture.
-
-### Recommended action
-
-Mark old Local/LittleFS/Card chain functions as deprecated or remove them once the RAM-chain path is stable.
-
-Preferred current chain source of truth:
-
-```text
-SD JSON -> PatternData.chainTarget -> uiState.chainSlotTargetPatternNames[] -> sequencer chain target table
-```
-
----
-
-## 2.3 Copy Pattern does not robustly clean up partial copies on failure
-
-### Severity
-
-Medium
-
-### Evidence
-
-`settingsStoreCopyPatternGroupOnCard()` creates the target directory, then copies files one by one.
-
-If copying one file fails after several files were copied, the code returns false, but the partially copied target group may remain.
-
-### Why this matters
-
-A half-created pattern group can later appear in Load Pattern and cause inconsistent runtime behavior.
-
-### Recommended action
-
-Add recursive cleanup for the target group on failure.
-
-Example behavior:
-
-```text
-copy failed
--> delete all files in /patterns/<targetGroup>
--> remove /patterns/<targetGroup>
--> return false
-```
-
----
-
-# 3. Sequencer / Transport Findings
-
-## 3.1 Stop behavior is now architecturally correct, but needs integration verification
-
-### Severity
-
-High
-
-### Intended behavior
-
-Given:
-
-```text
-Loaded: p01, p02, p03, p04
-Chain:  p01 -> p02 -> p03 -> p02
-```
-
-STOP during p02 should:
-
-```text
-finish p02
-play p04
-stop
-```
-
-Given:
-
-```text
-Chain: p01 -> p02 -> p03 -> p04 -> p01
-```
-
-STOP should:
-
-```text
-stop immediately
-```
-
-### Current direction
-
-The UI now has:
-
-```cpp
-areAllLoadedPatternsIncludedInPlaybackChain()
-```
-
-and transport action calls either:
-
-```cpp
-sequencerStopImmediately()
-```
-
-or:
-
-```cpp
-sequencerRequestStopAfterFinalPattern(finalPatternIndex)
-```
-
-This is the right model.
-
-### Recommended action
-
-Add temporary logs while testing:
-
-```cpp
-ESP_LOGI(logTag, "STOP requested: playing=%u final=%u allIncluded=%s", ...);
-```
-
-Remove or demote to debug after validation.
-
----
-
-## 3.2 `sequencerSetLoadedPatternCount()` is important and must be called after all add/delete/load operations
-
-### Severity
-
-High
-
-### Evidence
-
-The sequencer now tracks:
-
-```cpp
-state.loadedPatternCount
-```
-
-This prevents chain length and playback from reaching unloaded RAM slots.
-
-### Risk
-
-If Add Pattern or Delete Pattern changes `uiState.chainSlotPatternNames[]` but does not call:
-
-```cpp
-sequencerSetLoadedPatternCount(...)
-syncSequencerChainTargetsFromUi()
-```
-
-then the UI and sequencer can disagree.
-
-### Recommended action
-
-After each operation:
-
-- Load Pattern
-- Add Pattern
-- Delete Pattern
-- Copy Pattern followed by load
-- Rename Pattern if active group changes
-
-call:
-
-```cpp
-sequencerSetLoadedPatternCount(getLoadedPatternSlotCount());
-syncSequencerChainTargetsFromUi();
-```
-
----
-
-# 4. UI Findings
-
-## 4.1 Pattern group input popup is now in the right direction
-
-### Severity
-
-Low
-
-### Evidence
-
-`drawPatternGroupNameInput()` now draws:
-
-```text
-Copy/Rename:
-<source group>
-To:
-<input>
-Turn=<token>
-Hold=...
-```
-
-and then updates only rows 3 and 4 using:
-
-```cpp
-display.updateSelectionOverlayRow(3, inputText);
-display.updateSelectionOverlayRow(4, tokenText);
-```
-
-This is a good improvement over redrawing the whole screen.
-
-### Remaining risk
-
-`updateSelectionOverlayRow()` must match the exact row geometry used by `drawSelectionOverlay()`. If either layout changes, partial redraw will break again.
-
-### Recommended action
-
-Move the row geometry into one shared helper inside `DisplayDriver`.
-
-Ideal:
-
-```cpp
-DisplayDriver::getSelectionOverlayRowRect(rowIndex, ...)
-```
-
-Both full draw and partial update should use the same geometry.
-
----
-
-## 4.2 UI Manager has accumulated too many responsibilities
-
-### Severity
-
-Medium
-
-### Evidence
-
-`uiManager.cpp` now handles:
-
-- menu state
-- sequencer view state
-- Card Storage workflow
-- RAM pattern add/delete
-- pattern group copy/rename input
-- chain target synchronization
-- sample set loading
-- WiFi menu state
-- busy/status popups
-
-### Why this matters
-
-This file is now the most fragile part of the project. Small edits can easily break unrelated modes.
-
-### Recommended refactor
-
-Split later into:
-
-```text
-uiManager.cpp
-uiPatternGroupActions.cpp
-uiPatternGroupInput.cpp
-uiCardStorageMenu.cpp
-uiGrooveboxScreen.cpp
-```
-
-Do not refactor immediately while stabilizing. First finish functional testing.
-
----
-
-# 5. Realtime Safety Findings
-
-## 5.1 Audio task remains mostly isolated
-
-### Severity
-
-Good
-
-The newer storage/UI changes do not appear to add filesystem or SD access to the audio task. That is good.
-
-### Keep enforcing
-
-Audio task must never:
-
-```text
-allocate memory
-access filesystem
-use WiFi
-redraw display
-wait on UI mutexes
-log continuously
-```
-
----
-
-## 5.2 `String` usage is acceptable in UI/storage, not in audio
-
-### Severity
-
-Low
-
-`String` use is heavy in `uiManager.cpp` and `settingsStore.cpp`. That is acceptable for menu/storage workflows, but should not move into audio or tight realtime paths.
-
----
-
-# 6. Boot / SPI Findings
-
-## 6.1 SD-first boot order is correct for this hardware
-
-### Severity
-
-Good
-
-The code now keeps SD/sample initialization before display initialization. This matches the observed hardware behavior where initializing the display before SD broke SD card access on the shared SPI bus.
-
-Current intended order:
-
-```text
-Serial
-SD/sample init
-NVS runtime settings
-input init
-display init
-sequencer/audio/system/ui init
-```
+instead of scanning LittleFS `/patterns`.
 
 ### Recommendation
 
-Document this clearly in `developerBuildGuide.md`:
+Keep this rule documented clearly:
 
 ```text
-Do not initialize ST7789 before SD card on R3.
-TFT and SD share SPI lines.
-SD must be the first real SPI owner during boot.
+On R3, do not initialize ST7789 before SD card.
+SD and TFT share SPI lines.
+SD/sample init must remain the first real SPI operation during boot.
 ```
 
 ---
 
-## 6.2 Startup still says "Init LittleFS patterns"
+## 3. UI Architecture
 
-### Severity
+### Status
 
-Low / Medium
+Much improved.
 
-This is misleading under the new architecture.
-
-### Recommended action
-
-Replace with:
+The UI code has been split into focused modules:
 
 ```text
-Init runtime pattern group
+uiPatternGroupInput
+uiCardStorageActions
+uiCardStorageMenu
+uiGrooveboxScreen
+uiSystemSettingsMenu
+uiSequencerInput
 ```
 
-or remove entirely.
+This is a strong improvement over the previous all-in-one `uiManager.cpp`.
+
+### What improved
+
+`uiManager.cpp` now acts more like a coordinator:
+
+- owns global UI state
+- routes encoder and button events
+- connects UI actions to sequencer/storage/system modules
+- delegates rendering and focused workflows to helper modules
+
+### Remaining risk
+
+`uiManager.cpp` still owns a very large `UiState` struct and still controls many unrelated state domains:
+
+- transport UI state
+- menu state
+- pattern list state
+- pattern group state
+- chain target state
+- sample set state
+- WiFi confirmation state
+- status popup state
+
+This is acceptable for now, but future bugs may still happen when one UI mode accidentally affects another mode.
+
+### Recommendation
+
+Do not split more immediately.
+
+First do hardware testing.
+
+Later, consider extracting:
+
+```text
+uiRuntimeState.*
+uiPatternListPopup.*
+```
+
+The goal should be to reduce direct access to the large `UiState` struct.
 
 ---
 
-# 7. Positive Findings
+## 4. UI Module Interfaces
 
-The following changes are strong improvements:
+### Finding
 
-- Pattern groups are no longer mirrored into LittleFS.
-- Pattern groups load directly from SD into sequencer RAM.
-- Save Pattern now writes `.json` files and removes legacy extensionless files.
-- Active pattern group is persisted in NVS.
-- Pattern group input now supports Copy/Rename workflows.
-- Load/Save/Copy/Rename now have visible busy/status feedback.
-- Popup redraws are moving toward partial updates.
-- Chain length is limited to the number of loaded patterns.
-- Footer now distinguishes viewed pattern, playing pattern, and next chain target.
-- SD-first boot order reflects actual hardware constraints.
+Some new module interfaces are currently broad. That is normal for a first refactor pass.
 
----
+The next cleanup should not move more code blindly, but should improve interface shape.
 
-# 8. Suggested Stabilization Checklist
+### Recommended direction
 
-Before adding more features:
-
-## Build
-
-- Clean build:
-  ```bash
-  pio run -e ESP32GrooveboxR3
-  ```
-
-## SD layout
-
-Confirm only `.json` pattern files exist:
-
-```text
-/patterns/JAZZ01/p01.json
-/patterns/JAZZ01/p02.json
-...
-```
-
-No extensionless files:
-
-```text
-/patterns/JAZZ01/p01
-/patterns/JAZZ01/p02
-```
-
-## Load/save test
-
-1. Load JAZZ01.
-2. Edit p02.
-3. Set chain:
-   ```text
-   p01 -> p02
-   p02 -> p03
-   p03 -> p02
-   p04 -> --
-   ```
-4. Save.
-5. Reboot.
-6. Load JAZZ01.
-7. Verify steps and chain targets.
-
-## Stop test
-
-With:
-
-```text
-p01 -> p02 -> p03 -> p02
-p04 unused
-```
-
-STOP during p02 should:
-
-```text
-finish p02
-play p04
-stop
-```
-
-With:
-
-```text
-p01 -> p02 -> p03 -> p04 -> p01
-```
-
-STOP should:
-
-```text
-stop immediately
-```
-
-## Rename/Copy test
-
-1. Copy JAZZ01 to JAZZ02.
-2. Verify `/patterns/JAZZ02` exists.
-3. Verify all `pNN.json` files exist.
-4. Verify active group becomes JAZZ02.
-5. Rename JAZZ02 to JAZZ03.
-6. Verify old directory is gone and NVS active group is updated.
-
----
-
-# 9. Recommended Next Steps
-
-## First
-
-Remove or disable normal-boot LittleFS pattern scan from `main.cpp`.
-
-## Second
-
-Audit all functions in `settingsStore.cpp` that still use:
+Introduce context structs, for example:
 
 ```cpp
-patternFileExtension
-patternDirectoryPath
-settingsStoreLoadPattern(...)
-settingsStoreSavePattern(...)
-settingsStoreLoadPatternChainSettings(...)
+struct UiGrooveboxRenderState
+{
+  uint8_t parameterPageIndex;
+  bool tempoEditOpen;
+  int tempoEditSelection;
+  bool editPopupOpen;
+  int editPopupSelection;
+  bool editPopupValueEdit;
+  uint8_t editPopupChainFocus;
+  bool chainTargetValid;
+  String chainTargetPatternName;
+};
 ```
 
-Decide which ones are still needed for settings/recovery and which are obsolete.
+This would prevent future render functions from growing long argument lists.
 
-## Third
+### Priority
 
-Add temporary serial debug for chain playback:
+Medium.
 
-```text
-PLAY pattern pNN
-CHAIN target pNN
-STOP requested
-FINAL pattern pNN
-STOPPED
-```
-
-## Fourth
-
-After behavior is stable, split `uiManager.cpp` into smaller files.
+Do this after hardware validation, not before.
 
 ---
 
-# 10. Overall Assessment
+## 5. Storage Architecture
 
-The project is moving in the right direction. The RAM-based pattern model is the right architecture for this hardware.
+### Status
 
-The main risk is not the concept anymore, but leftover code from the earlier Local/LittleFS design. The next development cycle should focus on deleting or isolating obsolete paths instead of adding more features.
+Good.
 
-Priority order:
+The project has mostly completed the transition away from LittleFS pattern storage.
 
-1. Stabilize chain save/load/playback.
-2. Remove misleading LittleFS pattern startup flow.
-3. Harden Card Storage copy/rename failure behavior.
-4. Keep SD-first boot order documented and protected.
-5. Refactor UI code only after behavior is stable.
+The current intended model is now:
+
+```text
+SD Card:
+  /patterns/<group>/pNN.json
+  /samples/S1..S9
+
+RAM:
+  active editable pattern group
+
+LittleFS:
+  settings/configuration only
+```
+
+### Positive finding
+
+Current `main.cpp` no longer performs normal LittleFS pattern initialization during startup.
+
+### Remaining cleanup candidate
+
+`settingsStore.cpp` still contains some helper names that appear to belong to the older A01/Z99 pattern naming model.
+
+Potential candidates:
+
+```text
+isPatternNameLetterNumberFormat(...)
+normalizePatternLetter(...)
+settingsStoreFindNextPatternNameForLetterOnCard(...)
+settingsStoreCountAvailablePatternSlotsForLetterOnCard(...)
+```
+
+These may be harmless if unused, but they should be checked.
+
+### Recommended grep
+
+```bash
+grep -R "FindNextPatternNameForLetterOnCard\|CountAvailablePatternSlotsForLetterOnCard\|isPatternNameLetterNumberFormat\|normalizePatternLetter" include src
+```
+
+If only declarations/definitions remain, remove them in a small cleanup commit.
+
+---
+
+## 6. Card Storage
+
+### Status
+
+Good architecture, needs hardware workflow validation.
+
+The split into `uiCardStorageActions` and `uiCardStorageMenu` is useful.
+
+Card Storage should remain responsible for:
+
+- Load Pattern Group
+- Save Pattern Group
+- Copy Pattern Group
+- Rename Pattern Group
+- Delete Pattern Group
+- Busy/status feedback for SD actions
+
+### Recommendation
+
+Do a practical SD-card test matrix:
+
+1. Load existing group.
+2. Save group.
+3. Copy group.
+4. Rename copied group.
+5. Reboot.
+6. Confirm active group is restored from NVS.
+7. Confirm no extensionless `pNN` files are created.
+8. Confirm only `pNN.json` files exist.
+
+---
+
+## 7. Sequencer / Chain Runtime
+
+### Status
+
+Improved.
+
+The sequencer now has explicit runtime concepts:
+
+- loaded pattern count
+- playing pattern index
+- chain target index
+- chain target validity
+
+This is the correct direction for RAM pattern groups.
+
+### Main risk
+
+The UI still stores chain targets as pattern names, while the sequencer uses slot indexes.
+
+This is okay, but synchronization must be reliable.
+
+Sync should happen after:
+
+- loading a pattern group
+- adding a pattern
+- deleting a pattern
+- editing a chain target
+- saving when pending chain state exists
+- copy/rename workflows when active group changes
+
+### Recommended debug helper
+
+Add later:
+
+```cpp
+validateSequencerChainTargetsFromUi()
+```
+
+It should check:
+
+- every chain target resolves to a loaded slot
+- no chain target points beyond loaded pattern count
+- sequencer loaded count matches UI loaded count
+
+Keep it debug-only.
+
+---
+
+## 8. Audio Engine
+
+### Status
+
+Good audible improvements implemented.
+
+The current audio engine includes:
+
+- fixed voice pool
+- release fade
+- choke group release
+- improved voice selection / voice stealing
+- musical velocity curve
+- soft limiter / headroom support
+
+### Positive finding
+
+The voice stealing strategy now prefers:
+
+1. free voice
+2. voice already in release
+3. quietest active voice
+4. oldest active voice
+
+This is a major improvement over always overwriting voice 0.
+
+### Remaining issue
+
+When all voices are active and the fallback must steal a voice, the selected voice is still overwritten immediately.
+
+This can still click in dense patterns.
+
+### Recommended next audio work
+
+Do these later, after storage/UI validation:
+
+1. track gain staging
+2. limiter refinement
+3. optional sample-start fade-in
+4. optional per-track saturation
+
+Stereo/panning should remain low priority while hardware output is effectively mono.
+
+---
+
+## 9. Realtime Safety
+
+### Status
+
+Good.
+
+The audio engine remains mostly isolated from UI/storage workflows.
+
+Continue enforcing:
+
+```text
+Audio task must not:
+- allocate dynamically
+- access filesystem
+- access WiFi
+- wait on display/UI work
+- log continuously
+```
+
+Storage operations may block playback when invoked from System/Card Storage menus. That is acceptable for this instrument design.
+
+---
+
+## 10. Code Style / Maintainability
+
+### Positive finding
+
+The project is now modular enough to continue safely.
+
+### Remaining issue
+
+Pattern naming helpers may be duplicated across modules.
+
+A later utility module could help:
+
+```text
+patternNameUtils.h
+patternNameUtils.cpp
+```
+
+Potential functions:
+
+```cpp
+String buildPatternNameForSlot(uint8_t slotIndex);
+bool patternSlotIndexFromName(const String& name, uint8_t& outSlotIndex);
+String normalizePatternSlotName(const String& name);
+```
+
+This should be a later cleanup, not an immediate refactor.
+
+---
+
+## 11. Recommended Next Steps
+
+### Step 1: Functional hardware validation
+
+Before more refactoring:
+
+1. Boot with SD card inserted.
+2. Confirm display shows boot screen.
+3. Confirm samples load from active sample set.
+4. Confirm active pattern group restores from NVS.
+5. Load group from Card Storage.
+6. Edit steps in multiple patterns.
+7. Edit chain targets.
+8. Save group.
+9. Reboot.
+10. Confirm steps and chain targets persist.
+11. Test STOP behavior.
+12. Test Copy/Rename Pattern Group.
+13. Test dense audio pattern for voice stealing and choke behavior.
+
+### Step 2: Small cleanup only
+
+Only if grep proves unused helpers:
+
+```text
+remove remaining old A01/Z99 naming helpers
+```
+
+### Step 3: Audio work
+
+After functional validation:
+
+```text
+track gain staging
+limiter refinement
+sample start fade-in
+```
+
+---
+
+## 12. Overall Assessment
+
+The current codebase is healthier than before.
+
+The most important previous issues have been reduced:
+
+- `uiManager.cpp` is no longer the only UI file.
+- LittleFS pattern startup flow has been removed.
+- Pattern groups are now centered around SD + RAM.
+- Audio quality has improved.
+- Build cleanliness has improved.
+
+Main advice now:
+
+```text
+Stop large refactors temporarily.
+Test on real hardware.
+Then continue with small targeted improvements.
+```
+
+The next highest-value work is not another big split. It is verifying that the instrument behaves correctly after all architectural changes.
