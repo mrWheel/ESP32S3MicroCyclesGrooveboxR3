@@ -1,0 +1,49 @@
+include/settingsStore.h:bool settingsStoreInitPatternStorage();
+include/settingsStore.h:bool settingsStoreListPatterns(String patternNames[], size_t maxCount, size_t& outCount);
+include/settingsStore.h:bool settingsStoreFindHighestLocalPatternIndex(uint8_t& outPatternIndex);
+include/settingsStore.h:bool settingsStoreListPatternsForSeries(char patternLetter, String patternNames[], size_t maxCount,
+include/settingsStore.h:bool settingsStoreSavePattern(const String& patternName, const PatternData& patternData);
+include/settingsStore.h:bool settingsStoreListPatternsInGroupOnCard(const String& groupName, String patternNames[],
+include/settingsStore.h:bool settingsStoreLoadPattern(const String& patternName, PatternData& patternData);
+include/settingsStore.h:bool settingsStoreLoadPatternChainSettings(const String& patternName, bool& outEnabled,
+include/settingsStore.h:bool settingsStoreLoadPatternChainSettingsFromCard(const String& patternName, bool& outEnabled,
+include/settingsStore.h:bool settingsStoreSavePatternChainSettings(const String& patternName, bool chainEnabled,
+include/settingsStore.h:bool settingsStoreDeletePattern(const String& patternName);
+src/uiManager.cpp:  if (!settingsStoreListPatternsForSeries(seriesLetter, outNames, patternStoreMaxEntries,
+src/uiManager.cpp:      settingsStoreListPatterns(patternScanBuffer, patternStoreMaxEntries, listedCount))
+src/uiManager.cpp:    if (settingsStoreListPatternsInGroupOnCard(groupName, patternScanBuffer, patternStoreMaxEntries,
+src/uiManager.cpp:  else if (!settingsStoreSavePattern(targetName, patternData))
+src/uiManager.cpp:  else if (!settingsStoreSavePattern(targetName, patternData))
+src/uiManager.cpp:  else if (!settingsStoreLoadPattern(selectedName, patternData))
+src/uiManager.cpp:  if (!settingsStoreListPatternsInGroupOnCard(groupName, cardPatternNames, patternStoreMaxEntries,
+src/uiManager.cpp:  if (settingsStoreListPatternsInGroupOnCard(groupName, existingPatternNames,
+src/uiManager.cpp:  else if (!settingsStoreDeletePattern(selectedName))
+src/settingsStore.cpp:bool settingsStoreInitPatternStorage()
+src/settingsStore.cpp:} //   settingsStoreInitPatternStorage()
+src/settingsStore.cpp:bool settingsStoreListPatterns(String patternNames[], size_t maxCount, size_t& outCount)
+src/settingsStore.cpp:} //   settingsStoreListPatterns()
+src/settingsStore.cpp:bool settingsStoreFindHighestLocalPatternIndex(uint8_t& outPatternIndex)
+src/settingsStore.cpp:  if (!settingsStoreListPatterns(patternNames, patternStoreMaxEntries, patternCount))
+src/settingsStore.cpp:} //   settingsStoreFindHighestLocalPatternIndex()
+src/settingsStore.cpp:bool settingsStoreListPatternsForSeries(char patternLetter, String patternNames[], size_t maxCount,
+src/settingsStore.cpp:  if (!settingsStoreListPatterns(listedPatternNames, patternStoreMaxEntries, listedCount))
+src/settingsStore.cpp:} //   settingsStoreListPatternsForSeries()
+src/settingsStore.cpp:  if (!settingsStoreListPatterns(listedPatternNames, patternStoreMaxEntries, listedCount))
+src/settingsStore.cpp:bool settingsStoreSavePattern(const String& patternName, const PatternData& patternData)
+src/settingsStore.cpp:} //   settingsStoreSavePattern()
+src/settingsStore.cpp:bool settingsStoreListPatternsInGroupOnCard(const String& groupName, String patternNames[],
+src/settingsStore.cpp:} //   settingsStoreListPatternsInGroupOnCard()
+src/settingsStore.cpp:  if (!settingsStoreListPatternsInGroupOnCard(groupName, cardPatternNames, patternStoreMaxEntries,
+src/settingsStore.cpp:  if (settingsStoreListPatterns(localPatternNames, patternStoreMaxEntries, localPatternCount))
+src/settingsStore.cpp:      if (!settingsStoreDeletePattern(localPatternNames[patternIndex]))
+src/settingsStore.cpp:    if (!settingsStoreSavePattern(patternName, patternData))
+src/settingsStore.cpp:bool settingsStoreLoadPattern(const String& patternName, PatternData& patternData)
+src/settingsStore.cpp:} //   settingsStoreLoadPattern()
+src/settingsStore.cpp:bool settingsStoreLoadPatternChainSettings(const String& patternName, bool& outEnabled,
+src/settingsStore.cpp:} //   settingsStoreLoadPatternChainSettings()
+src/settingsStore.cpp:bool settingsStoreLoadPatternChainSettingsFromCard(const String& patternName, bool& outEnabled,
+src/settingsStore.cpp:} //   settingsStoreLoadPatternChainSettingsFromCard()
+src/settingsStore.cpp:bool settingsStoreSavePatternChainSettings(const String& patternName, bool chainEnabled,
+src/settingsStore.cpp:} //   settingsStoreSavePatternChainSettings()
+src/settingsStore.cpp:bool settingsStoreDeletePattern(const String& patternName)
+src/settingsStore.cpp:} //   settingsStoreDeletePattern()

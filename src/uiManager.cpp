@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 13:14 ***/
+/*** Last Changed: 2026-06-01 - 12:33 ***/
 #include "uiManager.h"
 
 #include "DisplayDriverClass.h"
@@ -727,18 +727,46 @@ static String fitListRowText(const String& text)
 
 } //   fitListRowText()
 
-//-- Scan existing patterns for one series letter.
-static int scanPatternsForSeries(char seriesLetter, String outNames[patternStoreMaxEntries])
-{
-  size_t listedCount = 0;
+//-- Scan loaded RAM patterns for chain target selection.
 
-  if (!settingsStoreListPatternsForSeries(seriesLetter, outNames, patternStoreMaxEntries,
-                                          listedCount))
+static int scanPatternsForSeries(char seriesLetter, String outNames[patternStoreMaxEntries])
+
+{
+
+  int outCount = 0;
+
+  (void)seriesLetter;
+
+  for (uint8_t slotIndex = 0;
+
+       slotIndex < sequencerPatternCount && outCount < static_cast<int>(patternStoreMaxEntries);
+
+       slotIndex++)
+
   {
-    return 0;
+
+    String slotName = uiState.chainSlotPatternNames[slotIndex];
+
+    if (slotName.isEmpty())
+
+    {
+
+      continue;
+    }
+
+    if (slotName == uiState.activePatternName)
+
+    {
+
+      continue;
+    }
+
+    outNames[outCount] = slotName;
+
+    outCount++;
   }
 
-  return static_cast<int>(listedCount);
+  return outCount;
 
 } //   scanPatternsForSeries()
 
@@ -1348,7 +1376,7 @@ static void updateListFirstVisibleIndex(int selectedIndex, int itemCount, int& f
 
 } //   updateListFirstVisibleIndex()
 
-//-- Refresh cached pattern names.
+//-- Refresh cached pattern names for RAM patterns or Card pattern groups.
 static void refreshPatternList()
 {
   size_t listedCount = 0;
@@ -1422,123 +1450,54 @@ static void refreshPatternList()
     return;
   }
 
-  bool includeLocal =
-      (uiState.patternListSourceFilter < 0 ||
-       uiState.patternListSourceFilter == static_cast<int>(PatternStorageTarget::Local));
+  uiState.patternListSelection = 0;
+  uiState.patternListFirstVisibleIndex = 0;
 
-  bool includeCard =
-      (uiState.patternListSourceFilter < 0 ||
-       uiState.patternListSourceFilter == static_cast<int>(PatternStorageTarget::Card));
-
-  if (includeLocal &&
-      settingsStoreListPatterns(patternScanBuffer, patternStoreMaxEntries, listedCount))
-  {
-    for (size_t index = 0; index < listedCount && uiState.patternCount < patternListMaxEntries;
-         index++)
-    {
-      uiState.patternNames[uiState.patternCount] = patternScanBuffer[index];
-      uiState.patternSources[uiState.patternCount] = PatternEntrySource::Local;
-      uiState.patternCount++;
-    }
-  }
-
-  if (includeCard)
-  {
-    String groupName = settingsStoreGetActivePatternGroup();
-
-    if (settingsStoreListPatternsInGroupOnCard(groupName, patternScanBuffer, patternStoreMaxEntries,
-                                               listedCount))
-    {
-      for (size_t index = 0; index < listedCount && uiState.patternCount < patternListMaxEntries;
-           index++)
-      {
-        uiState.patternNames[uiState.patternCount] = patternScanBuffer[index];
-        uiState.patternSources[uiState.patternCount] = PatternEntrySource::Card;
-        uiState.patternCount++;
-      }
-    }
-  }
-
-  for (int leftIndex = 0; leftIndex < uiState.patternCount; leftIndex++)
-  {
-    for (int rightIndex = leftIndex + 1; rightIndex < uiState.patternCount; rightIndex++)
-    {
-      bool shouldSwap = false;
-
-      if (uiState.patternNames[rightIndex].compareTo(uiState.patternNames[leftIndex]) < 0)
-      {
-        shouldSwap = true;
-      }
-      else if (uiState.patternNames[rightIndex] == uiState.patternNames[leftIndex] &&
-               uiState.patternSources[rightIndex] < uiState.patternSources[leftIndex])
-      {
-        shouldSwap = true;
-      }
-
-      if (shouldSwap)
-      {
-        String temporaryName = uiState.patternNames[leftIndex];
-        PatternEntrySource temporarySource = uiState.patternSources[leftIndex];
-
-        uiState.patternNames[leftIndex] = uiState.patternNames[rightIndex];
-        uiState.patternSources[leftIndex] = uiState.patternSources[rightIndex];
-
-        uiState.patternNames[rightIndex] = temporaryName;
-        uiState.patternSources[rightIndex] = temporarySource;
-      }
-    }
-  }
-
-  if (uiState.patternListSelection >= uiState.patternCount)
-  {
-    uiState.patternListSelection = (uiState.patternCount > 0) ? (uiState.patternCount - 1) : 0;
-  }
-
-  for (int patternIndex = 0; patternIndex < uiState.patternCount; patternIndex++)
+  for (int patternIndex = 0; patternIndex < patternListMaxEntries; patternIndex++)
   {
     uiState.patternHasChainTarget[patternIndex] = false;
     uiState.patternChainTargets[patternIndex] = "";
   }
 
-  refreshChainSeriesPatternCache();
-
-  uiState.chainTargetValid = isCurrentChainTargetValid();
-
 } //   refreshPatternList()
 
-//-- Save current sequencer state under active pattern name.
+//-- Save current active RAM pattern to the active Card pattern group.
 static bool saveActivePattern(PatternStorageTarget* outStorageTarget = nullptr)
 {
   PatternData patternData;
-  String targetName = uiState.activePatternName;
-  PatternStorageTarget storageTarget;
-
-  if (targetName.isEmpty())
-  {
-    if (!settingsStoreFindNextPatternName(targetName))
-    {
-      return false;
-    }
-  }
-
-  storageTarget = storageTargetFromPatternName(targetName);
+  SequencerView view;
+  String groupName = settingsStoreGetActivePatternGroup();
+  String targetName;
 
   if (outStorageTarget != nullptr)
   {
-    *outStorageTarget = storageTarget;
+    *outStorageTarget = PatternStorageTarget::Card;
   }
+
+  if (groupName.isEmpty())
+  {
+    return false;
+  }
+
+  sequencerGetView(view);
+
+  targetName = getPatternNameForSlot(view.activePatternIndex);
 
   sequencerExportPattern(patternData);
 
-  if (storageTarget == PatternStorageTarget::Card)
+  if (view.activePatternIndex < sequencerPatternCount)
   {
-    String groupName = settingsStoreGetActivePatternGroup();
-    if (!settingsStoreSavePatternToCard(groupName, targetName, patternData))
-    {
-      return false;
-    }
+    patternData.chainTarget = uiState.chainSlotTargetPatternNames[view.activePatternIndex];
   }
-  else if (!settingsStoreSavePattern(targetName, patternData))
+  else
+  {
+    patternData.chainTarget = "";
+  }
+
+  patternData.chainEnabled = !patternData.chainTarget.isEmpty();
+  patternData.chainLength = getLoadedPatternSlotCount();
+
+  if (!settingsStoreSavePatternToCard(groupName, targetName, patternData))
   {
     return false;
   }
@@ -1548,77 +1507,64 @@ static bool saveActivePattern(PatternStorageTarget* outStorageTarget = nullptr)
   saveChainSettingsForPattern();
   loadChainSettingsForActivePattern();
   saveRuntimeSettingsFromCurrentState();
+
   uiState.patternListNeedsRefresh = true;
 
   return true;
 
 } //   saveActivePattern()
 
-//-- Create a new pattern copy with automatic name.
+//-- Legacy compatibility wrapper: create a new RAM pattern.
 static bool createNewPatternWithLetter(char patternLetter)
 {
-  String targetName;
-  PatternData patternData;
   SequencerView view;
-  char normalizedLetter = static_cast<char>(toupper(static_cast<unsigned char>(patternLetter)));
-  PatternStorageTarget storageTarget = storageTargetFromPatternLetter(normalizedLetter);
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+  uint8_t newSlotIndex = loadedPatternCount;
+  uint8_t newPatternNumber = static_cast<uint8_t>(loadedPatternCount + 1U);
+  char patternNameBuffer[8];
 
-  if (storageTarget == PatternStorageTarget::Card)
-  {
-    if (!settingsStoreFindNextPatternNameForLetterOnCard(normalizedLetter, targetName))
-    {
-      return false;
-    }
-  }
-  else if (!settingsStoreFindNextPatternNameForLetter(normalizedLetter, targetName))
-  {
-    return false;
-  }
-
-  sequencerExportPattern(patternData);
-  patternData.chainEnabled = false;
-  patternData.chainLength = 1;
-
-  if (storageTarget == PatternStorageTarget::Card)
-  {
-    String groupName = settingsStoreGetActivePatternGroup();
-    if (!settingsStoreSavePatternToCard(groupName, targetName, patternData))
-    {
-      return false;
-    }
-  }
-  else if (!settingsStoreSavePattern(targetName, patternData))
-  {
-    return false;
-  }
-
-  uiState.activePatternName = targetName;
-  assignActivePatternNameToCurrentSlot();
-
-  uiState.chainTargetPatternName = "";
-  uiState.chainTargetValid = false;
-  uiState.chainSettingsDirty = false;
+  (void)patternLetter;
 
   sequencerGetView(view);
 
-  if (view.activePatternIndex < sequencerPatternCount)
+  if (view.playing)
   {
-    uiState.chainSlotTargetPatternNames[view.activePatternIndex] = "";
+    sequencerStopImmediately();
   }
 
+  flushPendingChainSettings();
+
+  if (loadedPatternCount >= sequencerPatternCount)
+  {
+    showPatternStatus("Pattern memory\nfull", 2500);
+    return false;
+  }
+
+  sequencerCreatePatternSlot(newSlotIndex, newPatternNumber);
+
+  snprintf(patternNameBuffer, sizeof(patternNameBuffer), "p%02u",
+           static_cast<unsigned>(newPatternNumber));
+
+  uiState.chainSlotPatternNames[newSlotIndex] = String(patternNameBuffer);
+  uiState.chainSlotTargetPatternNames[newSlotIndex] = "";
+  uiState.activePatternName = uiState.chainSlotPatternNames[newSlotIndex];
+
+  refreshChainSeriesPatternCache();
   loadChainSettingsForActivePattern();
-  saveRuntimeSettingsFromCurrentState();
+
   uiState.patternListNeedsRefresh = true;
+  uiState.dirty = true;
 
   return true;
 
 } //   createNewPatternWithLetter()
 
-//-- Load one pattern from current list selection.
+//-- Legacy compatibility: load one selected Card pattern into the active RAM slot.
 static bool loadSelectedPattern()
 {
   PatternData patternData;
-  PatternEntrySource selectedSource;
+  SequencerView view;
+  String groupName = settingsStoreGetActivePatternGroup();
 
   if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 ||
       uiState.patternListSelection >= uiState.patternCount)
@@ -1626,27 +1572,37 @@ static bool loadSelectedPattern()
     return false;
   }
 
-  String selectedName = uiState.patternNames[uiState.patternListSelection];
-  selectedSource = uiState.patternSources[uiState.patternListSelection];
-
-  if (selectedSource == PatternEntrySource::Card)
-  {
-    String groupName = settingsStoreGetActivePatternGroup();
-    if (!settingsStoreLoadPatternFromCard(groupName, selectedName, patternData))
-    {
-      return false;
-    }
-  }
-  else if (!settingsStoreLoadPattern(selectedName, patternData))
+  if (groupName.isEmpty())
   {
     return false;
   }
 
-  sequencerImportPattern(patternData);
+  if (uiState.patternSources[uiState.patternListSelection] != PatternEntrySource::Card)
+  {
+    return false;
+  }
+
+  String selectedName = uiState.patternNames[uiState.patternListSelection];
+
+  if (!settingsStoreLoadPatternFromCard(groupName, selectedName, patternData))
+  {
+    return false;
+  }
+
+  sequencerGetView(view);
+  sequencerImportPatternToSlot(view.activePatternIndex, patternData);
+
   uiState.activePatternName = selectedName;
   assignActivePatternNameToCurrentSlot();
+
+  if (view.activePatternIndex < sequencerPatternCount)
+  {
+    uiState.chainSlotTargetPatternNames[view.activePatternIndex] = patternData.chainTarget;
+  }
+
   refreshChainSeriesPatternCache();
   loadChainSettingsForActivePattern();
+  syncSequencerChainTargetsFromUi();
   saveRuntimeSettingsFromCurrentState();
 
   return true;
@@ -1752,6 +1708,12 @@ static bool deleteSelectedPatternFromMemory()
     return false;
   }
 
+  if (loadedPatternCount <= 1U)
+  {
+    showPatternStatus("Cannot delete\nlast pattern", 2500);
+    return false;
+  }
+
   deleteSlotIndex = static_cast<uint8_t>(uiState.patternListSelection);
 
   sequencerGetView(view);
@@ -1765,18 +1727,13 @@ static bool deleteSelectedPatternFromMemory()
 
   sequencerDeletePatternSlot(deleteSlotIndex, loadedPatternCount);
 
-  if (loadedPatternCount > 1U)
-  {
-    loadedPatternCount--;
-  }
-  else
-  {
-    loadedPatternCount = 1;
-  }
+  loadedPatternCount--;
 
   rebuildLoadedPatternNames(loadedPatternCount);
+  sequencerSetLoadedPatternCount(loadedPatternCount);
 
   sequencerGetView(view);
+
   uiState.activePatternName = getPatternNameForSlot(view.activePatternIndex);
   uiState.chainTargetPatternName = "";
   uiState.chainTargetValid = false;
@@ -1784,6 +1741,7 @@ static bool deleteSelectedPatternFromMemory()
 
   refreshChainSeriesPatternCache();
   loadChainSettingsForActivePattern();
+  syncSequencerChainTargetsFromUi();
 
   uiState.patternListNeedsRefresh = true;
   uiState.dirty = true;
@@ -1793,6 +1751,60 @@ static bool deleteSelectedPatternFromMemory()
   return true;
 
 } //   deleteSelectedPatternFromMemory()
+
+//-- Delete one selected pattern from RAM or Card without using LittleFS.
+static bool deleteSelectedPattern(String* outDeletedName = nullptr,
+                                  PatternEntrySource* outDeletedSource = nullptr)
+{
+  PatternEntrySource selectedSource;
+  String selectedName;
+
+  if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 ||
+      uiState.patternListSelection >= uiState.patternCount)
+  {
+    return false;
+  }
+
+  selectedName = uiState.patternNames[uiState.patternListSelection];
+  selectedSource = uiState.patternSources[uiState.patternListSelection];
+
+  if (outDeletedName != nullptr)
+  {
+    *outDeletedName = selectedName;
+  }
+
+  if (outDeletedSource != nullptr)
+  {
+    *outDeletedSource = selectedSource;
+  }
+
+  if (uiState.patternListSourceFilter == patternListModeMemoryPatterns)
+  {
+    return deleteSelectedPatternFromMemory();
+  }
+
+  if (selectedSource == PatternEntrySource::Card)
+  {
+    String groupName = settingsStoreGetActivePatternGroup();
+
+    if (groupName.isEmpty())
+    {
+      return false;
+    }
+
+    if (!settingsStoreDeletePatternFromCard(groupName, selectedName))
+    {
+      return false;
+    }
+
+    uiState.patternListNeedsRefresh = true;
+
+    return true;
+  }
+
+  return false;
+
+} //   deleteSelectedPattern()
 
 //-- Move Groovebox cursor across tracks and loaded pattern slots.
 static void moveGrooveboxCursorAcrossPatterns(int delta)
@@ -2025,66 +2037,6 @@ static bool saveLoadedPatternGroupToCard()
   return true;
 
 } //   saveLoadedPatternGroupToCard()
-
-//-- Delete one pattern from current list selection.
-static bool deleteSelectedPattern(String* outDeletedName = nullptr,
-                                  PatternEntrySource* outDeletedSource = nullptr)
-{
-  PatternEntrySource selectedSource;
-
-  if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 ||
-      uiState.patternListSelection >= uiState.patternCount)
-  {
-    return false;
-  }
-
-  String selectedName = uiState.patternNames[uiState.patternListSelection];
-  selectedSource = uiState.patternSources[uiState.patternListSelection];
-
-  if (outDeletedName != nullptr)
-  {
-    *outDeletedName = selectedName;
-  }
-
-  if (outDeletedSource != nullptr)
-  {
-    *outDeletedSource = selectedSource;
-  }
-
-  if (selectedSource == PatternEntrySource::Card)
-  {
-    String groupName = settingsStoreGetActivePatternGroup();
-    if (!settingsStoreDeletePatternFromCard(groupName, selectedName))
-    {
-      return false;
-    }
-  }
-  else if (!settingsStoreDeletePattern(selectedName))
-  {
-    return false;
-  }
-
-  if (uiState.activePatternName == selectedName)
-  {
-    uiState.activePatternName = "";
-    uiState.chainTargetPatternName = "";
-    uiState.chainTargetValid = false;
-    uiState.chainSettingsDirty = false;
-    for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
-    {
-      if (uiState.chainSlotPatternNames[slotIndex] == selectedName)
-      {
-        uiState.chainSlotTargetPatternNames[slotIndex] = "";
-      }
-    }
-    saveRuntimeSettingsFromCurrentState();
-  }
-
-  uiState.patternListNeedsRefresh = true;
-
-  return true;
-
-} //   deleteSelectedPattern()
 
 //-- Return true when chain mode is musically active.
 static bool isPatternChainEnabled(const SequencerView& view)

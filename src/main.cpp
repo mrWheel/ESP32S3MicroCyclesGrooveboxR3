@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 14:03 ***/
+/*** Last Changed: 2026-06-01 - 12:33 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -19,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v0.7.3";
+const char* PROG_VERSION = "v0.7.4";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -502,8 +502,6 @@ static void systemTask(void* parameter)
 void setup()
 {
   RuntimeSettings runtimeSettings;
-  String patternNames[32];
-  size_t patternCount = 0;
 
   Serial.begin(115200);
   delay(100);
@@ -552,7 +550,9 @@ void setup()
   bootStatusPush(String("Boot ") + PROG_VERSION);
   bootStatusPush(sampleManagerIsSdCardReady() ? "Sample manager ready" : "Sample init failed");
   bootStatusPush("Input ready");
+  bootStatusPush("Pattern storage: SD/Card model");
 
+#ifdef DISPLAY_DEBUG_INFO
   if (sampleManagerIsSdCardReady())
   {
     bootStatusPush("SD listing /");
@@ -583,47 +583,13 @@ void setup()
 
     bootStatusPush(sampleLine);
   }
+#endif
 
   bootStatusPush("Init sequencer");
   sequencerInit();
 
-  bootStatusPush("Load settings");
-  settingsStoreLoadRuntimeSettings(runtimeSettings);
-  displaySetRotation(static_cast<int>(runtimeSettings.displayRotation));
-  displaySetThemeColorIndex(runtimeSettings.themeColorIndex);
-  input.setEncoderDirectionReversed(runtimeSettings.encoderDirectionReversed);
-  ESP_LOGI(logTag, "Loaded settings: rotation=%u theme=%d encoder=%s",
-           static_cast<unsigned>(runtimeSettings.displayRotation), runtimeSettings.themeColorIndex,
-           runtimeSettings.encoderDirectionReversed ? "B-A" : "A-B");
-
-  bootStatusPush("Init LittleFS patterns");
-  if (!settingsStoreInitPatternStorage())
-  {
-    ESP_LOGW(logTag, "Pattern storage init failed");
-    bootStatusPush("LittleFS init failed");
-  }
-  else if (!settingsStoreListPatterns(patternNames, sizeof(patternNames) / sizeof(patternNames[0]),
-                                      patternCount))
-  {
-    bootStatusPush("LittleFS list failed");
-  }
-  else if (patternCount == 0)
-  {
-    bootStatusPush("LittleFS no patterns");
-  }
-  else
-  {
-    bootStatusPush("LittleFS patterns");
-
-    for (size_t patternIndex = 0; patternIndex < patternCount; patternIndex++)
-    {
-      bootStatusPush(String("PAT ") + patternNames[patternIndex]);
-    }
-  }
-
-  logFilesystemRoot(LittleFS, "LittleFS");
-
   bootStatusPush("Init audio engine");
+
   if (!audioEngineInit())
   {
     ESP_LOGE(logTag, "Audio engine init failed");
@@ -648,6 +614,7 @@ void setup()
 
   bootStatusPush("System manager ready");
   bootStatusPush("Open Groovebox UI");
+
   uiManagerInit();
 
   //-- Draw first full UI frame directly from setup.
@@ -655,10 +622,13 @@ void setup()
 
   audioTaskStarted =
       (xTaskCreatePinnedToCore(audioTask, "AudioTask", 8192, nullptr, 3, nullptr, 0) == pdPASS);
+
   uiTaskStarted =
       (xTaskCreatePinnedToCore(uiTask, "UiTask", 6144, nullptr, 2, nullptr, 1) == pdPASS);
+
   inputTaskStarted =
       (xTaskCreatePinnedToCore(inputTask, "InputTask", 4096, nullptr, 2, nullptr, 1) == pdPASS);
+
   systemTaskStarted =
       (xTaskCreatePinnedToCore(systemTask, "SystemTask", 6144, nullptr, 1, nullptr, 1) == pdPASS);
 
