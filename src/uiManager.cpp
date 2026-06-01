@@ -1,6 +1,7 @@
-/*** Last Changed: 2026-06-01 - 14:10 ***/
+/*** Last Changed: 2026-06-01 - 14:45 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
+#include "uiCardStorageActions.h"
 
 #include "DisplayDriverClass.h"
 #include "audioEngine.h"
@@ -942,20 +943,13 @@ static void drawBusyPopupNow(const String& title, const String& message)
 
 } //   drawBusyPopupNow()
 
-//-- Build visible pattern group input text with cursor marker.
-//-- Return trimmed pattern group name input.
-//-- Open pattern group name input for Rename or Copy.
-//-- Draw or partially update pattern group name input popup.
-//-- Rotate current pattern group input character.
-//-- Accept current character and advance cursor.
-//-- Backspace or cancel pattern group name input.
-//-- Commit Rename or Copy pattern group input.
 //-- Commit Rename or Copy pattern group input.
 static void commitPatternGroupNameInput()
 {
   String oldGroupName = settingsStoreGetActivePatternGroup();
   String newGroupName = uiPatternGroupInputGetTrimmedName();
   bool copyMode = uiPatternGroupInputIsCopyMode();
+  String statusMessage;
   bool success = false;
 
   if (newGroupName.isEmpty())
@@ -987,32 +981,27 @@ static void commitPatternGroupNameInput()
 
   if (copyMode)
   {
-    success = settingsStoreCopyPatternGroupOnCard(oldGroupName, newGroupName);
+    success = uiCardStorageCopyPatternGroup(oldGroupName, newGroupName, statusMessage);
   }
   else
   {
-    success = settingsStoreRenamePatternGroupOnCard(oldGroupName, newGroupName);
+    success = uiCardStorageRenamePatternGroup(oldGroupName, newGroupName, statusMessage);
   }
 
   if (!success)
   {
-    showPatternStatus("Group failed\n" + newGroupName, 2500);
+    showPatternStatus(statusMessage, 2500);
     uiState.dirty = true;
 
     return;
   }
 
-  settingsStoreSetActivePatternGroup(newGroupName);
-
   if (copyMode)
   {
     loadCardPatternGroupIntoMemory(newGroupName, false);
-    showPatternStatus("Copied group\n" + newGroupName, 2500);
   }
-  else
-  {
-    showPatternStatus("Renamed group\n" + newGroupName, 2500);
-  }
+
+  showPatternStatus(statusMessage, 2500);
 
   uiState.patternListNeedsRefresh = true;
   uiState.dirty = true;
@@ -1656,23 +1645,7 @@ static bool saveLoadedPatternGroupToCard()
     savedCount++;
   }
 
-  String existingPatternNames[patternStoreMaxEntries];
-  size_t existingPatternCount = 0;
-
-  if (settingsStoreListPatternsInGroupOnCard(groupName, existingPatternNames,
-                                             patternStoreMaxEntries, existingPatternCount))
-  {
-    for (size_t patternIndex = 0; patternIndex < existingPatternCount; patternIndex++)
-    {
-      String existingName = existingPatternNames[patternIndex];
-      int existingNumber = existingName.substring(1).toInt();
-
-      if (existingNumber > loadedPatternCount)
-      {
-        settingsStoreDeletePatternFromCard(groupName, existingName);
-      }
-    }
-  }
+  uiCardStorageDeleteStalePatterns(groupName, loadedPatternCount);
 
   saveRuntimeSettingsFromCurrentState();
 
