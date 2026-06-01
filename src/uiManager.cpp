@@ -1,7 +1,8 @@
-/*** Last Changed: 2026-06-01 - 14:45 ***/
+/*** Last Changed: 2026-06-01 - 15:04 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
+#include "uiCardStorageMenu.h"
 
 #include "DisplayDriverClass.h"
 #include "audioEngine.h"
@@ -1874,20 +1875,8 @@ static void loadSelectedSampleSetFromMenu()
 //-- Draw Card Storage submenu.
 static void drawCardStorageMenu()
 {
-  String items[cardStorageMenuEntryCount];
-
-  items[0] = "Load Pattern";
-  items[1] = "Save Pattern";
-  items[2] = "Rename Pattern";
-  items[3] = "Copy Pattern";
-  items[4] = "Exit";
-
-  updateListFirstVisibleIndex(uiState.cardStorageMenuSelection, cardStorageMenuEntryCount,
-                              uiState.cardStorageMenuFirstVisibleIndex);
-
-  display.drawListScreen("Card Storage", items, cardStorageMenuEntryCount,
-                         uiState.cardStorageMenuSelection,
-                         uiState.cardStorageMenuFirstVisibleIndex);
+  uiCardStorageMenuDraw(display, uiState.cardStorageMenuSelection,
+                        uiState.cardStorageMenuFirstVisibleIndex);
 
   if (uiState.patternStatusOpen)
   {
