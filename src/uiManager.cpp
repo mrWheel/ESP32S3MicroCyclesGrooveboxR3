@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-01 - 15:12 ***/
+/*** Last Changed: 2026-06-01 - 15:24 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -146,8 +146,10 @@ static const uint8_t editPopupPageMap[] = {parameterPageVelocity, parameterPageP
 static const int editPopupEntryCount =
     static_cast<int>(sizeof(editPopupPageMap) / sizeof(editPopupPageMap[0]));
 
-static const char* editPopupEntries[editPopupEntryCount] = {"VELOCITY",    "PITCH", "DECAY",
-                                                            "PROBABILITY", "MUTE",  "CHAIN"};
+//--cleanup--static const char* editPopupEntries[editPopupEntryCount] = {"VELOCITY",    "PITCH",
+//"DECAY",
+//--cleanup--                                                            "PROBABILITY", "MUTE",
+//"CHAIN"};
 
 //-- CHAIN value-edit focus fields.
 static const uint8_t chainPopupFocusEnable = 0;
@@ -161,7 +163,7 @@ static void selectNextPatternInSeries(int direction);
 static void refreshChainSeriesPatternCache();
 
 //-- Build display label for chain target field.
-static String formatChainTargetLabel();
+//--cleanup--static String formatChainTargetLabel();
 
 //-- Load persisted chain settings for the active pattern.
 static void loadChainSettingsForActivePattern();
@@ -408,123 +410,6 @@ static uint8_t popupSelectionToParameterPage(int popupSelection)
 
 } //   popupSelectionToParameterPage()
 
-//-- Build compact value text for one edit popup page.
-static String buildEditPopupValueText(uint8_t pageIndex, const SequencerView& view)
-{
-  const Track& selectedTrack = view.pattern->tracks[view.selectedTrack];
-  const Step& selectedStep = selectedTrack.steps[view.cursorStep];
-  char valueBuffer[28];
-
-  if (pageIndex == parameterPageTrig)
-  {
-    snprintf(valueBuffer, sizeof(valueBuffer), "S%02u %s",
-             static_cast<unsigned>(view.cursorStep + 1U), selectedStep.trigger ? "ON" : "OFF");
-  }
-  else if (pageIndex == parameterPageVelocity)
-  {
-    snprintf(valueBuffer, sizeof(valueBuffer), "%03u",
-             static_cast<unsigned>(selectedStep.velocity));
-  }
-  else if (pageIndex == parameterPagePitch)
-  {
-    snprintf(valueBuffer, sizeof(valueBuffer), "%+03d", static_cast<int>(selectedStep.lockPitch));
-  }
-  else if (pageIndex == parameterPageDecay)
-  {
-    snprintf(valueBuffer, sizeof(valueBuffer), "%03u%%",
-             static_cast<unsigned>(selectedStep.lockDecay));
-  }
-  else if (pageIndex == parameterPageProbability)
-  {
-    snprintf(valueBuffer, sizeof(valueBuffer), "%03u%%",
-             static_cast<unsigned>(selectedStep.probability));
-  }
-  else if (pageIndex == parameterPageMute)
-  {
-    snprintf(valueBuffer, sizeof(valueBuffer), "%s", selectedTrack.mute ? "ON" : "OFF");
-  }
-  else
-  {
-    snprintf(valueBuffer, sizeof(valueBuffer), "%s L%u P%u", view.chainEnabled ? "ON" : "OFF",
-             static_cast<unsigned>(view.chainLength),
-             static_cast<unsigned>(view.activePatternIndex + 1U));
-  }
-
-  return String(valueBuffer);
-
-} //   buildEditPopupValueText()
-
-//-- Build popup rows with selected-row label/value edit markers.
-static void buildEditPopupRows(const SequencerView& view, String rows[editPopupEntryCount])
-{
-  for (int rowIndex = 0; rowIndex < editPopupEntryCount; rowIndex++)
-  {
-    uint8_t pageIndex = editPopupPageMap[rowIndex];
-    String label = String(editPopupEntries[rowIndex]);
-    String valueText = buildEditPopupValueText(pageIndex, view);
-
-    if (pageIndex == parameterPageChain)
-    {
-      char chainLengthText[8];
-      String chainTargetLabel = formatChainTargetLabel();
-
-      snprintf(chainLengthText, sizeof(chainLengthText), "L%u",
-               static_cast<unsigned>(view.chainLength));
-
-      if (rowIndex == uiState.editPopupSelection)
-      {
-        if (uiState.editPopupValueEdit)
-        {
-          if (uiState.editPopupChainFocus == chainPopupFocusLength)
-          {
-            rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " >" +
-                             String(chainLengthText) + "< " + chainTargetLabel;
-          }
-          else if (uiState.editPopupChainFocus == chainPopupFocusPattern)
-          {
-            rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " " +
-                             String(chainLengthText) + " >" + chainTargetLabel + "<";
-          }
-          else
-          {
-            rows[rowIndex] = " CHAIN >" + String(view.chainEnabled ? "ON" : "OFF") + "< " +
-                             String(chainLengthText) + " " + chainTargetLabel;
-          }
-        }
-        else
-        {
-          rows[rowIndex] = ">" + label + "< " + String(view.chainEnabled ? "ON" : "OFF") + " " +
-                           String(chainLengthText) + " " + chainTargetLabel;
-        }
-      }
-      else
-      {
-        rows[rowIndex] = " CHAIN " + String(view.chainEnabled ? "ON" : "OFF") + " " +
-                         String(chainLengthText) + " " + chainTargetLabel;
-      }
-
-      continue;
-    }
-
-    if (rowIndex == uiState.editPopupSelection)
-    {
-      if (uiState.editPopupValueEdit)
-      {
-        rows[rowIndex] = " " + label + " >" + valueText + "<";
-      }
-      else
-      {
-        rows[rowIndex] = ">" + label + "< " + valueText;
-      }
-    }
-    else
-    {
-      rows[rowIndex] = " " + label + " " + valueText;
-    }
-  }
-
-} //   buildEditPopupRows()
-
 //-- Apply encoder delta to selected popup value while value-edit mode is active.
 static void applyEditPopupValueDelta(int delta)
 {
@@ -733,6 +618,7 @@ static void loadChainSettingsForActivePattern()
 
 } //   loadChainSettingsForActivePattern()
 
+/*--cleanup--
 //-- Build display label for chain target field.
 static String formatChainTargetLabel()
 {
@@ -744,6 +630,7 @@ static String formatChainTargetLabel()
   return uiState.chainTargetPatternName;
 
 } //   formatChainTargetLabel()
+--*/
 
 //-- Save active-pattern chain settings into RAM bookkeeping only.
 static void saveChainSettingsForPattern()
@@ -1612,109 +1499,6 @@ static bool saveLoadedPatternGroupToCard()
 
 } //   saveLoadedPatternGroupToCard()
 
-//-- Build compact Groovebox footer line with playback and chain context.
-static String formatGrooveboxFooter(const SequencerView& view)
-{
-  char footerLine[64];
-  String playingPatternName = getPatternNameForSlot(view.playingPatternIndex);
-  String nextPatternName = "";
-  String groupName = settingsStoreGetActivePatternGroup();
-
-  if (view.editMode)
-  {
-    snprintf(footerLine, sizeof(footerLine), "%s S:%02u", trackNames[view.selectedTrack],
-             static_cast<unsigned>(view.cursorStep + 1U));
-
-    return String(footerLine);
-  }
-
-  if (view.chainEnabled)
-  {
-    uint8_t nextSlotIndex = 0;
-
-    if (view.playingPatternIndex < sequencerPatternCount &&
-        patternSlotIndexFromName(uiState.chainSlotTargetPatternNames[view.playingPatternIndex],
-                                 nextSlotIndex))
-    {
-      nextPatternName = getPatternNameForSlot(nextSlotIndex);
-    }
-  }
-
-  if (!nextPatternName.isEmpty() && !groupName.isEmpty())
-  {
-    snprintf(footerLine, sizeof(footerLine), "S:%02u %s->%s %s",
-             static_cast<unsigned>(view.currentStep + 1U), playingPatternName.c_str(),
-             nextPatternName.c_str(), groupName.c_str());
-  }
-  else if (!nextPatternName.isEmpty())
-  {
-    snprintf(footerLine, sizeof(footerLine), "S:%02u %s->%s",
-             static_cast<unsigned>(view.currentStep + 1U), playingPatternName.c_str(),
-             nextPatternName.c_str());
-  }
-  else if (!groupName.isEmpty())
-  {
-    snprintf(footerLine, sizeof(footerLine), "S:%02u %s %s",
-             static_cast<unsigned>(view.currentStep + 1U), playingPatternName.c_str(),
-             groupName.c_str());
-  }
-  else
-  {
-    snprintf(footerLine, sizeof(footerLine), "S:%02u %s",
-             static_cast<unsigned>(view.currentStep + 1U), playingPatternName.c_str());
-  }
-
-  return String(footerLine);
-
-} //   formatGrooveboxFooter()
-
-//-- Build contextual parameter overlay text for the selected step.
-static String buildParameterOverlayLine(const SequencerView& view)
-{
-  const Track& selectedTrack = view.pattern->tracks[view.selectedTrack];
-  const Step& selectedStep = selectedTrack.steps[view.cursorStep];
-  char lineBuffer[72];
-
-  if (uiState.parameterPageIndex == parameterPageTrig)
-  {
-    return "";
-  }
-  else if (uiState.parameterPageIndex == parameterPageVelocity)
-  {
-    snprintf(lineBuffer, sizeof(lineBuffer), "VEL   %03u",
-             static_cast<unsigned>(selectedStep.velocity));
-  }
-  else if (uiState.parameterPageIndex == parameterPagePitch)
-  {
-    snprintf(lineBuffer, sizeof(lineBuffer), "PITCH %+03d  LOCK %s",
-             static_cast<int>(selectedStep.lockPitch), selectedStep.lockEnabled ? "ON" : "OFF");
-  }
-  else if (uiState.parameterPageIndex == parameterPageDecay)
-  {
-    snprintf(lineBuffer, sizeof(lineBuffer), "DECAY %03u%% LOCK %s",
-             static_cast<unsigned>(selectedStep.lockDecay),
-             selectedStep.lockEnabled ? "ON" : "OFF");
-  }
-  else if (uiState.parameterPageIndex == parameterPageProbability)
-  {
-    snprintf(lineBuffer, sizeof(lineBuffer), "PROB  %03u%%",
-             static_cast<unsigned>(selectedStep.probability));
-  }
-  else if (uiState.parameterPageIndex == parameterPageMute)
-  {
-    snprintf(lineBuffer, sizeof(lineBuffer), "MUTE  %s", selectedTrack.mute ? "ON" : "OFF");
-  }
-  else
-  {
-    snprintf(lineBuffer, sizeof(lineBuffer), "CHAIN %s L%u P%u", view.chainEnabled ? "ON" : "OFF",
-             static_cast<unsigned>(view.chainLength),
-             static_cast<unsigned>(view.activePatternIndex + 1U));
-  }
-
-  return String(lineBuffer);
-
-} //   buildParameterOverlayLine()
-
 //-- Draw generic Are-you-sure submenu with No/Yes choices.
 static void drawConfirmationScreen(const char* title, int selection)
 {
@@ -2035,68 +1819,15 @@ static void drawSystemSettingsScreen()
 static void drawSequencerScreen()
 {
   SequencerView view;
-  String lines[9];
-  String popupRows[editPopupEntryCount];
-  String parameterLine;
-  String viewPatternName;
-  int selectedLine = 1;
-  char headerLine[48];
 
   sequencerGetView(view);
 
-  viewPatternName = getPatternNameForSlot(view.activePatternIndex);
-
-  snprintf(headerLine, sizeof(headerLine), "BPM %03u SW %02u %s %s",
-           static_cast<unsigned>(view.bpm), static_cast<unsigned>(view.swingPercent),
-           view.playing ? "PLAY" : "STOP", viewPatternName.c_str());
-
-  lines[0] = fitListRowText(headerLine);
-
-  for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
-  {
-    lines[trackIndex + 1] = fitListRowText(uiGrooveboxScreenBuildTrackRowText(
-        trackNames[trackIndex], view.pattern->tracks[trackIndex]));
-  }
-
-  parameterLine = "";
-
-  if (!uiState.tempoEditOpen && !uiState.editPopupOpen && view.editMode)
-  {
-    parameterLine = buildParameterOverlayLine(view);
-  }
-
-  lines[7] = parameterLine.isEmpty() ? String("") : fitListRowText(parameterLine);
-  lines[8] = fitListRowText(formatGrooveboxFooter(view));
-
-  selectedLine = static_cast<int>(view.selectedTrack) + 1;
-
-  display.drawListScreen("Groovebox", lines, 9, selectedLine, 0, PROG_VERSION);
-
-  if (uiState.tempoEditOpen)
-  {
-    display.drawTempoOverlay(view.bpm, view.swingPercent, uiState.tempoEditSelection == 0);
-  }
-  else if (uiState.editPopupOpen)
-  {
-    buildEditPopupRows(view, popupRows);
-
-    display.drawSelectionOverlay("Edit Track", popupRows, editPopupEntryCount,
-                                 uiState.editPopupSelection);
-  }
-
-  if (view.editMode && !uiState.tempoEditOpen && !uiState.editPopupOpen)
-  {
-    int stepCharIndex = 7 + static_cast<int>(view.cursorStep);
-
-    if (stepCharIndex >= 0 && stepCharIndex < static_cast<int>(lines[selectedLine].length()))
-    {
-      display.drawListCharacterHighlight(selectedLine, stepCharIndex,
-                                         lines[selectedLine][stepCharIndex]);
-    }
-  }
-
-  lastSequencerFooterLine = lines[8];
-  sequencerScreenDrawn = true;
+  uiGrooveboxScreenDraw(display, view, trackNames, uiState.parameterPageIndex,
+                        uiState.tempoEditOpen, uiState.tempoEditSelection, uiState.editPopupOpen,
+                        uiState.editPopupSelection, uiState.editPopupValueEdit,
+                        uiState.editPopupChainFocus, uiState.chainTargetValid,
+                        uiState.chainTargetPatternName, uiState.chainSlotTargetPatternNames,
+                        lastSequencerFooterLine, sequencerScreenDrawn);
 
 } //   drawSequencerScreen()
 
@@ -2104,27 +1835,20 @@ static void drawSequencerScreen()
 static void drawEditPopupOverlayOnly()
 {
   SequencerView view;
-  String popupRows[editPopupEntryCount];
 
   sequencerGetView(view);
-  buildEditPopupRows(view, popupRows);
-  display.drawSelectionOverlay("Edit Track", popupRows, editPopupEntryCount,
-                               uiState.editPopupSelection);
+
+  uiGrooveboxScreenDrawEditPopupOverlayOnly(
+      display, view, uiState.editPopupSelection, uiState.editPopupValueEdit,
+      uiState.editPopupChainFocus, uiState.chainTargetValid, uiState.chainTargetPatternName);
 
 } //   drawEditPopupOverlayOnly()
 
 //-- Update only the dynamic Groovebox footer row while running.
 static void drawSequencerFooterUpdate(const SequencerView& view)
 {
-  String footerLine = fitListRowText(formatGrooveboxFooter(view));
-
-  if (footerLine == lastSequencerFooterLine)
-  {
-    return;
-  }
-
-  display.drawListLine(8, footerLine, false);
-  lastSequencerFooterLine = footerLine;
+  uiGrooveboxScreenDrawFooterUpdate(display, view, uiState.chainSlotTargetPatternNames,
+                                    lastSequencerFooterLine);
 
 } //   drawSequencerFooterUpdate()
 
