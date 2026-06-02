@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-01 - 13:45 ***/
+/*** Last Changed: 2026-06-02 - 12:16 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -193,6 +193,18 @@ static uint8_t applyVelocityCurve(uint8_t velocity)
 
 } //   applyVelocityCurve()
 
+//-- Apply per-voice gain in 16-bit fixed-point scale.
+static int32_t applyVoiceGain(int32_t sampleValue, uint16_t voiceGain)
+{
+  if (voiceGain == 0)
+  {
+    return 0;
+  }
+
+  return (sampleValue * static_cast<int32_t>(voiceGain)) / 65535L;
+
+} //   applyVoiceGain()
+
 //-- Mix one mono frame from active voices.
 static int16_t mixNextFrame(bool& hadVoices)
 {
@@ -231,9 +243,12 @@ static int16_t mixNextFrame(bool& hadVoices)
     uint16_t sampleGain = sampleManagerGetSampleGainPercent(static_cast<SampleId>(sampleIndex));
 
     int32_t sampleValue = static_cast<int32_t>(voice.sampleData[voice.position]);
+
     uint8_t curvedVelocity = applyVelocityCurve(voice.level);
     int32_t leveledSample = (sampleValue * static_cast<int32_t>(curvedVelocity)) / 255;
-    int32_t gainedSample = (leveledSample * static_cast<int32_t>(sampleGain)) / 100;
+
+    int32_t sampleSetGainedSample = (leveledSample * static_cast<int32_t>(sampleGain)) / 100;
+    int32_t gainedSample = applyVoiceGain(sampleSetGainedSample, voice.gain);
 
     if (voice.releaseActive)
     {
