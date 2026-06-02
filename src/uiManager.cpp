@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 10:24 ***/
+/*** Last Changed: 2026-06-02 - 11:54 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -164,6 +164,9 @@ static String buildPatternNameForSlot(uint8_t slotIndex);
 
 //-- Load one Card pattern group directly into sequencer memory by group name.
 static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showStatus);
+
+//-- Show temporary pattern/status popup.
+static void showPatternStatus(const String& text, uint32_t durationMs);
 
 //-- Count loaded pattern slots currently known by the UI.
 static uint8_t getLoadedPatternSlotCount()
@@ -380,11 +383,142 @@ static uint8_t popupSelectionToParameterPage(int popupSelection)
 
 } //   popupSelectionToParameterPage()
 
+//-- Return SampleId for one sequencer track index.
+static SampleId sampleIdForTrackIndex(uint8_t trackIndex)
+{
+  if (trackIndex == 0)
+  {
+    return sampleKick;
+  }
+  else if (trackIndex == 1)
+  {
+    return sampleSnare;
+  }
+  else if (trackIndex == 2)
+  {
+    return sampleClosedHat;
+  }
+  else if (trackIndex == 3)
+  {
+    return sampleOpenHat;
+  }
+  else if (trackIndex == 4)
+  {
+    return sampleTone;
+  }
+
+  return sampleMetal;
+
+} //   sampleIdForTrackIndex()
+
+//-- Return choke group used for auditioning one track.
+static uint8_t auditionChokeGroupForTrack(uint8_t trackIndex)
+{
+  if (trackIndex == 2 || trackIndex == 3)
+  {
+    return 1;
+  }
+
+  if (trackIndex == 5)
+  {
+    return 2;
+  }
+
+  return 0;
+
+} //   auditionChokeGroupForTrack()
+
+//-- Audition the currently selected edited step.
+static void auditionCurrentEditedStep()
+{
+  SequencerView view;
+
+  sequencerGetView(view);
+
+  if (view.pattern == nullptr)
+  {
+    return;
+  }
+
+  if (view.selectedTrack >= sequencerTrackCount || view.cursorStep >= sequencerStepCount)
+  {
+    return;
+  }
+
+  const Step& selectedStep = view.pattern->tracks[view.selectedTrack].steps[view.cursorStep];
+
+  if (!selectedStep.trigger)
+  {
+    return;
+  }
+
+  uint16_t auditionLevel = selectedStep.velocity;
+
+  if (auditionLevel == 0)
+  {
+    auditionLevel = 1;
+  }
+
+  if (selectedStep.lockEnabled)
+  {
+    auditionLevel = static_cast<uint16_t>(
+        (static_cast<uint32_t>(auditionLevel) * static_cast<uint32_t>(selectedStep.lockDecay)) /
+        100U);
+  }
+
+  if (auditionLevel < 1U)
+  {
+    auditionLevel = 1U;
+  }
+  else if (auditionLevel > 255U)
+  {
+    auditionLevel = 255U;
+  }
+
+  audioEngineTriggerSample(sampleIdForTrackIndex(view.selectedTrack),
+                           static_cast<uint8_t>(auditionLevel), 65535, 0,
+                           auditionChokeGroupForTrack(view.selectedTrack));
+
+} //   auditionCurrentEditedStep()
+
+//-- Open edit popup only when the selected step contains a trigger.
+static void openEditPopupForCurrentStep()
+{
+  SequencerView view;
+
+  sequencerGetView(view);
+
+  if (view.pattern == nullptr)
+  {
+    return;
+  }
+
+  if (view.selectedTrack >= sequencerTrackCount || view.cursorStep >= sequencerStepCount)
+  {
+    return;
+  }
+
+  if (!view.pattern->tracks[view.selectedTrack].steps[view.cursorStep].trigger)
+  {
+    showPatternStatus("No trigger\nat step", 1200);
+    uiState.dirty = true;
+    return;
+  }
+
+  uiState.editPopupSelection = popupSelectionFromParameterPage(uiState.parameterPageIndex);
+  uiState.editPopupOpen = true;
+  uiState.editPopupValueEdit = false;
+  uiState.editPopupChainFocus = chainPopupFocusEnable;
+  uiState.dirty = true;
+
+} //   openEditPopupForCurrentStep()
+
 //-- Apply encoder delta to selected popup value while value-edit mode is active.
 static void applyEditPopupValueDelta(int delta)
 {
   uint8_t pageIndex;
   SequencerView view;
+  bool shouldAudition = false;
 
   if (delta == 0)
   {
@@ -396,18 +530,22 @@ static void applyEditPopupValueDelta(int delta)
   if (pageIndex == parameterPageVelocity)
   {
     sequencerAdjustCurrentStepVelocity(delta > 0 ? 8 : -8);
+    shouldAudition = true;
   }
   else if (pageIndex == parameterPagePitch)
   {
     sequencerAdjustCurrentStepLockPitch(delta > 0 ? 1 : -1);
+    shouldAudition = true;
   }
   else if (pageIndex == parameterPageDecay)
   {
     sequencerAdjustCurrentStepLockDecay(delta > 0 ? 5 : -5);
+    shouldAudition = true;
   }
   else if (pageIndex == parameterPageProbability)
   {
     sequencerAdjustCurrentStepProbability(delta > 0 ? 5 : -5);
+    shouldAudition = true;
   }
   else if (pageIndex == parameterPageMute)
   {
@@ -465,6 +603,11 @@ static void applyEditPopupValueDelta(int delta)
     }
 
     uiState.chainSettingsDirty = true;
+  }
+
+  if (shouldAudition)
+  {
+    auditionCurrentEditedStep();
   }
 
 } //   applyEditPopupValueDelta()
@@ -1664,7 +1807,7 @@ static void drawSequencerScreen()
 
 } //   drawSequencerScreen()
 
-//-- Redraw only the edit popup card for smoother interaction.
+//-- Redraw only the Edit Track popup overlay.
 static void drawEditPopupOverlayOnly()
 {
   SequencerView view;
@@ -1672,7 +1815,7 @@ static void drawEditPopupOverlayOnly()
   sequencerGetView(view);
 
   uiGrooveboxScreenDrawEditPopupOverlayOnly(
-      display, view, uiState.editPopupSelection, uiState.editPopupValueEdit,
+      display, view, trackNames, uiState.editPopupSelection, uiState.editPopupValueEdit,
       uiState.editPopupChainFocus, uiState.chainTargetValid, uiState.chainTargetPatternName);
 
 } //   drawEditPopupOverlayOnly()
@@ -2578,10 +2721,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
   {
     if (view.editMode)
     {
-      uiState.editPopupSelection = popupSelectionFromParameterPage(uiState.parameterPageIndex);
-      uiState.editPopupOpen = true;
-      uiState.editPopupValueEdit = false;
-      uiState.editPopupChainFocus = chainPopupFocusEnable;
+      openEditPopupForCurrentStep();
     }
     else
     {

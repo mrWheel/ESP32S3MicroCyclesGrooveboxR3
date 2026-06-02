@@ -223,6 +223,27 @@ These may be harmless if unused, but they should be checked.
 ```bash
 grep -R "FindNextPatternNameForLetterOnCard\|CountAvailablePatternSlotsForLetterOnCard\|isPatternNameLetterNumberFormat\|normalizePatternLetter" include src
 ```
+Gives:
+```
+grep -R "FindNextPatternNameForLetterOnCard\|CountAvailablePatternSlotsForLetterOnCard\|isPatternNameLetterNumberFormat\|normalizePatternLetter" include src
+src/settingsStore.cpp:static bool isPatternNameLetterNumberFormat(const String& patternName);
+src/settingsStore.cpp:static char normalizePatternLetter(char patternLetter);
+src/settingsStore.cpp:static bool isPatternNameLetterNumberFormat(const String& patternName)
+src/settingsStore.cpp:  nameLetter = normalizePatternLetter(patternName[0]);
+src/settingsStore.cpp:} //   isPatternNameLetterNumberFormat()
+src/settingsStore.cpp:static char normalizePatternLetter(char patternLetter)
+src/settingsStore.cpp:} //   normalizePatternLetter()
+src/settingsStore.cpp:bool settingsStoreFindNextPatternNameForLetterOnCard(char patternLetter, String& outName)
+src/settingsStore.cpp:  normalizedLetter = normalizePatternLetter(patternLetter);
+src/settingsStore.cpp:        if (isPatternNameLetterNumberFormat(patternName))
+src/settingsStore.cpp:          char entryLetter = normalizePatternLetter(patternName[0]);
+src/settingsStore.cpp:} //   settingsStoreFindNextPatternNameForLetterOnCard()
+src/settingsStore.cpp:bool settingsStoreCountAvailablePatternSlotsForLetterOnCard(char patternLetter, int& outFreeCount)
+src/settingsStore.cpp:  normalizedLetter = normalizePatternLetter(patternLetter);
+src/settingsStore.cpp:        if (isPatternNameLetterNumberFormat(patternName))
+src/settingsStore.cpp:          char entryLetter = normalizePatternLetter(patternName[0]);
+src/settingsStore.cpp:} //   settingsStoreCountAvailablePatternSlotsForLetterOnCard()
+```
 
 If only declarations/definitions remain, remove them in a small cleanup commit.
 

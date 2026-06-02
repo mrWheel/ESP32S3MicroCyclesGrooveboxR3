@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 10:24 ***/
+/*** Last Changed: 2026-06-02 - 11:54 ***/
 #pragma once
 
 #include "DisplayDriverClass.h"
@@ -22,6 +22,7 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
 
 //-- Redraw only the Edit Track popup overlay.
 void uiGrooveboxScreenDrawEditPopupOverlayOnly(DisplayDriver& display, const SequencerView& view,
+                                               const char* const trackNames[],
                                                int editPopupSelection, bool editPopupValueEdit,
                                                uint8_t editPopupChainFocus, bool chainTargetValid,
                                                const String& chainTargetPatternName);

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 10:24 ***/
+/*** Last Changed: 2026-06-02 - 11:54 ***/
 #include "uiGrooveboxScreen.h"
 
 #include "progVersion.h"
@@ -405,6 +405,24 @@ static String buildParameterOverlayLine(const SequencerView& view, uint8_t param
 
 } //   buildParameterOverlayLine()
 
+//-- Build dynamic title for the Edit popup.
+static String buildEditPopupTitle(const SequencerView& view, const char* const trackNames[])
+{
+  const char* trackName = "Track";
+  char titleBuffer[32];
+
+  if (view.selectedTrack < sequencerTrackCount && trackNames[view.selectedTrack] != nullptr)
+  {
+    trackName = trackNames[view.selectedTrack];
+  }
+
+  snprintf(titleBuffer, sizeof(titleBuffer), "Edit %s S:%02u", trackName,
+           static_cast<unsigned>(view.cursorStep + 1U));
+
+  return String(titleBuffer);
+
+} //   buildEditPopupTitle()
+
 //-- Draw the complete Groovebox sequencer screen.
 void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
                            const char* const trackNames[], uint8_t parameterPageIndex,
@@ -420,6 +438,7 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
   String popupRows[editPopupEntryCount];
   String parameterLine;
   String viewPatternName;
+  String editPopupTitle;
   int selectedLine = 1;
   char headerLine[48];
 
@@ -462,7 +481,10 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
     buildEditPopupRows(view, popupRows, editPopupSelection, editPopupValueEdit, editPopupChainFocus,
                        chainTargetValid, chainTargetPatternName);
 
-    display.drawSelectionOverlay("Edit Track", popupRows, editPopupEntryCount, editPopupSelection);
+    editPopupTitle = buildEditPopupTitle(view, trackNames);
+
+    display.drawSelectionOverlay(editPopupTitle.c_str(), popupRows, editPopupEntryCount,
+                                 editPopupSelection);
   }
 
   if (view.editMode && !tempoEditOpen && !editPopupOpen)
@@ -483,16 +505,21 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
 
 //-- Redraw only the Edit Track popup overlay.
 void uiGrooveboxScreenDrawEditPopupOverlayOnly(DisplayDriver& display, const SequencerView& view,
+                                               const char* const trackNames[],
                                                int editPopupSelection, bool editPopupValueEdit,
                                                uint8_t editPopupChainFocus, bool chainTargetValid,
                                                const String& chainTargetPatternName)
 {
   String popupRows[editPopupEntryCount];
+  String editPopupTitle;
 
   buildEditPopupRows(view, popupRows, editPopupSelection, editPopupValueEdit, editPopupChainFocus,
                      chainTargetValid, chainTargetPatternName);
 
-  display.drawSelectionOverlay("Edit Track", popupRows, editPopupEntryCount, editPopupSelection);
+  editPopupTitle = buildEditPopupTitle(view, trackNames);
+
+  display.drawSelectionOverlay(editPopupTitle.c_str(), popupRows, editPopupEntryCount,
+                               editPopupSelection);
 
 } //   uiGrooveboxScreenDrawEditPopupOverlayOnly()
 
