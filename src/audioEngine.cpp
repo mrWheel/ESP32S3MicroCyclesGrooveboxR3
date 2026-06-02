@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 12:32 ***/
+/*** Last Changed: 2026-06-02 - 12:47 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -178,8 +178,84 @@ static int32_t applyVoiceGain(int32_t sampleValue, uint16_t voiceGain)
 
 } //   applyVoiceGain()
 
-//-- Mix one mono frame from active voices.
-static int16_t mixNextFrame(bool& hadVoices)
+//-- Clamp pan value to supported signed range.
+static int8_t clampPanValue(int8_t pan)
+{
+  if (pan < -64)
+  {
+    return -64;
+  }
+
+  if (pan > 64)
+  {
+    return 64;
+  }
+
+  return pan;
+
+} //   clampPanValue()
+
+//-- Return default stereo pan for one sample voice.
+static int8_t defaultPanForSample(SampleId sampleId)
+{
+  if (sampleId == sampleClosedHat)
+  {
+    return -30;
+  }
+
+  if (sampleId == sampleOpenHat)
+  {
+    return -45;
+  }
+
+  if (sampleId == sampleTone)
+  {
+    return 30;
+  }
+
+  if (sampleId == sampleMetal)
+  {
+    return 45;
+  }
+
+  return 0;
+
+} //   defaultPanForSample()
+
+//-- Mix one mono sample into left/right accumulators using equal-power style pan.
+static void mixSampleWithPan(int32_t monoSample, int8_t pan, int32_t& mixLeft, int32_t& mixRight)
+{
+  int8_t clampedPan = clampPanValue(pan);
+
+  int32_t leftGain = 256;
+  int32_t rightGain = 256;
+
+  if (clampedPan < 0)
+  {
+    rightGain = 256 + (static_cast<int32_t>(clampedPan) * 256) / 64;
+  }
+  else if (clampedPan > 0)
+  {
+    leftGain = 256 - (static_cast<int32_t>(clampedPan) * 256) / 64;
+  }
+
+  if (leftGain < 0)
+  {
+    leftGain = 0;
+  }
+
+  if (rightGain < 0)
+  {
+    rightGain = 0;
+  }
+
+  mixLeft += (monoSample * leftGain) >> 8;
+  mixRight += (monoSample * rightGain) >> 8;
+
+} //   mixSampleWithPan()
+
+//-- Mix one stereo frame from active voices.
+static void mixNextFrame(int16_t& outLeft, int16_t& outRight, bool& hadVoices)
 {
 #ifdef TEST_TONE
   hadVoices = false;
@@ -195,9 +271,11 @@ static int16_t mixNextFrame(bool& hadVoices)
     sinePhase -= 2.0f * static_cast<float>(M_PI);
   }
 
-  return applyMasterGainAndClamp(mixed);
+  outLeft = applyMasterGainAndClamp(mixed);
+  outRight = outLeft;
 #else
-  int32_t mixed = 0;
+  int32_t mixedLeft = 0;
+  int32_t mixedRight = 0;
 
   hadVoices = false;
 
@@ -246,7 +324,14 @@ static int16_t mixNextFrame(bool& hadVoices)
       }
     }
 
-    mixed += gainedSample;
+    int8_t voicePan = voice.pan;
+
+    if (voicePan == 0)
+    {
+      voicePan = defaultPanForSample(voice.sampleId);
+    }
+
+    mixSampleWithPan(gainedSample, voicePan, mixedLeft, mixedRight);
 
     voice.position++;
 
@@ -260,8 +345,7 @@ static int16_t mixNextFrame(bool& hadVoices)
   if (!hadVoices && stats.testToneEnabled)
   {
     float sineValue = sinf(sinePhase);
-
-    mixed = static_cast<int32_t>(sineValue * 9000.0f);
+    int32_t mixed = static_cast<int32_t>(sineValue * 9000.0f);
 
     sinePhase += 2.0f * static_cast<float>(M_PI) * 220.0f / static_cast<float>(audioSampleRate);
 
@@ -269,9 +353,13 @@ static int16_t mixNextFrame(bool& hadVoices)
     {
       sinePhase -= 2.0f * static_cast<float>(M_PI);
     }
+
+    mixedLeft = mixed;
+    mixedRight = mixed;
   }
 
-  return applyMasterGainAndClamp(mixed);
+  outLeft = applyMasterGainAndClamp(mixedLeft);
+  outRight = applyMasterGainAndClamp(mixedRight);
 #endif
 
 } //   mixNextFrame()
@@ -542,38 +630,30 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
   audioEngineTriggerSample(sampleId, level, 100, 0, 0);
 }
 
-//-- Render one audio block and write to I2S.
+//-- Render one audio block and write it to I2S.
 void audioEngineRenderBlock()
 {
-  uint32_t activeVoiceCount = 0;
-
-  for (int frameIndex = 0; frameIndex < audioBlockFrames; frameIndex++)
+  if (!audioOutputReady)
   {
-    bool hadVoices = false;
-    int16_t monoSample = mixNextFrame(hadVoices);
-
-    outputBuffer[(frameIndex * 2)] = monoSample;
-    outputBuffer[(frameIndex * 2) + 1] = monoSample;
+    return;
   }
 
-#ifndef NO_DAC_HARDWARE
+  bool hadVoices = false;
+
+  for (size_t frameIndex = 0; frameIndex < audioBlockFrames; frameIndex++)
+  {
+    int16_t leftSample = 0;
+    int16_t rightSample = 0;
+
+    mixNextFrame(leftSample, rightSample, hadVoices);
+
+    outputBuffer[(frameIndex * audioChannelCount)] = leftSample;
+    outputBuffer[(frameIndex * audioChannelCount) + 1U] = rightSample;
+  }
+
   size_t bytesWritten = 0;
 
-  if (i2s_write(audioI2sPort, outputBuffer, sizeof(outputBuffer), &bytesWritten, 0) != ESP_OK)
-  {
-    stats.dmaWriteFailures++;
-  }
-#endif
-
-  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
-  {
-    if (voices[voiceIndex].active)
-    {
-      activeVoiceCount++;
-    }
-  }
-
-  stats.activeVoiceCount = activeVoiceCount;
+  i2s_write(I2S_NUM_0, outputBuffer, sizeof(outputBuffer), &bytesWritten, portMAX_DELAY);
 
 } //   audioEngineRenderBlock()
 
