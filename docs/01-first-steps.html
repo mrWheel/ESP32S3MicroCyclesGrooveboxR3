@@ -1,76 +1,63 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>First Steps | Groovebox R3</title>
+    <title>Groovebox hoofdscherm | ESP32 MicroCycles</title>
     <link rel="stylesheet" href="./manual-light.css" />
   </head>
   <body>
     <div class="page">
       <header class="topbar">
-        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
-        <nav class="nav" aria-label="Manual pages">
-          <a href="./index.html">Manual Home</a>
-          <a href="./01-first-steps.html">First Steps</a>
-          <a href="./02-control-basics.html">Control Basics</a>
-          <a href="./03-groovebox-screen-and-terms.html">Groovebox Screen</a>
-          <a href="./04-popup-screens-and-buttons.html">Popups</a>
-          <a href="./05-pattern-saving-loading-and-chain.html">Patterns</a>
-          <a href="./06-parameter-musical-use.html">Musical Use</a>
-          <a href="./07-beginner-troubleshooting.html">Help</a>
+        <div class="brand">ESP32 MicroCycles Groovebox - Gebruikershandleiding</div>
+        <nav class="nav" aria-label="Handleiding pagina's">
+          <a href="./index.html">Start</a>
+          <a href="./01-first-steps.html">Groovebox</a>
+          <a href="./02-control-basics.html">Track Edit</a>
+          <a href="./03-groovebox-screen-and-terms.html">Tempo Popup</a>
+          <a href="./04-popup-screens-and-buttons.html">Edit Track Popup</a>
+          <a href="./05-pattern-saving-loading-and-chain.html">System Settings</a>
+          <a href="./06-parameter-musical-use.html">Pattern Lijsten</a>
+          <a href="./07-beginner-troubleshooting.html">Bevestiging & Status</a>
         </nav>
       </header>
       <main class="content">
-        <h1>1. First Steps: Make Your First Beat</h1>
-        <p>This page is for first-time users. Follow these steps in order and you will have a running rhythm in a few minutes.</p>
+        <h1>1. Scherm: Groovebox (hoofdscherm)</h1>
+        <p>Dit is je speelscherm: tracks kiezen, play/stop, en live overzicht van je patroon.</p>
 
-        <h2>Before You Start</h2>
+        <h2>Schermweergave</h2>
+        <pre><code>+--------------------------+
+| GROOVEBOX                |
+| BPM 120 SW 08 PLAY p01   |
+|&gt;KICK   x---x---x---x--- &lt;|
+| SNARE  ----x-------x---  |
+| CH     x-x-x-x-x-x-x-x-  |
+| OH     -------x--------  |
+| TONE   ----------------  |
+| METAL  ----------------  |
+| STEP 05 CUR 05 p01->p02  |
++--------------------------+</code></pre>
+
+        <h2>Wat je hier bedient</h2>
         <ul>
-          <li>Turn the Groovebox on.</li>
-          <li>Wait until the main [Groovebox] screen appears.</li>
-          <li>Make sure your speaker or headphones are connected.</li>
+          <li><strong>Encoder draaien:</strong> selecteert track (KICK/SNARE/CH/OH/TONE/METAL).</li>
+          <li><strong>Encoder kort:</strong> ga naar Track Edit op de gekozen track.</li>
+          <li><strong>Encoder medium:</strong> open Tempo Edit popup.</li>
+          <li><strong>Encoder lang:</strong> open/sluit System Settings.</li>
+          <li><strong>Knop2 kort:</strong> PLAY/STOP.</li>
+          <li><strong>Knop2 medium:</strong> open Tempo Edit met BPM geselecteerd.</li>
+          <li><strong>Knop2 lang:</strong> open Tempo Edit met SW geselecteerd.</li>
         </ul>
 
-        <h3>Character Preview: What You Should See First</h3>
-          <pre><code>        +--------------------------+
-        | GROOVEBOX                |
-        | BPM 120  SW 08  STOP     |
-        |&gt;KICK   x---x---x---x--- &lt;|
-        | SNARE  ----x-------x---  |
-        |  ...                     |
-        | STEP 01 CUR 01 P1 V0     |
-        +--------------------------+</code></pre>
-
-        <h2>Make a Basic Beat</h2>
-        <ol>
-          <li>Press Knop2 short once to start playback.</li>
-          <li>Rotate encoder to select KICK.</li>
-          <li>Press encoder short to enter edit mode.</li>
-          <li>On TRIG page, rotate to move the step cursor.</li>
-          <li>Press encoder short to turn steps on or off.</li>
-          <li>Add hits on steps 1, 5, 9, and 13 for a classic kick rhythm.</li>
-          <li>Press Knop2 short to exit KICK edit mode.</li>
-          <li>Rotate encoder to select SNARE.</li>
-          <li>Press encoder short to enter edit mode again.</li>
-          <li>On TRIG page, add hits on steps 5 and 13.</li>
-          <li>Press Knop2 short to exit edit mode.</li>
-        </ol>
-
-        <h2>What The Buttons Mean (Quick View)</h2>
+        <h2>Wat je als luisteraar merkt</h2>
         <ul>
-          <li>Encoder rotate: select track (normal) or edit values (edit mode).</li>
-          <li>Encoder short: enter edit mode, toggle steps, or confirm small actions.</li>
-          <li>Encoder medium: open popup (Tempo Edit or Edit Track popup).</li>
-          <li>Encoder long: open or close System Settings.</li>
-          <li>Knop2 short: Play/Stop, or exit edit mode.</li>
-          <li>Knop2 medium: open Tempo Edit popup with BPM selected.</li>
-          <li>Knop2 long: open Tempo Edit popup with SW selected.</li>
+          <li><strong>BPM omhoog:</strong> meer energie en snelheid.</li>
+          <li><strong>SW omhoog:</strong> meer shuffle/swing, minder strak recht.</li>
+          <li><strong>Trackselectie:</strong> bepaalt welke klank je straks bewerkt.</li>
+          <li><strong>PLAY/STOP:</strong> directe start/stop van de groove.</li>
         </ul>
 
-        <h2>Next</h2>
-        <p>Go to the next page to learn the controls in more detail.</p>
-        <div class="footer-nav"><a href="./index.html"><- Manual Home</a><a href="./02-control-basics.html">Control Basics -></a></div>
+        <div class="footer-nav"><a href="./index.html"><- Start</a><a href="./02-control-basics.html">Naar Track Edit -></a></div>
       </main>
     </div>
   </body>

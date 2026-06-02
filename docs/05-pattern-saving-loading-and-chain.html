@@ -1,79 +1,67 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Patterns and CHAIN | Groovebox R3</title>
+    <title>System Settings scherm | ESP32 MicroCycles</title>
     <link rel="stylesheet" href="./manual-light.css" />
   </head>
   <body>
     <div class="page">
       <header class="topbar">
-        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
-        <nav class="nav" aria-label="Manual pages">
-          <a href="./index.html">Manual Home</a>
-          <a href="./01-first-steps.html">First Steps</a>
-          <a href="./02-control-basics.html">Control Basics</a>
-          <a href="./03-groovebox-screen-and-terms.html">Groovebox Screen</a>
-          <a href="./04-popup-screens-and-buttons.html">Popups</a>
-          <a href="./05-pattern-saving-loading-and-chain.html">Patterns</a>
-          <a href="./06-parameter-musical-use.html">Musical Use</a>
-          <a href="./07-beginner-troubleshooting.html">Help</a>
+        <div class="brand">ESP32 MicroCycles Groovebox - Gebruikershandleiding</div>
+        <nav class="nav" aria-label="Handleiding pagina's">
+          <a href="./index.html">Start</a>
+          <a href="./01-first-steps.html">Groovebox</a>
+          <a href="./02-control-basics.html">Track Edit</a>
+          <a href="./03-groovebox-screen-and-terms.html">Tempo Popup</a>
+          <a href="./04-popup-screens-and-buttons.html">Edit Track Popup</a>
+          <a href="./05-pattern-saving-loading-and-chain.html">System Settings</a>
+          <a href="./06-parameter-musical-use.html">Pattern Lijsten</a>
+          <a href="./07-beginner-troubleshooting.html">Bevestiging & Status</a>
         </nav>
       </header>
       <main class="content">
-        <h1>5. Pattern Saving, Loading, and CHAIN</h1>
-        <p>This page explains how to manage patterns during normal music use.</p>
+        <h1>5. Scherm: System Settings</h1>
+        <p>Hier beheer je patroonacties, sample set, display-opties en herstart/exit.</p>
 
-        <h2>Save Your Current Pattern</h2>
-        <ol>
-          <li>Open System Settings (encoder long press).</li>
-          <li>Select Save Pattern.</li>
-          <li>The current state (steps and parameters) is stored.</li>
-        </ol>
+        <h2>Schermweergave</h2>
+        <pre><code>+--------------------------+
+| SYSTEM SETTINGS          |
+| SSID: Groovebox          |
+| IP: 192.168.4.1          |
+| MAC: aa:bb:cc:dd:ee:ff   |
+|&gt;Add Pattern&lt;             |
+| Delete Pattern           |
+| Card Storage             |
+| Load Sample Set          |
+| Erase WiFi credentials   |
+| Start WiFiManager        |
+| Set Theme (...)          |
+| Rotate Display (...)     |
+| Encoder Order (...)      |
+| Restart Groovebox        |
+| Exit                     |
++--------------------------+</code></pre>
 
-        <h2>Load A Pattern</h2>
-        <ol>
-          <li>Open System Settings.</li>
-          <li>Select Load Pattern.</li>
-          <li>Rotate encoder to choose a pattern.</li>
-          <li>Press encoder short or medium to load it.</li>
-        </ol>
-
-        <h2>Create A New Pattern</h2>
-        <ol>
-          <li>Open System Settings.</li>
-          <li>Select New Pattern.</li>
-          <li>A new pattern name is created automatically.</li>
-        </ol>
-
-        <h2>Delete A Pattern</h2>
-        <ol>
-          <li>Open System Settings.</li>
-          <li>Select Delete Pattern.</li>
-          <li>Rotate to choose pattern.</li>
-          <li>Press encoder medium to delete.</li>
-        </ol>
-
-        <h2>Use CHAIN In Practice</h2>
-        <p>CHAIN is ideal for creating longer arrangements from multiple pattern slots.</p>
-        <ol>
-          <li>Enter edit mode and open Edit Track popup.</li>
-          <li>Select CHAIN entry.</li>
-          <li>Set ON/OFF to ON.</li>
-          <li>Set Lx to how many slots you want in sequence.</li>
-          <li>Set Px to choose which slot you are editing now.</li>
-          <li>Edit each slot and save if needed.</li>
-        </ol>
-
-        <h2>Simple Arrangement Example</h2>
+        <h2>Bediening</h2>
         <ul>
-          <li>P1: basic groove</li>
-          <li>P2: add extra snare fills</li>
-          <li>P3: lower PROBABILITY on hats for variation</li>
-          <li>Set CHAIN ON and L3 to cycle P1 -> P2 -> P3</li>
+          <li><strong>Open/sluit:</strong> encoder lang vanaf Groovebox.</li>
+          <li><strong>Encoder draaien:</strong> regel selecteren.</li>
+          <li><strong>Encoder kort/medium:</strong> geselecteerde actie uitvoeren/openen.</li>
+          <li><strong>Knop2 kort:</strong> één niveau terug of Settings sluiten.</li>
         </ul>
-        <div class="footer-nav"><a href="./04-popup-screens-and-buttons.html"><- Popup Screens and Their Buttons</a><a href="./06-parameter-musical-use.html">How to Use Parameters Musically -></a></div>
+
+        <h2>Wat belangrijk is voor muziek maken</h2>
+        <ul>
+          <li><strong>Add Pattern:</strong> extra patroonslot voor variaties binnen je set.</li>
+          <li><strong>Delete Pattern:</strong> verwijdert een patroon dat je niet meer gebruikt.</li>
+          <li><strong>Card Storage:</strong> patroonset laden/opslaan/hernoemen/kopiëren.</li>
+          <li><strong>Load Sample Set:</strong> wisselt klankset; bestaande grooves krijgen direct ander karakter.</li>
+          <li><strong>Restart Groovebox:</strong> snelle herstart bij live issues.</li>
+        </ul>
+
+        <div class="footer-nav"><a href="./04-popup-screens-and-buttons.html"><- Naar Edit Track Popup</a><a href="./06-parameter-musical-use.html">Naar Pattern Lijsten -></a></div>
       </main>
     </div>
   </body>

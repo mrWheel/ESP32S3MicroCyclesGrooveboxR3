@@ -1,90 +1,74 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Musical Use | Groovebox R3</title>
+    <title>Pattern- en Sample-lijsten | ESP32 MicroCycles</title>
     <link rel="stylesheet" href="./manual-light.css" />
   </head>
   <body>
     <div class="page">
       <header class="topbar">
-        <div class="brand">ESP32 MicroCycles Groovebox Manual</div>
-        <nav class="nav" aria-label="Manual pages">
-          <a href="./index.html">Manual Home</a>
-          <a href="./01-first-steps.html">First Steps</a>
-          <a href="./02-control-basics.html">Control Basics</a>
-          <a href="./03-groovebox-screen-and-terms.html">Groovebox Screen</a>
-          <a href="./04-popup-screens-and-buttons.html">Popups</a>
-          <a href="./05-pattern-saving-loading-and-chain.html">Patterns</a>
-          <a href="./06-parameter-musical-use.html">Musical Use</a>
-          <a href="./07-beginner-troubleshooting.html">Help</a>
+        <div class="brand">ESP32 MicroCycles Groovebox - Gebruikershandleiding</div>
+        <nav class="nav" aria-label="Handleiding pagina's">
+          <a href="./index.html">Start</a>
+          <a href="./01-first-steps.html">Groovebox</a>
+          <a href="./02-control-basics.html">Track Edit</a>
+          <a href="./03-groovebox-screen-and-terms.html">Tempo Popup</a>
+          <a href="./04-popup-screens-and-buttons.html">Edit Track Popup</a>
+          <a href="./05-pattern-saving-loading-and-chain.html">System Settings</a>
+          <a href="./06-parameter-musical-use.html">Pattern Lijsten</a>
+          <a href="./07-beginner-troubleshooting.html">Bevestiging & Status</a>
         </nav>
       </header>
       <main class="content">
-        <h1>6. How to Use Parameters Musically</h1>
-        <p>You do not need music theory to get good results. Use the ideas below as a practical starting point.</p>
+        <h1>6. Scherm: Pattern- en Sample-lijsten</h1>
+        <p>Dit zijn selectieschermen voor laden/verwijderen van patronen en het kiezen van sample sets.</p>
 
-        <h2>BPM</h2>
+        <h2>Schermweergave: Load/Delete Pattern</h2>
+        <pre><code>+--------------------------+
+| LOAD PATTERN             |
+|&gt;Local: A01               |
+| Local: A02 -> A03        |
+| Card:  B01               |
+| Card:  B02 -> B03        |
+| ...                      |
++--------------------------+</code></pre>
+
+        <h2>Schermweergave: Card Storage</h2>
+        <pre><code>+--------------------------+
+| CARD STORAGE             |
+|&gt;Load Pattern             |
+| Save Pattern             |
+| Rename Pattern           |
+| Copy Pattern             |
+| Exit                     |
++--------------------------+</code></pre>
+
+        <h2>Schermweergave: Load Sample Set</h2>
+        <pre><code>+--------------------------+
+| LOAD SAMPLE SET          |
+|&gt;RCK                      |
+| HSE                      |
+| TEC                      |
+| ...                      |
++--------------------------+</code></pre>
+
+        <h2>Bediening</h2>
         <ul>
-          <li>Lower BPM: slower groove, more space.</li>
-          <li>Higher BPM: more energy and urgency.</li>
-          <li>Start around 110 to 125 if you are unsure.</li>
+          <li><strong>Encoder draaien:</strong> door de lijst bladeren.</li>
+          <li><strong>Encoder kort/medium:</strong> geselecteerd item uitvoeren (laden/verwijderen/openen).</li>
+          <li><strong>Knop2 kort:</strong> terug naar vorig scherm.</li>
         </ul>
 
-        <h2>SW (Swing)</h2>
+        <h2>Hoorbaar effect in de praktijk</h2>
         <ul>
-          <li>SW adds shuffle feel by changing timing balance between steps.</li>
-          <li>SW 0 is straight and tight.</li>
-          <li>Try SW 6 to 14 for a human groove.</li>
+          <li><strong>Ander pattern laden:</strong> direct andere ritmische inhoud en arrangement.</li>
+          <li><strong>Pattern met chain-target:</strong> automatische overgang naar volgend pattern.</li>
+          <li><strong>Andere sample set:</strong> zelfde sequence, compleet andere klankkleur.</li>
         </ul>
 
-        <h2>VELOCITY</h2>
-        <ul>
-          <li>Use different VELOCITY values to avoid robotic patterns.</li>
-          <li>Example: hats at 120, 90, 110, 80 for movement.</li>
-        </ul>
-
-        <h2>PITCH</h2>
-        <ul>
-          <li>Use small pitch offsets on selected steps for variation.</li>
-          <li>Try subtle values first (for example -2 to +2).</li>
-        </ul>
-
-        <h2>DECAY</h2>
-        <ul>
-          <li>Shorter decay-like values can make hits feel tighter.</li>
-          <li>Higher values can make accents feel fuller.</li>
-        </ul>
-
-        <h2>PROBABILITY</h2>
-        <ul>
-          <li>100% means the step always plays.</li>
-          <li>50% means it plays about half the time.</li>
-          <li>Great for hi-hats, fills, and evolving loops.</li>
-        </ul>
-
-        <h2>MUTE</h2>
-        <ul>
-          <li>Use MUTE to bring tracks in and out live.</li>
-          <li>Mute is fast and safe for arrangement changes during playback.</li>
-        </ul>
-
-        <h2>CHAIN</h2>
-        <ul>
-          <li>CHAIN links pattern slots into a longer sequence.</li>
-          <li>Use CHAIN for verse/variation style transitions without stopping.</li>
-        </ul>
-
-        <h2>Beginner Workflow</h2>
-        <ol>
-          <li>Create the TRIG pattern first.</li>
-          <li>Set BPM and SW for overall feel.</li>
-          <li>Add VELOCITY variation.</li>
-          <li>Add PROBABILITY to one or two tracks.</li>
-          <li>Use MUTE live, then create CHAIN for longer playback.</li>
-        </ol>
-        <div class="footer-nav"><a href="./05-pattern-saving-loading-and-chain.html"><- Pattern Saving, Loading, and CHAIN</a><a href="./07-beginner-troubleshooting.html">Beginner Troubleshooting -></a></div>
+        <div class="footer-nav"><a href="./05-pattern-saving-loading-and-chain.html"><- Naar System Settings</a><a href="./07-beginner-troubleshooting.html">Naar Bevestiging & Status -></a></div>
       </main>
     </div>
   </body>
