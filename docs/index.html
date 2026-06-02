@@ -1,50 +1,169 @@
-<!doctype html>
-<html lang="nl">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ESP32 MicroCycles Groovebox - Gebruikershandleiding</title>
-    <link rel="stylesheet" href="./manual-light.css" />
-  </head>
-  <body>
-    <div class="page">
-      <header class="topbar">
-        <div class="brand">ESP32 MicroCycles Groovebox - Gebruikershandleiding</div>
-        <nav class="nav" aria-label="Handleiding pagina's">
-          <a href="./index.html">Start</a>
-          <a href="./01-first-steps.html">Groovebox</a>
-          <a href="./02-control-basics.html">Track Edit</a>
-          <a href="./03-groovebox-screen-and-terms.html">Tempo Popup</a>
-          <a href="./04-popup-screens-and-buttons.html">Edit Track Popup</a>
-          <a href="./05-pattern-saving-loading-and-chain.html">System Settings</a>
-          <a href="./06-parameter-musical-use.html">Pattern Lijsten</a>
-          <a href="./07-beginner-troubleshooting.html">Bevestiging & Status</a>
-        </nav>
-      </header>
-      <main class="content">
-        <h1>Handleiding per scherm (v0.8.5)</h1>
-        <p>Deze handleiding is uitsluitend voor eindgebruikers: wat je ziet, wat je indrukt, wat je hoort.</p>
-
-        <h2>Pagina-indeling</h2>
-        <ol>
-          <li><a href="./01-first-steps.html">Groovebox hoofdscherm</a></li>
-          <li><a href="./02-control-basics.html">Track Edit-scherm (TRIG/VEL/PITCH/DECAY/PROB/MUTE/CHAIN)</a></li>
-          <li><a href="./03-groovebox-screen-and-terms.html">Tempo Edit popup</a></li>
-          <li><a href="./04-popup-screens-and-buttons.html">Edit Track popup</a></li>
-          <li><a href="./05-pattern-saving-loading-and-chain.html">System Settings scherm</a></li>
-          <li><a href="./06-parameter-musical-use.html">Pattern- en Sample-lijsten</a></li>
-          <li><a href="./07-beginner-troubleshooting.html">Bevestigings- en statusschermen</a></li>
-        </ol>
-
-        <h2>Snelle leesroute</h2>
-        <ul>
-          <li>Wil je direct beats maken? Start bij <strong>Groovebox</strong> en daarna <strong>Track Edit</strong>.</li>
-          <li>Wil je tempo/groove instellen? Lees <strong>Tempo Edit popup</strong>.</li>
-          <li>Wil je patronen beheren? Lees <strong>System Settings</strong> en <strong>Pattern-lijsten</strong>.</li>
-        </ul>
-
-        <div class="footer-nav"><span></span><a href="./01-first-steps.html">Naar Groovebox -></a></div>
-      </main>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>End User Manual — ESP32 MicroCycles Groovebox</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <span class="header-logo">⚡ MicroCycles</span>
+      <span class="header-title">End User Manual</span>
+      <a href="index.html" class="header-home">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Index
+      </a>
     </div>
-  </body>
+  </header>
+
+  <div class="page-wrapper">
+    <div class="hero">
+      <div class="hero-badge">v0.8.5</div>
+      <p class="hero-eyebrow">ESP32 MicroCycles Groovebox</p>
+      <h1>End User Manual</h1>
+      <p class="hero-sub">Everything you need to start making music with your Groovebox.</p>
+    </div>
+
+    <div class="intro-card">
+      <h2>Introduction</h2>
+<p>Software Version: v0.8.5</p>
+
+<h2>Introduction</h2>
+
+<p>Welcome to the ESP32 MicroCycles Groovebox.</p>
+
+<p>This instrument is designed around a simple idea:</p>
+
+<ul>
+<li>Load a Pattern Group</li>
+<li>Create patterns</li>
+<li>Chain patterns into songs</li>
+<li>Save your work</li>
+<li>Perform live</li>
+</ul>
+
+<p>This manual focuses on making music, not programming.</p>
+
+<hr>
+    </div>
+
+    <h2 class="toc-heading">Chapters</h2>
+    <div class="toc-grid">
+    <a href="chapter-01.html" class="toc-card">
+      <span class="toc-num">1</span>
+      <span class="toc-label">First Power On</span>
+    </a>
+    <a href="chapter-02.html" class="toc-card">
+      <span class="toc-num">2</span>
+      <span class="toc-label">Controls</span>
+    </a>
+    <a href="chapter-03.html" class="toc-card">
+      <span class="toc-num">3</span>
+      <span class="toc-label">Understanding Patterns</span>
+    </a>
+    <a href="chapter-04.html" class="toc-card">
+      <span class="toc-num">4</span>
+      <span class="toc-label">Understanding Tracks</span>
+    </a>
+    <a href="chapter-05.html" class="toc-card">
+      <span class="toc-num">5</span>
+      <span class="toc-label">Trigger Page (TRIG)</span>
+    </a>
+    <a href="chapter-06.html" class="toc-card">
+      <span class="toc-num">6</span>
+      <span class="toc-label">Velocity (VEL)</span>
+    </a>
+    <a href="chapter-07.html" class="toc-card">
+      <span class="toc-num">7</span>
+      <span class="toc-label">Pitch (PITCH)</span>
+    </a>
+    <a href="chapter-08.html" class="toc-card">
+      <span class="toc-num">8</span>
+      <span class="toc-label">Decay (DECAY)</span>
+    </a>
+    <a href="chapter-09.html" class="toc-card">
+      <span class="toc-num">9</span>
+      <span class="toc-label">Probability (PROB)</span>
+    </a>
+    <a href="chapter-10.html" class="toc-card">
+      <span class="toc-num">10</span>
+      <span class="toc-label">Mute</span>
+    </a>
+    <a href="chapter-11.html" class="toc-card">
+      <span class="toc-num">11</span>
+      <span class="toc-label">Chain</span>
+    </a>
+    <a href="chapter-12.html" class="toc-card">
+      <span class="toc-num">12</span>
+      <span class="toc-label">Tempo Screen</span>
+    </a>
+    <a href="chapter-13.html" class="toc-card">
+      <span class="toc-num">13</span>
+      <span class="toc-label">Swing Screen</span>
+    </a>
+    <a href="chapter-14.html" class="toc-card">
+      <span class="toc-num">14</span>
+      <span class="toc-label">Pattern Groups</span>
+    </a>
+    <a href="chapter-15.html" class="toc-card">
+      <span class="toc-num">15</span>
+      <span class="toc-label">Card Storage Screen</span>
+    </a>
+    <a href="chapter-16.html" class="toc-card">
+      <span class="toc-num">16</span>
+      <span class="toc-label">Load Pattern</span>
+    </a>
+    <a href="chapter-17.html" class="toc-card">
+      <span class="toc-num">17</span>
+      <span class="toc-label">Save Pattern</span>
+    </a>
+    <a href="chapter-18.html" class="toc-card">
+      <span class="toc-num">18</span>
+      <span class="toc-label">Copy Group</span>
+    </a>
+    <a href="chapter-19.html" class="toc-card">
+      <span class="toc-num">19</span>
+      <span class="toc-label">Rename Group</span>
+    </a>
+    <a href="chapter-20.html" class="toc-card">
+      <span class="toc-num">20</span>
+      <span class="toc-label">Delete Group</span>
+    </a>
+    <a href="chapter-21.html" class="toc-card">
+      <span class="toc-num">21</span>
+      <span class="toc-label">Sample Sets</span>
+    </a>
+    <a href="chapter-22.html" class="toc-card">
+      <span class="toc-num">22</span>
+      <span class="toc-label">System Settings</span>
+    </a>
+    <a href="chapter-23.html" class="toc-card">
+      <span class="toc-num">23</span>
+      <span class="toc-label">Building A Song</span>
+    </a>
+    <a href="chapter-24.html" class="toc-card">
+      <span class="toc-num">24</span>
+      <span class="toc-label">Live Performance Tips</span>
+    </a>
+    <a href="chapter-25.html" class="toc-card">
+      <span class="toc-num">25</span>
+      <span class="toc-label">Troubleshooting</span>
+    </a>
+    <a href="chapter-26.html" class="toc-card">
+      <span class="toc-num">26</span>
+      <span class="toc-label">Quick Start</span>
+    </a>
+    <a href="appendix-a.html" class="toc-card appendix">
+      <span class="toc-num">A</span>
+      <span class="toc-label">Recommended Starter Groove</span>
+    </a>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v0.8.5
+  </footer>
+</body>
 </html>
