@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-01 - 15:39 ***/
+/*** Last Changed: 2026-06-02 - 10:24 ***/
 #include "uiGrooveboxScreen.h"
 
 #include "progVersion.h"
@@ -412,7 +412,8 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
                            int editPopupSelection, bool editPopupValueEdit,
                            uint8_t editPopupChainFocus, bool chainTargetValid,
                            const String& chainTargetPatternName,
-                           const String chainSlotTargetPatternNames[], String& lastFooterLine,
+                           const String chainSlotTargetPatternNames[],
+                           const String chainSlotPatternNames[], String& lastFooterLine,
                            bool& screenDrawn)
 {
   String lines[9];
@@ -422,7 +423,7 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
   int selectedLine = 1;
   char headerLine[48];
 
-  viewPatternName = getPatternNameForSlot(view.activePatternIndex, chainSlotTargetPatternNames);
+  viewPatternName = getPatternNameForSlot(view.activePatternIndex, chainSlotPatternNames);
 
   snprintf(headerLine, sizeof(headerLine), "BPM %03u SW %02u %s %s",
            static_cast<unsigned>(view.bpm), static_cast<unsigned>(view.swingPercent),
@@ -444,8 +445,9 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
   }
 
   lines[7] = parameterLine.isEmpty() ? String("") : fitListRowText(parameterLine);
+
   lines[8] = fitListRowText(
-      formatGrooveboxFooter(view, chainSlotTargetPatternNames, chainSlotTargetPatternNames));
+      formatGrooveboxFooter(view, chainSlotTargetPatternNames, chainSlotPatternNames));
 
   selectedLine = static_cast<int>(view.selectedTrack) + 1;
 
@@ -497,10 +499,10 @@ void uiGrooveboxScreenDrawEditPopupOverlayOnly(DisplayDriver& display, const Seq
 //-- Update only the Groovebox footer row when its text changed.
 void uiGrooveboxScreenDrawFooterUpdate(DisplayDriver& display, const SequencerView& view,
                                        const String chainSlotTargetPatternNames[],
-                                       String& lastFooterLine)
+                                       const String chainSlotPatternNames[], String& lastFooterLine)
 {
   String footerLine = fitListRowText(
-      formatGrooveboxFooter(view, chainSlotTargetPatternNames, chainSlotTargetPatternNames));
+      formatGrooveboxFooter(view, chainSlotTargetPatternNames, chainSlotPatternNames));
 
   if (footerLine == lastFooterLine)
   {
@@ -508,6 +510,7 @@ void uiGrooveboxScreenDrawFooterUpdate(DisplayDriver& display, const SequencerVi
   }
 
   display.drawListLine(8, footerLine, false);
+
   lastFooterLine = footerLine;
 
 } //   uiGrooveboxScreenDrawFooterUpdate()

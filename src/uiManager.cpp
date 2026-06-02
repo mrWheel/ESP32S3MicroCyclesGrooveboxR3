@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-01 - 15:39 ***/
+/*** Last Changed: 2026-06-02 - 10:24 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -1655,12 +1655,12 @@ static void drawSequencerScreen()
 
   sequencerGetView(view);
 
-  uiGrooveboxScreenDraw(display, view, trackNames, uiState.parameterPageIndex,
-                        uiState.tempoEditOpen, uiState.tempoEditSelection, uiState.editPopupOpen,
-                        uiState.editPopupSelection, uiState.editPopupValueEdit,
-                        uiState.editPopupChainFocus, uiState.chainTargetValid,
-                        uiState.chainTargetPatternName, uiState.chainSlotTargetPatternNames,
-                        lastSequencerFooterLine, sequencerScreenDrawn);
+  uiGrooveboxScreenDraw(
+      display, view, trackNames, uiState.parameterPageIndex, uiState.tempoEditOpen,
+      uiState.tempoEditSelection, uiState.editPopupOpen, uiState.editPopupSelection,
+      uiState.editPopupValueEdit, uiState.editPopupChainFocus, uiState.chainTargetValid,
+      uiState.chainTargetPatternName, uiState.chainSlotTargetPatternNames,
+      uiState.chainSlotPatternNames, lastSequencerFooterLine, sequencerScreenDrawn);
 
 } //   drawSequencerScreen()
 
@@ -1681,7 +1681,7 @@ static void drawEditPopupOverlayOnly()
 static void drawSequencerFooterUpdate(const SequencerView& view)
 {
   uiGrooveboxScreenDrawFooterUpdate(display, view, uiState.chainSlotTargetPatternNames,
-                                    lastSequencerFooterLine);
+                                    uiState.chainSlotPatternNames, lastSequencerFooterLine);
 
 } //   drawSequencerFooterUpdate()
 
