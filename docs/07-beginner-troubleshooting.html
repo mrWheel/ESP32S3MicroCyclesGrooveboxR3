@@ -1,66 +1,77 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Help | Groovebox</title>
+    <title>Bevestigings- en statusschermen | ESP32 MicroCycles</title>
     <link rel="stylesheet" href="./manual-light.css" />
   </head>
   <body>
     <div class="page">
       <header class="topbar">
-        <div class="brand">ESP32 MicroCycles Groovebox End User Manual</div>
-        <nav class="nav" aria-label="Manual pages">
-          <a href="./index.html">Manual Home</a>
-          <a href="./01-first-steps.html">First Steps</a>
-          <a href="./02-control-basics.html">Control Basics</a>
-          <a href="./03-groovebox-screen-and-terms.html">Groovebox Screen</a>
-          <a href="./04-popup-screens-and-buttons.html">Popups</a>
-          <a href="./05-pattern-saving-loading-and-chain.html">Patterns</a>
-          <a href="./06-parameter-musical-use.html">Musical Use</a>
-          <a href="./07-beginner-troubleshooting.html">Help</a>
+        <div class="brand">ESP32 MicroCycles Groovebox - Gebruikershandleiding</div>
+        <nav class="nav" aria-label="Handleiding pagina's">
+          <a href="./index.html">Start</a>
+          <a href="./01-first-steps.html">Groovebox</a>
+          <a href="./02-control-basics.html">Track Edit</a>
+          <a href="./03-groovebox-screen-and-terms.html">Tempo Popup</a>
+          <a href="./04-popup-screens-and-buttons.html">Edit Track Popup</a>
+          <a href="./05-pattern-saving-loading-and-chain.html">System Settings</a>
+          <a href="./06-parameter-musical-use.html">Pattern Lijsten</a>
+          <a href="./07-beginner-troubleshooting.html">Bevestiging & Status</a>
         </nav>
       </header>
       <main class="content">
-        <h1>7. Beginner Troubleshooting</h1>
-        <p>These checks are written for normal users while operating the Groovebox.</p>
+        <h1>7. Scherm: Bevestigings- en statusschermen</h1>
+        <p>Deze schermen geven zekerheid bij kritieke acties zoals wissen, WiFi-acties en opslaan.</p>
 
-        <h2>I Hear Nothing</h2>
+        <h2>Schermweergave: Yes/No bevestiging</h2>
+        <pre><code>+--------------------------+
+| ERASE WIFI CREDENTIALS   |
+|       Are you sure?      |
+|          &gt;No&lt;            |
+|           Yes            |
++--------------------------+</code></pre>
+
+        <h2>Schermweergave: WiFi/status scherm</h2>
+        <pre><code>+--------------------------+
+| WIFI PORTAL STARTED      |
+| Connect to Groovebox     |
+| Enter credentials        |
+| Waiting...               |
++--------------------------+</code></pre>
+
+        <h2>Schermweergave: korte statuspopup</h2>
+        <pre><code>+--------------------------+
+| Saved group A            |
+|                          |
+| (verdwijnt automatisch)  |
++--------------------------+</code></pre>
+
+        <h2>Bediening</h2>
+        <ul>
+          <li><strong>Encoder draaien:</strong> wisselt keuze (No/Yes) in bevestigingen.</li>
+          <li><strong>Encoder kort/medium:</strong> bevestigt geselecteerde keuze.</li>
+          <li><strong>Knop2 kort:</strong> annuleert/bevestigingsscherm sluiten waar mogelijk.</li>
+        </ul>
+
+        <h2>Praktische eindgebruikersregels</h2>
+        <ul>
+          <li>Gebruik <strong>No</strong> als je twijfelt; je kunt altijd opnieuw kiezen.</li>
+          <li>Verwijderen is bedoeld voor opruimen; check patternnaam eerst goed.</li>
+          <li>Bij "Waiting..." laat je het scherm staan tot de actie klaar is.</li>
+        </ul>
+
+        <h2>Snelle hulp bij "ik hoor niets"</h2>
         <ol>
-          <li>Check if transport says STOP. Press Knop2 short to start PLAY.</li>
-          <li>Check MUTE page for muted tracks.</li>
-          <li>Check TRIG page and confirm there are active steps.</li>
-          <li>Try another track (for example KICK or SNARE).</li>
+          <li>Ga naar Groovebox en druk Knop2 kort (PLAY).</li>
+          <li>Controleer in Track Edit of TRIG-steps actief zijn.</li>
+          <li>Controleer MUTE (track mag niet op mute staan).</li>
+          <li>Zet PROB op 100% tijdens testen.</li>
+          <li>Zet VEL hoger op de actieve steps.</li>
         </ol>
 
-        <h2>Pattern Sounds Too Repetitive</h2>
-        <ul>
-          <li>Lower PROBABILITY on a few steps (for example from 100% to 70%).</li>
-          <li>Vary VELOCITY values between steps.</li>
-          <li>Add slight SW amount for groove feel.</li>
-        </ul>
-
-        <h2>Pattern Feels Too Busy</h2>
-        <ul>
-          <li>Mute one track and listen again.</li>
-          <li>Reduce number of TRIG steps.</li>
-          <li>Lower VELOCITY on secondary hits.</li>
-        </ul>
-
-        <h2>CHAIN Does Not Change Pattern</h2>
-        <ul>
-          <li>Open CHAIN and verify ON/OFF is set to ON.</li>
-          <li>Set Lx to at least 2.</li>
-          <li>Use Px to select each slot and ensure slots actually differ.</li>
-        </ul>
-
-        <h2>I Am Lost In Menus</h2>
-        <ul>
-          <li>Press Knop2 short to back out of edit contexts.</li>
-          <li>Close settings with encoder long press.</li>
-          <li>Return to [Groovebox] main screen and start from TRIG page.</li>
-        </ul>
-        <div class="footer-nav"><a href="./06-parameter-musical-use.html"><- How to Use Parameters Musically</a><a href="./index.html">Back to Index -></a></div>
+        <div class="footer-nav"><a href="./06-parameter-musical-use.html"><- Naar Pattern Lijsten</a><a href="./index.html">Terug naar Start -></a></div>
       </main>
     </div>
   </body>
