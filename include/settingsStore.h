@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-01 - 13:45 ***/
+/*** Last Changed: 2026-06-03 - 12:35 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 #ifndef SETTINGS_STORE_H
 #define SETTINGS_STORE_H
@@ -40,19 +40,16 @@ bool settingsStoreSetWifiCredentials(const String& ssid, const String& password)
 
 static const size_t patternStoreMaxEntries = 64;
 
+//-- Runtime settings persisted in LittleFS settings file.
 struct RuntimeSettings
 {
   uint8_t displayRotation;
   int themeColorIndex;
   bool encoderDirectionReversed;
   String activePatternName;
-};
+  uint8_t masterGainPercent;
 
-//--cleanup--enum class PatternStorageTarget : uint8_t
-//--cleanup--{
-//--cleanup--  Local = 0,
-//--cleanup--  Card = 1
-//--cleanup--};
+}; //   RuntimeSettings
 
 //-- Load persisted display rotation.
 uint8_t settingsStoreLoadDisplayRotation();
@@ -62,6 +59,12 @@ void settingsStoreLoadRuntimeSettings(RuntimeSettings& settings);
 
 //-- Save runtime settings.
 bool settingsStoreSaveRuntimeSettings(const RuntimeSettings& settings);
+
+//-- Get persisted master gain percentage.
+uint8_t settingsStoreGetMasterGainPercent();
+
+//-- Persist master gain percentage.
+bool settingsStoreSetMasterGainPercent(uint8_t gainPercent);
 
 //-- Return SD usage values in bytes.
 bool settingsStoreGetSdUsage(size_t& outTotalBytes, size_t& outUsedBytes, size_t& outFreeBytes);

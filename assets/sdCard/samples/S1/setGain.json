@@ -1,9 +1,9 @@
 {
   "sampleGainPercent": {
-    "kick": 45,
+    "kick": 100,
     "snare": 100,
-    "ch": 320,
-    "oh": 260,
+    "ch": 100,
+    "oh": 100,
     "tone": 100,
     "metal": 100
   }

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 16:46 ***/
+/*** Last Changed: 2026-06-03 - 12:35 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -72,6 +72,9 @@ struct UiState
   int editPopupSelection;
   uint8_t editPopupChainFocus;
   int tempoEditSelection;
+  bool tempoEditValueEdit;
+  uint8_t masterGainPercent;
+  bool masterGainDirty;
   bool wifiManagerConfirmOpen;
   bool eraseWifiConfirmOpen;
   bool patternListOpen;
@@ -1879,10 +1882,11 @@ static void drawSequencerScreen()
 
   uiGrooveboxScreenDraw(
       display, view, trackNames, uiState.parameterPageIndex, uiState.tempoEditOpen,
-      uiState.tempoEditSelection, uiState.editPopupOpen, uiState.editPopupSelection,
-      uiState.editPopupValueEdit, uiState.editPopupChainFocus, uiState.chainTargetValid,
-      uiState.chainTargetPatternName, uiState.chainSlotTargetPatternNames,
-      uiState.chainSlotPatternNames, lastSequencerFooterLine, sequencerScreenDrawn);
+      uiState.tempoEditSelection, uiState.tempoEditValueEdit, uiState.masterGainPercent,
+      uiState.editPopupOpen, uiState.editPopupSelection, uiState.editPopupValueEdit,
+      uiState.editPopupChainFocus, uiState.chainTargetValid, uiState.chainTargetPatternName,
+      uiState.chainSlotTargetPatternNames, uiState.chainSlotPatternNames, lastSequencerFooterLine,
+      sequencerScreenDrawn);
 
 } //   drawSequencerScreen()
 
@@ -2039,7 +2043,11 @@ void uiManagerInit()
   uiState.cardStorageMenuOpen = false;
   uiState.cardStorageMenuSelection = 0;
   uiState.cardStorageMenuFirstVisibleIndex = 0;
+  uiState.masterGainPercent = settingsStoreGetMasterGainPercent();
+  uiState.masterGainDirty = false;
+  uiState.tempoEditValueEdit = false;
   uiPatternGroupInputInit();
+  audioEngineSetMasterGainPercent(uiState.masterGainPercent);
 
   lastSequencerStep = 0xFF;
   lastSequencerCursor = 0xFF;
@@ -2235,42 +2243,176 @@ static void handlePatternGroupInputEncoderEvent(EncoderEvent encoderEvent)
 
 } //   handlePatternGroupInputEncoderEvent()
 
+//-- Persist master gain when it changed in Tempo popup.
+static void saveMasterGainIfDirty()
+{
+  if (!uiState.masterGainDirty)
+  {
+    return;
+  }
+
+  settingsStoreSetMasterGainPercent(uiState.masterGainPercent);
+  uiState.masterGainDirty = false;
+
+} //   saveMasterGainIfDirty()
+
+//-- Redraw only the Tempo popup overlay.
+static void drawTempoEditPopupOnly()
+{
+  SequencerView view;
+  String tempoRows[3];
+  char rowBuffer[32];
+
+  sequencerGetView(view);
+
+  if (uiState.tempoEditSelection == 0 && !uiState.tempoEditValueEdit)
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), ">BPM<  %03u", static_cast<unsigned>(view.bpm));
+  }
+  else if (uiState.tempoEditSelection == 0)
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), " BPM  >%03u<", static_cast<unsigned>(view.bpm));
+  }
+  else
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), " BPM   %03u", static_cast<unsigned>(view.bpm));
+  }
+
+  tempoRows[0] = rowBuffer;
+
+  if (uiState.tempoEditSelection == 1 && !uiState.tempoEditValueEdit)
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), ">SW<   %02u%%",
+             static_cast<unsigned>(view.swingPercent));
+  }
+  else if (uiState.tempoEditSelection == 1)
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), " SW   >%02u%%<",
+             static_cast<unsigned>(view.swingPercent));
+  }
+  else
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), " SW    %02u%%",
+             static_cast<unsigned>(view.swingPercent));
+  }
+
+  tempoRows[1] = rowBuffer;
+
+  if (uiState.tempoEditSelection == 2 && !uiState.tempoEditValueEdit)
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), ">GAIN< %03u%%",
+             static_cast<unsigned>(uiState.masterGainPercent));
+  }
+  else if (uiState.tempoEditSelection == 2)
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), " GAIN >%03u%%<",
+             static_cast<unsigned>(uiState.masterGainPercent));
+  }
+  else
+  {
+    snprintf(rowBuffer, sizeof(rowBuffer), " GAIN  %03u%%",
+             static_cast<unsigned>(uiState.masterGainPercent));
+  }
+
+  tempoRows[2] = rowBuffer;
+
+  display.drawSelectionOverlay("Tempo", tempoRows, 3, uiState.tempoEditSelection);
+
+} //   drawTempoEditPopupOnly()
+
 //-- Handle tempo edit encoder events.
 static void handleTempoEditEncoderEvent(EncoderEvent encoderEvent)
 {
   if (encoderEvent == ENCODER_EVENT_LEFT)
   {
-    if (uiState.tempoEditSelection == 0)
+    if (!uiState.tempoEditValueEdit)
+    {
+      uiState.tempoEditSelection--;
+
+      if (uiState.tempoEditSelection < 0)
+      {
+        uiState.tempoEditSelection = 2;
+      }
+    }
+    else if (uiState.tempoEditSelection == 0)
     {
       sequencerAdjustBpm(-1);
     }
-    else
+    else if (uiState.tempoEditSelection == 1)
     {
       sequencerAdjustSwing(-1);
     }
+    else
+    {
+      if (uiState.masterGainPercent > 10)
+      {
+        uiState.masterGainPercent--;
+        uiState.masterGainDirty = true;
+        audioEngineSetMasterGainPercent(uiState.masterGainPercent);
+      }
+    }
+
+    drawTempoEditPopupOnly();
+    return;
   }
   else if (encoderEvent == ENCODER_EVENT_RIGHT)
   {
-    if (uiState.tempoEditSelection == 0)
+    if (!uiState.tempoEditValueEdit)
+    {
+      uiState.tempoEditSelection++;
+
+      if (uiState.tempoEditSelection > 2)
+      {
+        uiState.tempoEditSelection = 0;
+      }
+    }
+    else if (uiState.tempoEditSelection == 0)
     {
       sequencerAdjustBpm(1);
     }
-    else
+    else if (uiState.tempoEditSelection == 1)
     {
       sequencerAdjustSwing(1);
     }
+    else
+    {
+      if (uiState.masterGainPercent < 200)
+      {
+        uiState.masterGainPercent++;
+        uiState.masterGainDirty = true;
+        audioEngineSetMasterGainPercent(uiState.masterGainPercent);
+      }
+    }
+
+    drawTempoEditPopupOnly();
+    return;
   }
   else if (encoderEvent == ENCODER_EVENT_SHORT_PRESS)
   {
-    uiState.tempoEditSelection = (uiState.tempoEditSelection == 0) ? 1 : 0;
+    if (uiState.tempoEditValueEdit)
+    {
+      uiState.tempoEditValueEdit = false;
+      saveMasterGainIfDirty();
+    }
+    else
+    {
+      uiState.tempoEditValueEdit = true;
+    }
+
+    drawTempoEditPopupOnly();
+    return;
   }
   else if (encoderEvent == ENCODER_EVENT_MEDIUM_PRESS)
   {
+    saveMasterGainIfDirty();
+
     uiState.tempoEditOpen = false;
     uiState.tempoEditSelection = 0;
-  }
+    uiState.tempoEditValueEdit = false;
+    uiState.dirty = true;
 
-  uiState.dirty = true;
+    return;
+  }
 
 } //   handleTempoEditEncoderEvent()
 
@@ -2559,6 +2701,7 @@ static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const Sequenc
     {
       uiState.tempoEditOpen = true;
       uiState.tempoEditSelection = 0;
+      uiState.tempoEditValueEdit = false;
     }
   }
 

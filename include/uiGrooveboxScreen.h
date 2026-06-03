@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 11:54 ***/
+/*** Last Changed: 2026-06-03 - 12:35 ***/
 #pragma once
 
 #include "DisplayDriverClass.h"
@@ -12,10 +12,10 @@ String uiGrooveboxScreenBuildTrackRowText(const char* trackName, const Track& tr
 //-- Draw the complete Groovebox sequencer screen.
 void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
                            const char* const trackNames[], uint8_t parameterPageIndex,
-                           bool tempoEditOpen, int tempoEditSelection, bool editPopupOpen,
-                           int editPopupSelection, bool editPopupValueEdit,
-                           uint8_t editPopupChainFocus, bool chainTargetValid,
-                           const String& chainTargetPatternName,
+                           bool tempoEditOpen, int tempoEditSelection, bool tempoEditValueEdit,
+                           uint8_t masterGainPercent, bool editPopupOpen, int editPopupSelection,
+                           bool editPopupValueEdit, uint8_t editPopupChainFocus,
+                           bool chainTargetValid, const String& chainTargetPatternName,
                            const String chainSlotTargetPatternNames[],
                            const String chainSlotPatternNames[], String& lastFooterLine,
                            bool& screenDrawn);

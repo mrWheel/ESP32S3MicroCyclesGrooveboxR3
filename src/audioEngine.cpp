@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 11:01 ***/
+/*** Last Changed: 2026-06-03 - 12:35 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -24,7 +24,11 @@ static const uint16_t voiceAttackFrames = 32;
 static const i2s_port_t audioI2sPort = I2S_NUM_0;
 
 //-- Fixed voice pool (Phase 4)
-Voice voices[MAX_VOICES];
+//-org- Voice voices[MAX_VOICES];
+static Voice voices[MAX_VOICES];
+
+//-- Runtime master gain, persisted through settingsStore/NVS.
+static uint8_t masterGainPercent = 100;
 
 //-- Interleaved stereo output buffer.
 static int16_t outputBuffer[audioBlockFrames * audioChannelCount];
@@ -82,10 +86,11 @@ static int32_t applyHeadroomLimiter(int32_t sampleValue)
 
 } //   applyHeadroomLimiter()
 
-//-- Apply limiter and clamp to int16 range.
+//-- Apply runtime master gain, limiter and clamp to int16 range.
 static int16_t applyMasterGainAndClamp(int32_t sampleValue)
 {
-  int32_t limited = applyHeadroomLimiter(sampleValue);
+  int32_t scaled = (sampleValue * static_cast<int32_t>(masterGainPercent)) / 100;
+  int32_t limited = applyHeadroomLimiter(scaled);
 
   if (limited > 32767)
   {
@@ -722,6 +727,29 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
   audioEngineTriggerSample(sampleId, level, 65535, 0, 0, 0);
 
 } //   audioEngineTriggerSample()
+
+//-- Set runtime master gain percentage.
+void audioEngineSetMasterGainPercent(uint8_t gainPercent)
+{
+  if (gainPercent < 10)
+  {
+    gainPercent = 10;
+  }
+  else if (gainPercent > 200)
+  {
+    gainPercent = 200;
+  }
+
+  masterGainPercent = gainPercent;
+
+} //   audioEngineSetMasterGainPercent()
+
+//-- Get runtime master gain percentage.
+uint8_t audioEngineGetMasterGainPercent()
+{
+  return masterGainPercent;
+
+} //   audioEngineGetMasterGainPercent()
 
 //-- Render one audio block and write it to I2S.
 void audioEngineRenderBlock()

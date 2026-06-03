@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 11:01 ***/
+/*** Last Changed: 2026-06-03 - 12:35 ***/
 #ifndef AUDIO_ENGINE_H
 #define AUDIO_ENGINE_H
 
@@ -50,6 +50,13 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level);
 //-- Backward compatibility: trigger without pitch.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
                               uint8_t chokeGroup);
+
+//-- Set runtime master gain percentage.
+void audioEngineSetMasterGainPercent(uint8_t gainPercent);
+
+//-- Get runtime master gain percentage.
+uint8_t audioEngineGetMasterGainPercent();
+
 //-- Render one audio block and write to I2S.
 void audioEngineRenderBlock();
 

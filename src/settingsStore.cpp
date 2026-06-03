@@ -1,10 +1,11 @@
-/*** Last Changed: 2026-06-01 - 13:45 ***/
+/*** Last Changed: 2026-06-03 - 12:35 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
 #include "appConfig.h"
 #include <nvs.h>
 #include <nvs_flash.h>
+#include <Preferences.h>
 
 //-- Helper: open NVS handle
 static nvs_handle_t openNvsHandle(bool write = false)
@@ -177,6 +178,60 @@ bool settingsStoreSetWifiCredentials(const String& ssid, const String& password)
   return (err1 == ESP_OK && err2 == ESP_OK);
 }
 
+//-- Get persisted master gain percentage.
+uint8_t settingsStoreGetMasterGainPercent()
+{
+  Preferences preferences;
+  uint8_t gainPercent = 100;
+
+  if (!preferences.begin("audio", true))
+  {
+    return gainPercent;
+  }
+
+  gainPercent = preferences.getUChar("masterGain", 100);
+  preferences.end();
+
+  if (gainPercent < 10)
+  {
+    gainPercent = 10;
+  }
+  else if (gainPercent > 200)
+  {
+    gainPercent = 200;
+  }
+
+  return gainPercent;
+
+} //   settingsStoreGetMasterGainPercent()
+
+//-- Persist master gain percentage.
+bool settingsStoreSetMasterGainPercent(uint8_t gainPercent)
+{
+  Preferences preferences;
+  size_t writtenBytes = 0;
+
+  if (gainPercent < 10)
+  {
+    gainPercent = 10;
+  }
+  else if (gainPercent > 200)
+  {
+    gainPercent = 200;
+  }
+
+  if (!preferences.begin("audio", false))
+  {
+    return false;
+  }
+
+  writtenBytes = preferences.putUChar("masterGain", gainPercent);
+  preferences.end();
+
+  return writtenBytes == sizeof(uint8_t);
+
+} //   settingsStoreSetMasterGainPercent()
+
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <SD.h>
@@ -320,7 +375,7 @@ static RuntimeSettings defaultRuntimeSettings()
 
   return settings;
 
-} //   defaultRuntimeSettings()
+} //   runtimeSettings()
 
 //-- Ensure LittleFS is mounted for settings access.
 static bool ensureSettingsFsMounted()

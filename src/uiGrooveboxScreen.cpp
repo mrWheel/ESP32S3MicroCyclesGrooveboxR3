@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 11:54 ***/
+/*** Last Changed: 2026-06-03 - 12:35 ***/
 #include "uiGrooveboxScreen.h"
 
 #include "progVersion.h"
@@ -426,21 +426,23 @@ static String buildEditPopupTitle(const SequencerView& view, const char* const t
 //-- Draw the complete Groovebox sequencer screen.
 void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
                            const char* const trackNames[], uint8_t parameterPageIndex,
-                           bool tempoEditOpen, int tempoEditSelection, bool editPopupOpen,
-                           int editPopupSelection, bool editPopupValueEdit,
-                           uint8_t editPopupChainFocus, bool chainTargetValid,
-                           const String& chainTargetPatternName,
+                           bool tempoEditOpen, int tempoEditSelection, bool tempoEditValueEdit,
+                           uint8_t masterGainPercent, bool editPopupOpen, int editPopupSelection,
+                           bool editPopupValueEdit, uint8_t editPopupChainFocus,
+                           bool chainTargetValid, const String& chainTargetPatternName,
                            const String chainSlotTargetPatternNames[],
                            const String chainSlotPatternNames[], String& lastFooterLine,
                            bool& screenDrawn)
 {
   String lines[9];
   String popupRows[editPopupEntryCount];
+  String tempoRows[3];
   String parameterLine;
   String viewPatternName;
   String editPopupTitle;
   int selectedLine = 1;
   char headerLine[48];
+  char rowBuffer[32];
 
   viewPatternName = getPatternNameForSlot(view.activePatternIndex, chainSlotPatternNames);
 
@@ -474,7 +476,58 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
 
   if (tempoEditOpen)
   {
-    display.drawTempoOverlay(view.bpm, view.swingPercent, tempoEditSelection == 0);
+    if (tempoEditSelection == 0 && !tempoEditValueEdit)
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), ">BPM<  %03u", static_cast<unsigned>(view.bpm));
+    }
+    else if (tempoEditSelection == 0)
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), " BPM  >%03u<", static_cast<unsigned>(view.bpm));
+    }
+    else
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), " BPM   %03u", static_cast<unsigned>(view.bpm));
+    }
+
+    tempoRows[0] = rowBuffer;
+
+    if (tempoEditSelection == 1 && !tempoEditValueEdit)
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), ">SW<   %02u%%",
+               static_cast<unsigned>(view.swingPercent));
+    }
+    else if (tempoEditSelection == 1)
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), " SW   >%02u%%<",
+               static_cast<unsigned>(view.swingPercent));
+    }
+    else
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), " SW    %02u%%",
+               static_cast<unsigned>(view.swingPercent));
+    }
+
+    tempoRows[1] = rowBuffer;
+
+    if (tempoEditSelection == 2 && !tempoEditValueEdit)
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), ">GAIN< %03u%%",
+               static_cast<unsigned>(masterGainPercent));
+    }
+    else if (tempoEditSelection == 2)
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), " GAIN >%03u%%<",
+               static_cast<unsigned>(masterGainPercent));
+    }
+    else
+    {
+      snprintf(rowBuffer, sizeof(rowBuffer), " GAIN  %03u%%",
+               static_cast<unsigned>(masterGainPercent));
+    }
+
+    tempoRows[2] = rowBuffer;
+
+    display.drawSelectionOverlay("Tempo", tempoRows, 3, tempoEditSelection);
   }
   else if (editPopupOpen)
   {
