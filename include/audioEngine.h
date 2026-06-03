@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 12:35 ***/
+/*** Last Changed: 2026-06-03 - 13:30 ***/
 #ifndef AUDIO_ENGINE_H
 #define AUDIO_ENGINE_H
 
@@ -20,12 +20,14 @@ struct Voice
   SampleId sampleId;
   const int16_t* sampleData;
   uint32_t frameCount;
+  uint32_t playbackFrameLimit;
   uint32_t position;
   uint32_t phase;
   uint32_t phaseIncrement;
   uint8_t level;
   uint16_t gain;
   int8_t pan;
+  uint8_t decayPercent;
   int8_t pitch;
   uint8_t chokeGroup;
   bool releaseActive;
@@ -42,14 +44,14 @@ bool audioEngineIsOutputReady();
 
 //-- Trigger sample playback with full voice params.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
-                              uint8_t chokeGroup, int8_t pitch);
+                              uint8_t chokeGroup, uint8_t decayPercent, int8_t pitch);
+
+//-- Backward compatibility: trigger without decay and pitch.
+void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
+                              uint8_t chokeGroup);
 
 //-- Backward compatibility: old trigger function.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level);
-
-//-- Backward compatibility: trigger without pitch.
-void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
-                              uint8_t chokeGroup);
 
 //-- Set runtime master gain percentage.
 void audioEngineSetMasterGainPercent(uint8_t gainPercent);

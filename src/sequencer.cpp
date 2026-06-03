@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 11:01 ***/
+/*** Last Changed: 2026-06-03 - 13:30 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -212,10 +212,11 @@ void sequencerInit()
 
 } //   sequencerInit()
 
-//-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels and
-//pitches.
+//-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels,
+//decays and pitches.
 bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& outTrackMask,
                              uint8_t outTrackLevels[sequencerTrackCount],
+                             uint8_t outTrackDecays[sequencerTrackCount],
                              int8_t outTrackPitches[sequencerTrackCount])
 {
   bool stepDue = false;
@@ -226,6 +227,7 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
   for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
   {
     outTrackLevels[trackIndex] = 0;
+    outTrackDecays[trackIndex] = 100;
     outTrackPitches[trackIndex] = 0;
   }
 
@@ -261,25 +263,18 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
           if (step.probability >= 100U || (esp_random() % 100U) < step.probability)
           {
             uint8_t outputLevel = step.velocity;
+            uint8_t outputDecay = 100;
             int8_t outputPitch = 0;
 
             if (step.lockEnabled)
             {
-              uint32_t scaledLevel =
-                  (static_cast<uint32_t>(step.velocity) * static_cast<uint32_t>(step.lockDecay)) /
-                  100U;
-
-              if (scaledLevel > 255U)
-              {
-                scaledLevel = 255U;
-              }
-
-              outputLevel = static_cast<uint8_t>(scaledLevel);
+              outputDecay = static_cast<uint8_t>(step.lockDecay);
               outputPitch = step.lockPitch;
             }
 
             outTrackMask |= static_cast<uint8_t>(1U << trackIndex);
             outTrackLevels[trackIndex] = outputLevel;
+            outTrackDecays[trackIndex] = outputDecay;
             outTrackPitches[trackIndex] = outputPitch;
           }
         }

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 12:35 ***/
+/*** Last Changed: 2026-06-03 - 13:30 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -219,6 +219,37 @@ static uint32_t phaseIncrementForPitch(int8_t pitch)
 
 } //   phaseIncrementForPitch()
 
+//-- Return playback frame limit for a decay percentage.
+static uint32_t playbackFrameLimitForDecay(uint32_t frameCount, uint8_t decayPercent)
+{
+  static const uint32_t minimumPlaybackFrames = 64;
+
+  if (frameCount == 0)
+  {
+    return 0;
+  }
+
+  if (decayPercent > 100)
+  {
+    decayPercent = 100;
+  }
+
+  uint32_t playbackFrameLimit = (frameCount * static_cast<uint32_t>(decayPercent)) / 100U;
+
+  if (playbackFrameLimit < minimumPlaybackFrames)
+  {
+    playbackFrameLimit = minimumPlaybackFrames;
+  }
+
+  if (playbackFrameLimit > frameCount)
+  {
+    playbackFrameLimit = frameCount;
+  }
+
+  return playbackFrameLimit;
+
+} //   playbackFrameLimitForDecay()
+
 //-- Apply very short start fade for newly triggered voices.
 static int32_t applyVoiceAttackFade(int32_t sampleValue, Voice& voice)
 {
@@ -348,10 +379,19 @@ static void mixNextFrame(int16_t& outLeft, int16_t& outRight, bool& hadVoices)
 
     uint32_t samplePosition = voice.phase >> 16;
 
-    if (samplePosition >= voice.frameCount)
+    if (samplePosition >= voice.playbackFrameLimit)
     {
       startVoiceRelease(voice);
-      samplePosition = voice.frameCount - 1U;
+
+      if (voice.playbackFrameLimit > 0)
+      {
+        samplePosition = voice.playbackFrameLimit - 1U;
+      }
+      else
+      {
+        samplePosition = 0;
+      }
+
       voice.phase = samplePosition << 16;
     }
 
@@ -403,8 +443,11 @@ static void mixNextFrame(int16_t& outLeft, int16_t& outRight, bool& hadVoices)
 
     mixSampleWithPan(gainedSample, voicePan, mixedLeft, mixedRight);
 
-    voice.phase += voice.phaseIncrement;
-    voice.position = voice.phase >> 16;
+    if (!voice.releaseActive)
+    {
+      voice.phase += voice.phaseIncrement;
+      voice.position = voice.phase >> 16;
+    }
   }
 
   if (!hadVoices && stats.testToneEnabled)
@@ -439,12 +482,14 @@ bool audioEngineInit()
     voices[voiceIndex].sampleId = sampleKick;
     voices[voiceIndex].sampleData = nullptr;
     voices[voiceIndex].frameCount = 0;
+    voices[voiceIndex].playbackFrameLimit = 0;
     voices[voiceIndex].position = 0;
     voices[voiceIndex].phase = 0;
     voices[voiceIndex].phaseIncrement = 65536;
     voices[voiceIndex].level = 0;
     voices[voiceIndex].gain = 65535;
     voices[voiceIndex].pan = 0;
+    voices[voiceIndex].decayPercent = 100;
     voices[voiceIndex].pitch = 0;
     voices[voiceIndex].chokeGroup = 0;
     voices[voiceIndex].releaseActive = false;
@@ -524,12 +569,14 @@ bool audioEngineInit()
     voices[voiceIndex].sampleId = sampleKick;
     voices[voiceIndex].sampleData = nullptr;
     voices[voiceIndex].frameCount = 0;
+    voices[voiceIndex].playbackFrameLimit = 0;
     voices[voiceIndex].position = 0;
     voices[voiceIndex].phase = 0;
     voices[voiceIndex].phaseIncrement = 65536;
     voices[voiceIndex].level = 0;
     voices[voiceIndex].gain = 65535;
     voices[voiceIndex].pan = 0;
+    voices[voiceIndex].decayPercent = 100;
     voices[voiceIndex].pitch = 0;
     voices[voiceIndex].chokeGroup = 0;
     voices[voiceIndex].releaseActive = false;
@@ -660,7 +707,7 @@ static int selectVoiceForPlayback()
 
 //-- Trigger sample playback with full voice params.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
-                              uint8_t chokeGroup, int8_t pitch)
+                              uint8_t chokeGroup, uint8_t decayPercent, int8_t pitch)
 {
 #ifdef TEST_TONE
   (void)sampleId;
@@ -668,6 +715,7 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
   (void)gain;
   (void)pan;
   (void)chokeGroup;
+  (void)decayPercent;
   (void)pitch;
   return;
 #else
@@ -697,12 +745,15 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
   voices[selectedVoice].sampleId = sampleId;
   voices[selectedVoice].sampleData = sample.data;
   voices[selectedVoice].frameCount = sample.frameCount;
+  voices[selectedVoice].playbackFrameLimit =
+      playbackFrameLimitForDecay(sample.frameCount, decayPercent);
   voices[selectedVoice].position = 0;
   voices[selectedVoice].phase = 0;
   voices[selectedVoice].phaseIncrement = phaseIncrementForPitch(pitch);
   voices[selectedVoice].level = level;
   voices[selectedVoice].gain = gain;
   voices[selectedVoice].pan = pan;
+  voices[selectedVoice].decayPercent = decayPercent;
   voices[selectedVoice].pitch = clampPitchValue(pitch);
   voices[selectedVoice].chokeGroup = chokeGroup;
   voices[selectedVoice].releaseActive = false;
@@ -712,19 +763,18 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
 
 } //   audioEngineTriggerSample()
 
-//-- Trigger sample playback with full voice params and default pitch.
-//-- Backward compatibility: old trigger function.
+//-- Trigger sample playback with full voice params and default decay/pitch.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
                               uint8_t chokeGroup)
 {
-  audioEngineTriggerSample(sampleId, level, gain, pan, chokeGroup, 0);
+  audioEngineTriggerSample(sampleId, level, gain, pan, chokeGroup, 100, 0);
 
-} //   audioEngineTriggerSample() - backward compatible
+} //   audioEngineTriggerSample()
 
 //-- Backward compatibility: old trigger function.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
 {
-  audioEngineTriggerSample(sampleId, level, 65535, 0, 0, 0);
+  audioEngineTriggerSample(sampleId, level, 65535, 0, 0, 100, 0);
 
 } //   audioEngineTriggerSample()
 

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 11:01 ***/
+/*** Last Changed: 2026-06-03 - 13:30 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -64,10 +64,11 @@ struct PatternData
 //-- Initialize deterministic sequencer state.
 void sequencerInit();
 
-//-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels and
-//pitches.
+//-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels,
+//-- decays and pitches.
 bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& outTrackMask,
                              uint8_t outTrackLevels[sequencerTrackCount],
+                             uint8_t outTrackDecays[sequencerTrackCount],
                              int8_t outTrackPitches[sequencerTrackCount]);
 
 //-- Handle transport and edit controls.

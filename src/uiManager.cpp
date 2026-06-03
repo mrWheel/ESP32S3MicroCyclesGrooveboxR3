@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 12:35 ***/
+/*** Last Changed: 2026-06-03 - 13:30 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -470,32 +470,24 @@ static void auditionCurrentEditedStep()
     return;
   }
 
-  uint16_t auditionLevel = selectedStep.velocity;
+  uint8_t auditionLevel = selectedStep.velocity;
+  uint8_t auditionDecay = 100;
+  int8_t auditionPitch = 0;
+
+  if (selectedStep.lockEnabled)
+  {
+    auditionDecay = static_cast<uint8_t>(selectedStep.lockDecay);
+    auditionPitch = selectedStep.lockPitch;
+  }
 
   if (auditionLevel == 0)
   {
     auditionLevel = 1;
   }
 
-  if (selectedStep.lockEnabled)
-  {
-    auditionLevel = static_cast<uint16_t>(
-        (static_cast<uint32_t>(auditionLevel) * static_cast<uint32_t>(selectedStep.lockDecay)) /
-        100U);
-  }
-
-  if (auditionLevel < 1U)
-  {
-    auditionLevel = 1U;
-  }
-  else if (auditionLevel > 255U)
-  {
-    auditionLevel = 255U;
-  }
-
-  audioEngineTriggerSample(sampleIdForTrackIndex(view.selectedTrack),
-                           static_cast<uint8_t>(auditionLevel), 65535, 0,
-                           auditionChokeGroupForTrack(view.selectedTrack));
+  audioEngineTriggerSample(sampleIdForTrackIndex(view.selectedTrack), auditionLevel, 65535, 0,
+                           auditionChokeGroupForTrack(view.selectedTrack), auditionDecay,
+                           auditionPitch);
 
 } //   auditionCurrentEditedStep()
 
@@ -1217,13 +1209,15 @@ static void rebuildLoadedPatternNames(uint8_t loadedPatternCount)
 
 } //   rebuildLoadedPatternNames()
 
-//-- Add a new RAM pattern after the last loaded pattern.
+//-- Add a new RAM pattern after the last loaded pattern by copying the previous pattern.
 static bool addPatternInMemory()
 {
+  PatternData patternData;
   SequencerView view;
   uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+  uint8_t sourceSlotIndex = 0;
   uint8_t newSlotIndex = loadedPatternCount;
-  uint8_t newPatternNumber = static_cast<uint8_t>(loadedPatternCount + 1U);
+  String newPatternName;
 
   sequencerGetView(view);
 
@@ -1240,17 +1234,47 @@ static bool addPatternInMemory()
     return false;
   }
 
-  sequencerCreatePatternSlot(newSlotIndex, newPatternNumber);
+  if (loadedPatternCount > 0)
+  {
+    sourceSlotIndex = static_cast<uint8_t>(loadedPatternCount - 1U);
+  }
 
-  uiState.chainSlotPatternNames[newSlotIndex] = buildPatternNameForSlot(newSlotIndex);
-  uiState.chainSlotTargetPatternNames[newSlotIndex] = "";
-  uiState.activePatternName = uiState.chainSlotPatternNames[newSlotIndex];
+  sequencerExportPatternFromSlot(sourceSlotIndex, patternData);
+
+  newPatternName = buildPatternNameForSlot(newSlotIndex);
+
+  for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
+  {
+    patternData.pattern.tracks[trackIndex].mute = false;
+
+    for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
+    {
+      patternData.pattern.tracks[trackIndex].steps[stepIndex].velocity = 100;
+    }
+  }
+
+  patternData.chainEnabled = true;
+  patternData.chainLength = static_cast<uint8_t>(loadedPatternCount + 1U);
+  patternData.chainTarget = newPatternName;
+
+  sequencerImportPatternToSlot(newSlotIndex, patternData);
+  sequencerSetLoadedPatternCount(static_cast<uint8_t>(loadedPatternCount + 1U));
+  sequencerSetActivePatternIndex(newSlotIndex);
+
+  uiState.chainSlotPatternNames[newSlotIndex] = newPatternName;
+  uiState.chainSlotTargetPatternNames[newSlotIndex] = newPatternName;
+  uiState.activePatternName = newPatternName;
+  uiState.chainTargetPatternName = newPatternName;
+  uiState.chainTargetValid = true;
+  uiState.chainSettingsDirty = true;
 
   refreshChainSeriesPatternCache();
+  syncSequencerChainTargetsFromUi();
   loadChainSettingsForActivePattern();
 
   showPatternStatus("Added pattern\n" + uiState.activePatternName, 2000);
 
+  uiState.patternListNeedsRefresh = true;
   uiState.dirty = true;
 
   return true;
