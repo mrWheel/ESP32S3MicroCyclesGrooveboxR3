@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 13:04 ***/
+/*** Last Changed: 2026-06-03 - 11:01 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -180,6 +180,40 @@ static int32_t applyVoiceGain(int32_t sampleValue, uint16_t voiceGain)
 
 } //   applyVoiceGain()
 
+//-- Clamp pitch to supported semitone range.
+static int8_t clampPitchValue(int8_t pitch)
+{
+  if (pitch < -24)
+  {
+    return -24;
+  }
+
+  if (pitch > 24)
+  {
+    return 24;
+  }
+
+  return pitch;
+
+} //   clampPitchValue()
+
+//-- Return fixed-point phase increment for semitone pitch.
+static uint32_t phaseIncrementForPitch(int8_t pitch)
+{
+  static const uint32_t pitchIncrementTable[49] = {
+      16384,  17358,  18390,  19484,  20643,  21870,  23170,  24548,  26008,  27554,
+      29193,  30929,  32768,  34716,  36781,  38968,  41285,  43740,  46341,  49097,
+      52016,  55109,  58386,  61858,  65536,  69433,  73562,  77936,  82570,  87481,
+      92682,  98193,  104032, 110218, 116772, 123716, 131072, 138866, 147124, 155872,
+      165140, 174961, 185364, 196386, 208064, 220436, 233544, 247431, 262144};
+
+  int8_t clampedPitch = clampPitchValue(pitch);
+  uint8_t tableIndex = static_cast<uint8_t>(clampedPitch + 24);
+
+  return pitchIncrementTable[tableIndex];
+
+} //   phaseIncrementForPitch()
+
 //-- Apply very short start fade for newly triggered voices.
 static int32_t applyVoiceAttackFade(int32_t sampleValue, Voice& voice)
 {
@@ -307,12 +341,21 @@ static void mixNextFrame(int16_t& outLeft, int16_t& outRight, bool& hadVoices)
       continue;
     }
 
+    uint32_t samplePosition = voice.phase >> 16;
+
+    if (samplePosition >= voice.frameCount)
+    {
+      startVoiceRelease(voice);
+      samplePosition = voice.frameCount - 1U;
+      voice.phase = samplePosition << 16;
+    }
+
     hadVoices = true;
 
     uint8_t sampleIndex = static_cast<uint8_t>(voice.sampleId);
     uint16_t sampleGain = sampleManagerGetSampleGainPercent(static_cast<SampleId>(sampleIndex));
 
-    int32_t sampleValue = static_cast<int32_t>(voice.sampleData[voice.position]);
+    int32_t sampleValue = static_cast<int32_t>(voice.sampleData[samplePosition]);
 
     uint8_t curvedVelocity = applyVelocityCurve(voice.level);
     int32_t leveledSample = (sampleValue * static_cast<int32_t>(curvedVelocity)) / 255;
@@ -355,13 +398,8 @@ static void mixNextFrame(int16_t& outLeft, int16_t& outRight, bool& hadVoices)
 
     mixSampleWithPan(gainedSample, voicePan, mixedLeft, mixedRight);
 
-    voice.position++;
-
-    if (voice.position >= voice.frameCount)
-    {
-      startVoiceRelease(voice);
-      voice.position = static_cast<uint32_t>(voice.frameCount - 1U);
-    }
+    voice.phase += voice.phaseIncrement;
+    voice.position = voice.phase >> 16;
   }
 
   if (!hadVoices && stats.testToneEnabled)
@@ -393,12 +431,16 @@ bool audioEngineInit()
   for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     voices[voiceIndex].active = false;
+    voices[voiceIndex].sampleId = sampleKick;
     voices[voiceIndex].sampleData = nullptr;
     voices[voiceIndex].frameCount = 0;
     voices[voiceIndex].position = 0;
+    voices[voiceIndex].phase = 0;
+    voices[voiceIndex].phaseIncrement = 65536;
     voices[voiceIndex].level = 0;
     voices[voiceIndex].gain = 65535;
     voices[voiceIndex].pan = 0;
+    voices[voiceIndex].pitch = 0;
     voices[voiceIndex].chokeGroup = 0;
     voices[voiceIndex].releaseActive = false;
     voices[voiceIndex].releaseCounter = 0;
@@ -474,12 +516,16 @@ bool audioEngineInit()
   for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
   {
     voices[voiceIndex].active = false;
+    voices[voiceIndex].sampleId = sampleKick;
     voices[voiceIndex].sampleData = nullptr;
     voices[voiceIndex].frameCount = 0;
     voices[voiceIndex].position = 0;
+    voices[voiceIndex].phase = 0;
+    voices[voiceIndex].phaseIncrement = 65536;
     voices[voiceIndex].level = 0;
     voices[voiceIndex].gain = 65535;
     voices[voiceIndex].pan = 0;
+    voices[voiceIndex].pitch = 0;
     voices[voiceIndex].chokeGroup = 0;
     voices[voiceIndex].releaseActive = false;
     voices[voiceIndex].releaseCounter = 0;
@@ -609,7 +655,7 @@ static int selectVoiceForPlayback()
 
 //-- Trigger sample playback with full voice params.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
-                              uint8_t chokeGroup)
+                              uint8_t chokeGroup, int8_t pitch)
 {
 #ifdef TEST_TONE
   (void)sampleId;
@@ -617,6 +663,7 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
   (void)gain;
   (void)pan;
   (void)chokeGroup;
+  (void)pitch;
   return;
 #else
   const SampleSlot& sample = sampleManagerGetSample(sampleId);
@@ -646,9 +693,12 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
   voices[selectedVoice].sampleData = sample.data;
   voices[selectedVoice].frameCount = sample.frameCount;
   voices[selectedVoice].position = 0;
+  voices[selectedVoice].phase = 0;
+  voices[selectedVoice].phaseIncrement = phaseIncrementForPitch(pitch);
   voices[selectedVoice].level = level;
   voices[selectedVoice].gain = gain;
   voices[selectedVoice].pan = pan;
+  voices[selectedVoice].pitch = clampPitchValue(pitch);
   voices[selectedVoice].chokeGroup = chokeGroup;
   voices[selectedVoice].releaseActive = false;
   voices[selectedVoice].releaseCounter = 0;
@@ -657,11 +707,21 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
 
 } //   audioEngineTriggerSample()
 
-//-- Backward compatibility: old trigger function
+//-- Trigger sample playback with full voice params and default pitch.
+//-- Backward compatibility: old trigger function.
+void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
+                              uint8_t chokeGroup)
+{
+  audioEngineTriggerSample(sampleId, level, gain, pan, chokeGroup, 0);
+
+} //   audioEngineTriggerSample() - backward compatible
+
+//-- Backward compatibility: old trigger function.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
 {
-  audioEngineTriggerSample(sampleId, level, 100, 0, 0);
-}
+  audioEngineTriggerSample(sampleId, level, 65535, 0, 0, 0);
+
+} //   audioEngineTriggerSample()
 
 //-- Render one audio block and write it to I2S.
 void audioEngineRenderBlock()

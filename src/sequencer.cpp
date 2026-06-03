@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 13:14 ***/
+/*** Last Changed: 2026-06-03 - 11:01 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -212,9 +212,11 @@ void sequencerInit()
 
 } //   sequencerInit()
 
-//-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels.
+//-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels and
+//pitches.
 bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& outTrackMask,
-                             uint8_t outTrackLevels[sequencerTrackCount])
+                             uint8_t outTrackLevels[sequencerTrackCount],
+                             int8_t outTrackPitches[sequencerTrackCount])
 {
   bool stepDue = false;
 
@@ -224,6 +226,7 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
   for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
   {
     outTrackLevels[trackIndex] = 0;
+    outTrackPitches[trackIndex] = 0;
   }
 
   portENTER_CRITICAL(&sequencerMux);
@@ -258,6 +261,7 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
           if (step.probability >= 100U || (esp_random() % 100U) < step.probability)
           {
             uint8_t outputLevel = step.velocity;
+            int8_t outputPitch = 0;
 
             if (step.lockEnabled)
             {
@@ -271,10 +275,12 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
               }
 
               outputLevel = static_cast<uint8_t>(scaledLevel);
+              outputPitch = step.lockPitch;
             }
 
             outTrackMask |= static_cast<uint8_t>(1U << trackIndex);
             outTrackLevels[trackIndex] = outputLevel;
+            outTrackPitches[trackIndex] = outputPitch;
           }
         }
       }

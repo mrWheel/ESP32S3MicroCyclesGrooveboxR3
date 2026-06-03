@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 13:04 ***/
+/*** Last Changed: 2026-06-03 - 11:01 ***/
 #ifndef AUDIO_ENGINE_H
 #define AUDIO_ENGINE_H
 
@@ -13,7 +13,7 @@ struct AudioEngineStats
   bool testToneEnabled;
 };
 
-//-- Polyphonic voice structure.
+//-- Audio playback voice.
 struct Voice
 {
   bool active;
@@ -21,14 +21,18 @@ struct Voice
   const int16_t* sampleData;
   uint32_t frameCount;
   uint32_t position;
+  uint32_t phase;
+  uint32_t phaseIncrement;
   uint8_t level;
-  uint16_t gain;      //-- Per-voice gain, 0..65535.
-  int8_t pan;         //-- -64 left, 0 center, +64 right.
-  uint8_t chokeGroup; //-- 0 = none, >0 = choke group.
+  uint16_t gain;
+  int8_t pan;
+  int8_t pitch;
+  uint8_t chokeGroup;
   bool releaseActive;
   uint16_t releaseCounter;
   uint16_t attackCounter;
-};
+
+}; //   Voice
 
 //-- Initialize I2S, DMA and mixer state.
 bool audioEngineInit();
@@ -37,9 +41,15 @@ bool audioEngineInit();
 bool audioEngineIsOutputReady();
 
 //-- Trigger sample playback with full voice params.
-void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain = 65535,
-                              int8_t pan = 0, uint8_t chokeGroup = 0);
+void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
+                              uint8_t chokeGroup, int8_t pitch);
 
+//-- Backward compatibility: old trigger function.
+void audioEngineTriggerSample(SampleId sampleId, uint8_t level);
+
+//-- Backward compatibility: trigger without pitch.
+void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
+                              uint8_t chokeGroup);
 //-- Render one audio block and write to I2S.
 void audioEngineRenderBlock();
 

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-02 - 16:46 ***/
+/*** Last Changed: 2026-06-03 - 11:01 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -19,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v0.8.16";
+const char* PROG_VERSION = "v0.8.17";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -388,21 +388,24 @@ static void runInputUiFallbackCycle()
 static void audioTask(void* parameter)
 {
   (void)parameter;
+
   uint8_t stepIndex = 0;
   uint8_t trackMask = 0;
   uint8_t trackLevels[sequencerTrackCount] = {0};
+  int8_t trackPitches[sequencerTrackCount] = {0};
 
   for (;;)
   {
     uint64_t nowUs = static_cast<uint64_t>(esp_timer_get_time());
 
-    if (sequencerConsumeDueStep(nowUs, stepIndex, trackMask, trackLevels))
+    if (sequencerConsumeDueStep(nowUs, stepIndex, trackMask, trackLevels, trackPitches))
     {
       for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
       {
         if ((trackMask & static_cast<uint8_t>(1U << trackIndex)) != 0)
         {
-          audioEngineTriggerSample(static_cast<SampleId>(trackIndex), trackLevels[trackIndex]);
+          audioEngineTriggerSample(static_cast<SampleId>(trackIndex), trackLevels[trackIndex],
+                                   65535, 0, 0, trackPitches[trackIndex]);
         }
       }
     }
