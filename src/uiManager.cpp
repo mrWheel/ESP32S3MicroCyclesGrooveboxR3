@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 13:30 ***/
+/*** Last Changed: 2026-06-10 - 16:50 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -109,6 +109,7 @@ struct UiState
   char chainSeriesPatternLetter;
   bool chainSeriesPatternCacheValid;
   String chainSlotTargetPatternNames[sequencerPatternCount];
+  bool chainSlotChainEnabled[sequencerPatternCount];
   String patternNames[patternListMaxEntries];
   String patternListDisplayItems[patternListMaxEntries];
   PatternEntrySource patternSources[patternListMaxEntries];
@@ -306,6 +307,11 @@ static void syncSequencerChainTargetsFromUi()
   {
     uint8_t targetSlotIndex = 0;
     String targetName = uiState.chainSlotTargetPatternNames[slotIndex];
+
+    if (!uiState.chainSlotChainEnabled[slotIndex])
+    {
+      continue;
+    }
 
     if (patternSlotIndexFromName(targetName, targetSlotIndex) &&
         targetSlotIndex < loadedPatternCount)
@@ -803,6 +809,11 @@ static void loadChainSettingsForActivePattern()
     uiState.chainTargetValid = isCurrentChainTargetValid();
   }
 
+  if (view.chainEnabled != uiState.chainSlotChainEnabled[view.activePatternIndex])
+  {
+    sequencerToggleChainEnabled();
+  }
+
 } //   loadChainSettingsForActivePattern()
 
 //-- Save active-pattern chain settings into RAM bookkeeping only.
@@ -818,6 +829,7 @@ static void saveChainSettingsForPattern()
   }
 
   uiState.chainSlotPatternNames[view.activePatternIndex] = uiState.activePatternName;
+  uiState.chainSlotChainEnabled[view.activePatternIndex] = view.chainEnabled;
 
   if (uiState.chainTargetValid)
   {
@@ -826,6 +838,7 @@ static void saveChainSettingsForPattern()
   else
   {
     uiState.chainSlotTargetPatternNames[view.activePatternIndex] = "";
+    uiState.chainSlotChainEnabled[view.activePatternIndex] = false;
   }
 
   syncSequencerChainTargetsFromUi();
@@ -1511,6 +1524,7 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
   {
     uiState.chainSlotPatternNames[slotIndex] = "";
     uiState.chainSlotTargetPatternNames[slotIndex] = "";
+    uiState.chainSlotChainEnabled[slotIndex] = false;
   }
 
   for (size_t patternIndex = 0;
@@ -1530,6 +1544,7 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
 
     uiState.chainSlotPatternNames[patternIndex] = cardPatternNames[patternIndex];
     uiState.chainSlotTargetPatternNames[patternIndex] = patternData.chainTarget;
+    uiState.chainSlotChainEnabled[patternIndex] = patternData.chainEnabled;
   }
 
   sequencerSetLoadedPatternCount(static_cast<uint8_t>(cardPatternCount));
@@ -1595,9 +1610,14 @@ static bool saveLoadedPatternGroupToCard()
 
     sequencerExportPatternFromSlot(slotIndex, patternData);
 
+    patternData.chainEnabled = uiState.chainSlotChainEnabled[slotIndex];
     patternData.chainTarget = uiState.chainSlotTargetPatternNames[slotIndex];
-    patternData.chainEnabled = !patternData.chainTarget.isEmpty();
     patternData.chainLength = loadedPatternCount;
+
+    if (!patternData.chainEnabled)
+    {
+      patternData.chainTarget = "";
+    }
 
     if (!settingsStoreSavePatternToCard(groupName, patternName, patternData))
     {
@@ -1609,7 +1629,6 @@ static bool saveLoadedPatternGroupToCard()
   }
 
   uiCardStorageDeleteStalePatterns(groupName, loadedPatternCount);
-
   saveRuntimeSettingsFromCurrentState();
 
   showPatternStatus("Saved group\n" + groupName, 2500);
@@ -1659,8 +1678,19 @@ static void handleGrooveboxTransportButton()
 
   if (!view.playing)
   {
+    flushPendingChainSettings();
     syncSequencerChainTargetsFromUi();
-    sequencerTogglePlay();
+    sequencerGetView(view);
+
+    if (view.chainEnabled)
+    {
+      sequencerTogglePlay();
+    }
+    else
+    {
+      sequencerStartFromActivePattern();
+    }
+
     return;
   }
 
@@ -2084,6 +2114,7 @@ void uiManagerInit()
   {
     uiState.chainSlotPatternNames[slotIndex] = "";
     uiState.chainSlotTargetPatternNames[slotIndex] = "";
+    uiState.chainSlotChainEnabled[slotIndex] = false;
   }
 
   for (int patternIndex = 0; patternIndex < patternListMaxEntries; patternIndex++)

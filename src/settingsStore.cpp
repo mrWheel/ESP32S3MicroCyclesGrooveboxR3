@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 12:35 ***/
+/*** Last Changed: 2026-06-10 - 16:50 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -1026,7 +1026,7 @@ bool settingsStoreSavePatternToCard(const String& groupName, const String& patte
     return false;
   }
 
-  bool success = (serializeJson(jsonDocument, file) > 0);
+  bool success = (serializeJsonPretty(jsonDocument, file) > 0);
 
   file.close();
 

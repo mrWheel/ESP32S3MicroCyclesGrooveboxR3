@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 13:30 ***/
+/*** Last Changed: 2026-06-10 - 16:50 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -213,7 +213,7 @@ void sequencerInit()
 } //   sequencerInit()
 
 //-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels,
-//decays and pitches.
+// decays and pitches.
 bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& outTrackMask,
                              uint8_t outTrackLevels[sequencerTrackCount],
                              uint8_t outTrackDecays[sequencerTrackCount],
@@ -340,6 +340,21 @@ void sequencerTogglePlay()
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerTogglePlay()
+
+//-- Start playback from the active visible pattern.
+void sequencerStartFromActivePattern()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  state.playing = true;
+  state.transportState = transportRunning;
+  state.playingPatternIndex = state.activePatternIndex;
+  state.currentStep = 0;
+  state.nextStepDueUs = 0;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerStartFromActivePattern()
 
 //=========
 //-- Stop immediately without waiting for musical pattern boundaries.
