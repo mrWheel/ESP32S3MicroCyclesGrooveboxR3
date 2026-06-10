@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 17:49 ***/
+/*** Last Changed: 2026-06-10 - 18:38 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -717,24 +717,6 @@ static int selectVoiceForPlayback()
   return selectedVoice;
 
 } //   selectVoiceForPlayback()
-
-//-- Log active voice count for a sample.
-static void logActiveVoicesForSample(const char* label, SampleId sampleId)
-{
-  int activeCount = 0;
-
-  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
-  {
-    if (voices[voiceIndex].active && voices[voiceIndex].sampleId == sampleId)
-    {
-      activeCount++;
-    }
-  }
-
-  ESP_LOGI(logTag, "[AudioEngine] Debug: %s sampleId=%d activeVoices=%d", label,
-           static_cast<int>(sampleId), activeCount);
-
-} //   logActiveVoicesForSample()
 
 //-- Stop all active voices that are playing the same sample immediately.
 static void stopVoicesForSampleId(SampleId sampleId)

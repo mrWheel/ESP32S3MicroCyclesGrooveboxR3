@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 16:50 ***/
+/*** Last Changed: 2026-06-10 - 18:38 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -83,7 +83,7 @@ static void loadDefaultPattern(Pattern& pattern)
     for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
     {
       pattern.tracks[trackIndex].steps[stepIndex].trigger = false;
-      pattern.tracks[trackIndex].steps[stepIndex].velocity = 255;
+      pattern.tracks[trackIndex].steps[stepIndex].velocity = 128;
       pattern.tracks[trackIndex].steps[stepIndex].probability = 100;
       pattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
       pattern.tracks[trackIndex].steps[stepIndex].lockPitch = 0;
@@ -124,7 +124,7 @@ static void clearPattern(Pattern& pattern)
     for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
     {
       pattern.tracks[trackIndex].steps[stepIndex].trigger = false;
-      pattern.tracks[trackIndex].steps[stepIndex].velocity = 255;
+      pattern.tracks[trackIndex].steps[stepIndex].velocity = 128;
       pattern.tracks[trackIndex].steps[stepIndex].probability = 100;
       pattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
       pattern.tracks[trackIndex].steps[stepIndex].lockPitch = 0;
@@ -623,6 +623,15 @@ void sequencerToggleCurrentStep()
 
   selectedStep.trigger = !selectedStep.trigger;
 
+  //-- Initialize newly enabled steps with sensible defaults.
+  if (selectedStep.trigger)
+  {
+    if (selectedStep.velocity == 0)
+    {
+      selectedStep.velocity = 128;
+    }
+  }
+
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerToggleCurrentStep()
@@ -1031,7 +1040,7 @@ void sequencerClearActivePattern()
     for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
     {
       activePattern.tracks[trackIndex].steps[stepIndex].trigger = false;
-      activePattern.tracks[trackIndex].steps[stepIndex].velocity = 255;
+      activePattern.tracks[trackIndex].steps[stepIndex].velocity = 128;
       activePattern.tracks[trackIndex].steps[stepIndex].probability = 100;
       activePattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
       activePattern.tracks[trackIndex].steps[stepIndex].lockPitch = 0;

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 16:50 ***/
+/*** Last Changed: 2026-06-10 - 18:38 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -577,7 +577,7 @@ static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternDa
         step.trigger = static_cast<bool>(stepObject["trigger"] | false);
       }
 
-      step.velocity = static_cast<uint8_t>(stepObject["velocity"] | (step.trigger ? 255 : 0));
+      step.velocity = static_cast<uint8_t>(stepObject["velocity"] | (step.trigger ? 128 : 0));
       step.probability = static_cast<uint8_t>(stepObject["probability"] | 100);
 
       JsonObjectConst locksObject = stepObject["locks"].as<JsonObjectConst>();
