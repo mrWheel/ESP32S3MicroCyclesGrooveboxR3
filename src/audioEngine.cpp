@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 18:38 ***/
+/*** Last Changed: 2026-06-11 - 11:30 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -24,7 +24,6 @@ static const uint16_t voiceAttackFrames = 32;
 static const i2s_port_t audioI2sPort = I2S_NUM_0;
 
 //-- Fixed voice pool (Phase 4)
-//-org- Voice voices[MAX_VOICES];
 static Voice voices[MAX_VOICES];
 
 //-- Runtime master gain, persisted through settingsStore/NVS.
@@ -816,21 +815,6 @@ void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, i
   voices[selectedVoice].releaseCounter = 0;
   voices[selectedVoice].attackCounter = 0;
 #endif
-
-} //   audioEngineTriggerSample()
-
-//-- Trigger sample playback with full voice params and default decay/pitch.
-void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
-                              uint8_t chokeGroup)
-{
-  audioEngineTriggerSample(sampleId, level, gain, pan, chokeGroup, 100, 0);
-
-} //   audioEngineTriggerSample()
-
-//-- Backward compatibility: old trigger function.
-void audioEngineTriggerSample(SampleId sampleId, uint8_t level)
-{
-  audioEngineTriggerSample(sampleId, level, 65535, 0, 0, 100, 0);
 
 } //   audioEngineTriggerSample()
 

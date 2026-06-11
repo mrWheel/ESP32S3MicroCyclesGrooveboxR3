@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 18:38 ***/
+/*** Last Changed: 2026-06-11 - 11:30 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -272,10 +272,6 @@ static void buildPatternJsonDocument(const String& normalizedName, const Pattern
 static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternData& patternData,
                                      const String& sourcePath);
 
-//-- Read chain settings from JSON document with backward-compatible keys.
-static void readChainSettingsFromJson(const JsonDocument& jsonDocument, bool& outEnabled,
-                                      uint8_t& outLength, String& outTarget);
-
 //-- Build safe pattern base name.
 static String normalizePatternName(const String& patternName)
 {
@@ -519,13 +515,16 @@ static void buildPatternJsonDocument(const String& normalizedName, const Pattern
 static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternData& patternData,
                                      const String& sourcePath)
 {
-  JsonArrayConst tracks;
+  JsonArrayConst tracks = jsonDocument["tracks"].as<JsonArrayConst>();
+  JsonObjectConst chainObject = jsonDocument["chain"].as<JsonObjectConst>();
 
   patternData.bpm = static_cast<uint16_t>(jsonDocument["bpm"] | 120);
   patternData.swingPercent = static_cast<uint8_t>(jsonDocument["swing"] | 8);
 
-  readChainSettingsFromJson(jsonDocument, patternData.chainEnabled, patternData.chainLength,
-                            patternData.chainTarget);
+  patternData.chainEnabled = static_cast<bool>(chainObject["enabled"] | false);
+  patternData.chainLength = static_cast<uint8_t>(chainObject["length"] | 1);
+  patternData.chainTarget =
+      normalizePatternSlotName(String(static_cast<const char*>(chainObject["target"] | "")));
 
   if (patternData.chainLength < 1)
   {
@@ -536,12 +535,10 @@ static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternDa
     patternData.chainLength = sequencerPatternCount;
   }
 
-  if (patternData.chainLength <= 1)
+  if (!patternData.chainEnabled)
   {
-    patternData.chainEnabled = false;
+    patternData.chainTarget = "";
   }
-
-  tracks = jsonDocument["tracks"].as<JsonArrayConst>();
 
   if (tracks.isNull() || tracks.size() < sequencerTrackCount)
   {
@@ -565,121 +562,54 @@ static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternDa
     for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
     {
       JsonObjectConst stepObject = steps[stepIndex].as<JsonObjectConst>();
+      JsonObjectConst locksObject = stepObject["locks"].as<JsonObjectConst>();
       Step& step = patternData.pattern.tracks[trackIndex].steps[stepIndex];
 
-      //-- Accept both old/new trigger field names.
-      if (stepObject["trig"].is<bool>())
-      {
-        step.trigger = static_cast<bool>(stepObject["trig"]);
-      }
-      else
-      {
-        step.trigger = static_cast<bool>(stepObject["trigger"] | false);
-      }
-
-      step.velocity = static_cast<uint8_t>(stepObject["velocity"] | (step.trigger ? 128 : 0));
+      step.trigger = static_cast<bool>(stepObject["trig"] | false);
+      step.velocity = static_cast<uint8_t>(stepObject["velocity"] | 128);
       step.probability = static_cast<uint8_t>(stepObject["probability"] | 100);
 
-      JsonObjectConst locksObject = stepObject["locks"].as<JsonObjectConst>();
+      if (step.probability > 100)
+      {
+        step.probability = 100;
+      }
 
       if (locksObject.isNull())
       {
-        //-- Accept flat lock fields from newer saved patterns.
-        int lockPitchValue = static_cast<int>(stepObject["lockPitch"] | 0);
-        int lockDecayValue = static_cast<int>(stepObject["lockDecay"] | 100);
-
-        if (lockPitchValue < -24)
-        {
-          lockPitchValue = -24;
-        }
-        else if (lockPitchValue > 24)
-        {
-          lockPitchValue = 24;
-        }
-
-        if (lockDecayValue < 10)
-        {
-          lockDecayValue = 10;
-        }
-        else if (lockDecayValue > 200)
-        {
-          lockDecayValue = 200;
-        }
-
-        step.lockEnabled = static_cast<bool>(stepObject["lockEnabled"] | false);
-        step.lockPitch = static_cast<int8_t>(lockPitchValue);
-        step.lockDecay = static_cast<uint8_t>(lockDecayValue);
+        ESP_LOGW(logTag, "Missing locks in %s", sourcePath.c_str());
+        return false;
       }
-      else
+
+      int lockPitchValue = static_cast<int>(locksObject["pitch"] | 0);
+      int lockDecayValue = static_cast<int>(locksObject["decay"] | 100);
+
+      if (lockPitchValue < -24)
       {
-        int lockPitchValue = static_cast<int>(locksObject["pitch"] | 0);
-        int lockDecayValue = static_cast<int>(locksObject["decay"] | 100);
-
-        if (lockPitchValue < -24)
-        {
-          lockPitchValue = -24;
-        }
-        else if (lockPitchValue > 24)
-        {
-          lockPitchValue = 24;
-        }
-
-        if (lockDecayValue < 10)
-        {
-          lockDecayValue = 10;
-        }
-        else if (lockDecayValue > 200)
-        {
-          lockDecayValue = 200;
-        }
-
-        step.lockEnabled = static_cast<bool>(locksObject["enabled"] | false);
-        step.lockPitch = static_cast<int8_t>(lockPitchValue);
-        step.lockDecay = static_cast<uint8_t>(lockDecayValue);
+        lockPitchValue = -24;
       }
+      else if (lockPitchValue > 24)
+      {
+        lockPitchValue = 24;
+      }
+
+      if (lockDecayValue < 10)
+      {
+        lockDecayValue = 10;
+      }
+      else if (lockDecayValue > 200)
+      {
+        lockDecayValue = 200;
+      }
+
+      step.lockEnabled = static_cast<bool>(locksObject["enabled"] | false);
+      step.lockPitch = static_cast<int8_t>(lockPitchValue);
+      step.lockDecay = static_cast<uint8_t>(lockDecayValue);
     }
   }
 
   return true;
 
 } //   parsePatternJsonDocument()
-
-//-- Read chain settings from JSON document with backward-compatible keys.
-static void readChainSettingsFromJson(const JsonDocument& jsonDocument, bool& outEnabled,
-                                      uint8_t& outLength, String& outTarget)
-{
-  JsonObjectConst chainObject = jsonDocument["chain"].as<JsonObjectConst>();
-  bool chainEnabled = false;
-  uint8_t chainLength = 1;
-  String chainTarget = "";
-
-  if (!chainObject.isNull())
-  {
-    chainEnabled = static_cast<bool>(chainObject["enabled"] | false);
-    chainLength = static_cast<uint8_t>(chainObject["length"] | 1);
-    chainTarget = String(static_cast<const char*>(chainObject["target"] | ""));
-  }
-  else
-  {
-    chainEnabled = static_cast<bool>(jsonDocument["chainEnabled"] | false);
-    chainLength = static_cast<uint8_t>(jsonDocument["chainLength"] | 1);
-    chainTarget = String(static_cast<const char*>(jsonDocument["chainTarget"] | ""));
-  }
-
-  if (chainLength < 1)
-  {
-    chainLength = 1;
-  }
-  else if (chainLength > sequencerPatternCount)
-  {
-    chainLength = sequencerPatternCount;
-  }
-
-  outEnabled = chainEnabled;
-  outLength = chainLength;
-  outTarget = normalizePatternSlotName(chainTarget);
-
-} //   readChainSettingsFromJson()
 
 //-- Report LittleFS usage without creating legacy pattern directories.
 bool settingsStoreGetLittleFsUsage(size_t& outUsedBytes, size_t& outTotalBytes,

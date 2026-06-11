@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 18:38 ***/
+/*** Last Changed: 2026-06-11 - 11:30 ***/
 #ifndef AUDIO_ENGINE_H
 #define AUDIO_ENGINE_H
 
@@ -45,13 +45,6 @@ bool audioEngineIsOutputReady();
 //-- Trigger sample playback with full voice params.
 void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
                               uint8_t chokeGroup, uint8_t decayPercent, int8_t pitch);
-
-//-- Backward compatibility: trigger without decay and pitch.
-void audioEngineTriggerSample(SampleId sampleId, uint8_t level, uint16_t gain, int8_t pan,
-                              uint8_t chokeGroup);
-
-//-- Backward compatibility: old trigger function.
-void audioEngineTriggerSample(SampleId sampleId, uint8_t level);
 
 //-- Set runtime master gain percentage.
 void audioEngineSetMasterGainPercent(uint8_t gainPercent);

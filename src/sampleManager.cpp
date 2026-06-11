@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-01 - 16:38 ***/
+/*** Last Changed: 2026-06-11 - 11:30 ***/
 #include "sampleManager.h"
 #include "appConfig.h"
 #include "settingsStore.h"
@@ -59,7 +59,7 @@ static String getSampleSetDir()
 
 } //   getSampleSetDir()
 
-//-- Load per-sample gain percentages from SD.
+//-- Load per-sample gain percentages from the active sample set.
 static void loadSampleGainPercent()
 {
   for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
@@ -67,71 +67,71 @@ static void loadSampleGainPercent()
     sampleGainPercent[sampleIndex] = 100;
   }
 
-  String jsonPath = getSampleSetDir() + "setGain.json";
-  File file = SD.open(jsonPath.c_str(), FILE_READ);
+  String gainPath = String("/samples/") + activeSampleSet + "/setGain.json";
 
-  if (!file)
+  if (!SD.exists(gainPath))
   {
-    ESP_LOGW(logTag, "Warning: Could not open %s, using default sample gains", jsonPath.c_str());
-
+    ESP_LOGW(logTag, "[SampleManager] Warning: setGain.json not found: %s", gainPath.c_str());
     return;
   }
 
-  JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, file);
+  File file = SD.open(gainPath, FILE_READ);
+
+  if (!file)
+  {
+    ESP_LOGW(logTag, "[SampleManager] Warning: Could not open %s", gainPath.c_str());
+    return;
+  }
+
+  JsonDocument jsonDocument;
+  DeserializationError error = deserializeJson(jsonDocument, file);
 
   file.close();
 
   if (error)
   {
-    ESP_LOGW(logTag, "Warning: Could not parse %s", jsonPath.c_str());
+    ESP_LOGW(logTag, "[SampleManager] Warning: Could not parse %s: %s", gainPath.c_str(),
+             error.c_str());
     return;
   }
 
-  JsonObject object = doc["sampleGainPercent"];
+  JsonObject sampleGainPercentObject = jsonDocument["sampleGainPercent"].as<JsonObject>();
 
-  if (object.isNull())
+  if (sampleGainPercentObject.isNull())
   {
-    object = doc["setGain"];
-  }
-
-  if (object.isNull())
-  {
-    object = doc.as<JsonObject>();
-  }
-
-  if (object.isNull())
-  {
-    ESP_LOGW(logTag, "Warning: No sample gain object in %s", jsonPath.c_str());
+    ESP_LOGW(logTag, "[SampleManager] Warning: Missing sampleGainPercent in %s", gainPath.c_str());
     return;
   }
 
   for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
   {
-    if (object[sampleNames[sampleIndex]].is<int>())
+    const char* sampleName = sampleNames[sampleIndex];
+
+    JsonVariant gainVariant = sampleGainPercentObject[sampleName];
+
+    if (!gainVariant.is<int>())
     {
-      int gainPercent = object[sampleNames[sampleIndex]].as<int>();
-
-      if (gainPercent < 0)
-      {
-        gainPercent = 0;
-      }
-      else if (gainPercent > 300)
-      {
-        gainPercent = 300;
-      }
-
-      sampleGainPercent[sampleIndex] = static_cast<uint16_t>(gainPercent);
+      ESP_LOGW(logTag, "[SampleManager] Warning: Missing gain for %s in %s", sampleName,
+               gainPath.c_str());
+      continue;
     }
-  }
 
-  ESP_LOGI(logTag, "Loaded sample gains from %s: kick=%u snare=%u ch=%u oh=%u tone=%u metal=%u",
-           jsonPath.c_str(), static_cast<unsigned>(sampleGainPercent[sampleKick]),
-           static_cast<unsigned>(sampleGainPercent[sampleSnare]),
-           static_cast<unsigned>(sampleGainPercent[sampleClosedHat]),
-           static_cast<unsigned>(sampleGainPercent[sampleOpenHat]),
-           static_cast<unsigned>(sampleGainPercent[sampleTone]),
-           static_cast<unsigned>(sampleGainPercent[sampleMetal]));
+    int gainPercent = gainVariant.as<int>();
+
+    if (gainPercent < 0)
+    {
+      gainPercent = 0;
+    }
+    else if (gainPercent > 300)
+    {
+      gainPercent = 300;
+    }
+
+    sampleGainPercent[sampleIndex] = static_cast<uint16_t>(gainPercent);
+
+    ESP_LOGI(logTag, "[SampleManager] Sample gain %s=%u%%", sampleName,
+             static_cast<unsigned>(sampleGainPercent[sampleIndex]));
+  }
 
 } //   loadSampleGainPercent()
 
