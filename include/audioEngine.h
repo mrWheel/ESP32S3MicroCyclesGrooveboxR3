@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-11 - 11:30 ***/
+/*** Last Changed: 2026-06-11 - 13:53 ***/
 #ifndef AUDIO_ENGINE_H
 #define AUDIO_ENGINE_H
 
@@ -57,6 +57,9 @@ void audioEngineRenderBlock();
 
 //-- Enable or disable sine test tone when no voices are active.
 void audioEngineSetTestToneEnabled(bool enabled);
+
+//-- Stop all active voices immediately.
+void audioEngineStopAllVoices();
 
 //-- Copy audio statistics for status UI.
 void audioEngineGetStats(AudioEngineStats& outStats);

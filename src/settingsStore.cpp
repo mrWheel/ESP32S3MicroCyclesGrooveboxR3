@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-11 - 11:30 ***/
+/*** Last Changed: 2026-06-11 - 13:53 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -1404,3 +1404,66 @@ bool settingsStoreDeletePatternFromCard(const String& groupName, const String& p
   return removedAny;
 
 } //   settingsStoreDeletePatternFromCard()
+
+//-- Delete one complete pattern group from SD card.
+bool settingsStoreDeletePatternGroupFromCard(const String& groupName)
+{
+  String groupPath = String("/patterns/") + groupName;
+  File groupDir;
+
+  if (groupName.isEmpty())
+  {
+    return false;
+  }
+
+  if (!SD.exists(groupPath))
+  {
+    ESP_LOGW(logTag, "Warning: Pattern group does not exist: %s", groupPath.c_str());
+    return false;
+  }
+
+  groupDir = SD.open(groupPath);
+
+  if (!groupDir || !groupDir.isDirectory())
+  {
+    if (groupDir)
+    {
+      groupDir.close();
+    }
+
+    ESP_LOGW(logTag, "Warning: Pattern group is not a directory: %s", groupPath.c_str());
+    return false;
+  }
+
+  File entry = groupDir.openNextFile();
+
+  while (entry)
+  {
+    String entryPath = String(entry.path());
+
+    entry.close();
+
+    if (!SD.remove(entryPath))
+    {
+      groupDir.close();
+
+      ESP_LOGW(logTag, "Warning: Failed to delete %s", entryPath.c_str());
+      return false;
+    }
+
+    entry = groupDir.openNextFile();
+  }
+
+  groupDir.close();
+
+  if (!SD.rmdir(groupPath))
+  {
+    ESP_LOGW(logTag, "Warning: Failed to delete pattern group directory %s", groupPath.c_str());
+    return false;
+  }
+
+  ESP_LOGI(logTag, "Deleted Card pattern group %s", groupName.c_str());
+
+  return true;
+
+} //   settingsStoreDeletePatternGroupFromCard()

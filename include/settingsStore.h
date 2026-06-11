@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-11 - 11:30 ***/
+/*** Last Changed: 2026-06-11 - 13:53 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 #ifndef SETTINGS_STORE_H
 #define SETTINGS_STORE_H
@@ -94,5 +94,8 @@ bool settingsStoreLoadPatternChainSettings(const String& patternName, bool& outE
 
 //-- Delete one SD card pattern file (with group).
 bool settingsStoreDeletePatternFromCard(const String& groupName, const String& patternName);
+
+//-- Delete one complete pattern group from SD card.
+bool settingsStoreDeletePatternGroupFromCard(const String& groupName);
 
 #endif

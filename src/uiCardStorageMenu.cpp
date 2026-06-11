@@ -1,10 +1,10 @@
-/*** Last Changed: 2026-06-01 - 15:39 ***/
+/*** Last Changed: 2026-06-11 - 13:53 ***/
 #include "uiCardStorageMenu.h"
 
 #include <Arduino.h>
 
 //-- Card Storage menu configuration.
-static const int cardStorageMenuEntryCount = 5;
+static const int cardStorageMenuEntryCount = 6;
 
 //-- Keep list selection visible within a small scroll window.
 static void updateCardStorageFirstVisibleIndex(int selectedIndex, int itemCount,
@@ -42,15 +42,17 @@ static void updateCardStorageFirstVisibleIndex(int selectedIndex, int itemCount,
 } //   updateCardStorageFirstVisibleIndex()
 
 //-- Draw Card Storage submenu and update its visible scroll window.
-void uiCardStorageMenuDraw(DisplayDriver& display, int selection, int& firstVisibleIndex)
+void uiCardStorageMenuDraw(DisplayDriver& display, int selection, int& firstVisibleIndex,
+                           bool patternGroupDirty)
 {
   String items[cardStorageMenuEntryCount];
 
-  items[0] = "Load Pattern";
-  items[1] = "Save Pattern";
-  items[2] = "Rename Pattern";
-  items[3] = "Copy Pattern";
-  items[4] = "Exit";
+  items[0] = patternGroupDirty ? "Save Group *" : "Save Group";
+  items[1] = "Load Group";
+  items[2] = "Rename Group";
+  items[3] = "Copy Group";
+  items[4] = "Delete Group";
+  items[5] = "Exit";
 
   updateCardStorageFirstVisibleIndex(selection, cardStorageMenuEntryCount, firstVisibleIndex);
 

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-11 - 11:30 ***/
+/*** Last Changed: 2026-06-11 - 13:53 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
 
@@ -840,6 +840,32 @@ uint8_t audioEngineGetMasterGainPercent()
   return masterGainPercent;
 
 } //   audioEngineGetMasterGainPercent()
+
+//-- Stop all active voices immediately.
+void audioEngineStopAllVoices()
+{
+  for (int voiceIndex = 0; voiceIndex < MAX_VOICES; voiceIndex++)
+  {
+    voices[voiceIndex].active = false;
+    voices[voiceIndex].sampleId = sampleKick;
+    voices[voiceIndex].sampleData = nullptr;
+    voices[voiceIndex].frameCount = 0;
+    voices[voiceIndex].playbackFrameLimit = 0;
+    voices[voiceIndex].position = 0;
+    voices[voiceIndex].phase = 0;
+    voices[voiceIndex].phaseIncrement = 65536;
+    voices[voiceIndex].level = 0;
+    voices[voiceIndex].gain = 65535;
+    voices[voiceIndex].pan = 0;
+    voices[voiceIndex].decayPercent = 100;
+    voices[voiceIndex].pitch = 0;
+    voices[voiceIndex].chokeGroup = 0;
+    voices[voiceIndex].releaseActive = false;
+    voices[voiceIndex].releaseCounter = 0;
+    voices[voiceIndex].attackCounter = 0;
+  }
+
+} //   audioEngineStopAllVoices()
 
 //-- Render one audio block and write it to I2S.
 void audioEngineRenderBlock()

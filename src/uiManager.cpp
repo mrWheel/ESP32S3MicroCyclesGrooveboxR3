@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 17:12 ***/
+/*** Last Changed: 2026-06-11 - 13:53 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -12,6 +12,7 @@
 #include "colorSettings.h"
 #include "settingsStore.h"
 #include "sampleManager.h"
+#include "audioEngine.h"
 #include "sequencer.h"
 #include "systemManager.h"
 #include "InputClass.h"
@@ -46,7 +47,7 @@ static const int settingsEntryCount = 14;
 static const int patternListModeCardGroups = 1001;
 static const int patternListModeMemoryPatterns = 1002;
 //-- Card Storage menu item count.
-static const int cardStorageMenuEntryCount = 5;
+static const int cardStorageMenuEntryCount = 6;
 static const int sampleSetListMaxEntries = 9;
 static const int settingsFirstActionIndex = 3;
 static const int patternListMaxEntries = static_cast<int>(patternStoreMaxEntries * 2U);
@@ -102,6 +103,7 @@ struct UiState
   String chainTargetPatternName;
   bool chainTargetValid;
   bool chainSettingsDirty;
+  bool patternGroupDirty;
   String patternChainTargets[patternListMaxEntries];
   bool patternHasChainTarget[patternListMaxEntries];
   String chainSeriesPatternNames[patternStoreMaxEntries];
@@ -688,6 +690,7 @@ static void applyEditPopupValueDelta(int delta)
     uiState.chainSettingsDirty = true;
   }
 
+  uiState.patternGroupDirty = true;
   uiState.dirty = true;
 
 } //   applyEditPopupValueDelta()
@@ -842,6 +845,8 @@ static void saveChainSettingsForPattern()
   }
 
   syncSequencerChainTargetsFromUi();
+
+  uiState.patternGroupDirty = true;
 
 } //   saveChainSettingsForPattern()
 
@@ -1053,10 +1058,11 @@ static void saveRuntimeSettingsFromCurrentState()
 
 } //   saveRuntimeSettingsFromCurrentState()
 
-//-- Refresh cached pattern names for RAM patterns or Card pattern groups.
+//-- Refresh pattern list from selected source.
 static void refreshPatternList()
 {
   size_t listedCount = 0;
+  String activeGroupName = settingsStoreGetActivePatternGroup();
 
   uiState.patternCount = 0;
 
@@ -1089,6 +1095,11 @@ static void refreshPatternList()
       for (size_t index = 0; index < listedCount && uiState.patternCount < patternListMaxEntries;
            index++)
       {
+        if (uiState.patternDeleteMode && patternScanBuffer[index] == activeGroupName)
+        {
+          continue;
+        }
+
         uiState.patternNames[uiState.patternCount] = patternScanBuffer[index];
         uiState.patternSources[uiState.patternCount] = PatternEntrySource::Card;
         uiState.patternCount++;
@@ -1363,7 +1374,7 @@ static bool deleteSelectedPatternFromMemory()
 
 } //   deleteSelectedPatternFromMemory()
 
-//-- Delete one selected pattern from RAM or Card without using LittleFS.
+//-- Delete one selected pattern from RAM or one Card group.
 static bool deleteSelectedPattern(String* outDeletedName = nullptr,
                                   PatternEntrySource* outDeletedSource = nullptr)
 {
@@ -1394,23 +1405,17 @@ static bool deleteSelectedPattern(String* outDeletedName = nullptr,
     return deleteSelectedPatternFromMemory();
   }
 
-  if (selectedSource == PatternEntrySource::Card)
+  if (uiState.patternListSourceFilter == patternListModeCardGroups &&
+      selectedSource == PatternEntrySource::Card)
   {
-    String groupName = settingsStoreGetActivePatternGroup();
+    String activeGroupName = settingsStoreGetActivePatternGroup();
 
-    if (groupName.isEmpty())
+    if (selectedName == activeGroupName)
     {
       return false;
     }
 
-    if (!settingsStoreDeletePatternFromCard(groupName, selectedName))
-    {
-      return false;
-    }
-
-    uiState.patternListNeedsRefresh = true;
-
-    return true;
+    return settingsStoreDeletePatternGroupFromCard(selectedName);
   }
 
   return false;
@@ -1437,7 +1442,7 @@ static void moveGrooveboxCursorAcrossPatterns(int delta)
 
 } //   moveGrooveboxCursorAcrossPatterns()
 
-//-- Load selected Card pattern group directly into sequencer memory.
+//-- Load selected Card pattern group.
 static bool loadSelectedCardPatternGroup()
 {
   SequencerView view;
@@ -1461,9 +1466,9 @@ static bool loadSelectedCardPatternGroup()
   uiState.cardStorageMenuOpen = false;
   uiState.dirty = true;
 
-  drawBusyPopupNow("Load Pattern", "Loading " + selectedGroupName);
+  drawBusyPopupNow("Load Group", "Loading " + selectedGroupName);
 
-  if (!loadCardPatternGroupIntoMemory(selectedGroupName, true))
+  if (!loadCardPatternGroupIntoMemory(selectedGroupName, false))
   {
     return false;
   }
@@ -1560,13 +1565,17 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
   refreshChainSeriesPatternCache();
   loadChainSettingsForActivePattern();
 
-  if (showStatus)
-  {
-    showPatternStatus("Loaded group\n" + groupName, 2500);
-  }
+  /***
+    if (showStatus)
+    {
+      showPatternStatus("Loaded group\n" + groupName, 2500);
+    }
+  ***/
 
   ESP_LOGI(logTag, "Loaded Card group %s into RAM (%u patterns)", groupName.c_str(),
            static_cast<unsigned>(cardPatternCount));
+
+  uiState.patternGroupDirty = false;
 
   return true;
 
@@ -1597,7 +1606,7 @@ static bool saveLoadedPatternGroupToCard()
   flushPendingChainSettings();
   syncSequencerChainTargetsFromUi();
 
-  drawBusyPopupNow("Save Pattern", "Saving " + groupName);
+  drawBusyPopupNow("Save Group", "Saving " + groupName);
 
   for (uint8_t slotIndex = 0; slotIndex < loadedPatternCount; slotIndex++)
   {
@@ -1631,7 +1640,7 @@ static bool saveLoadedPatternGroupToCard()
   uiCardStorageDeleteStalePatterns(groupName, loadedPatternCount);
   saveRuntimeSettingsFromCurrentState();
 
-  showPatternStatus("Saved group\n" + groupName, 2500);
+  uiState.patternGroupDirty = false;
 
   ESP_LOGI(logTag, "Saved %d in-memory patterns to Card group %s", savedCount, groupName.c_str());
 
@@ -1743,8 +1752,7 @@ static void refreshSampleSetList()
 
 } //   refreshSampleSetList()
 
-//-- Load selected sample set from menu.
-//-- Store selected sample set and restart safely.
+//-- Load selected sample set from menu without restarting.
 static void loadSelectedSampleSetFromMenu()
 {
   if (uiState.sampleSetCount <= 0 || uiState.sampleSetListSelection < 0 ||
@@ -1757,19 +1765,29 @@ static void loadSelectedSampleSetFromMenu()
   String selectedSampleSet = uiState.sampleSetNames[uiState.sampleSetListSelection];
 
   stopPlaybackForStorageAction();
+  audioEngineStopAllVoices();
 
-  if (settingsStoreSetActiveSampleSet(selectedSampleSet.c_str()))
+  drawBusyPopupNow("Load Samples", "Loading " + selectedSampleSet);
+
+  if (!sampleManagerLoadSampleSet(selectedSampleSet.c_str()))
   {
-    showPatternStatus("Restarting..\nSample set " + selectedSampleSet, 1000);
-    systemManagerQueueCommand(SystemCommand::restartNow);
+    showPatternStatus("Load sample set\nfailed", 2000);
+    uiState.sampleSetListOpen = false;
+    uiState.sampleSetListFirstVisibleIndex = 0;
+    uiState.dirty = true;
+    return;
   }
-  else
+
+  if (!settingsStoreSetActiveSampleSet(selectedSampleSet.c_str()))
   {
     showPatternStatus("Save sample set\nfailed", 2000);
   }
 
+  refreshSampleSetList();
+
   uiState.sampleSetListOpen = false;
   uiState.sampleSetListFirstVisibleIndex = 0;
+  uiState.dirty = true;
 
 } //   loadSelectedSampleSetFromMenu()
 
@@ -1777,7 +1795,7 @@ static void loadSelectedSampleSetFromMenu()
 static void drawCardStorageMenu()
 {
   uiCardStorageMenuDraw(display, uiState.cardStorageMenuSelection,
-                        uiState.cardStorageMenuFirstVisibleIndex);
+                        uiState.cardStorageMenuFirstVisibleIndex, uiState.patternGroupDirty);
 
   if (uiState.patternStatusOpen)
   {
@@ -1866,11 +1884,13 @@ static void drawSystemSettingsScreen()
 
     if (uiState.patternDeleteMode)
     {
-      title = "Delete Pattern";
+      title = (uiState.patternListSourceFilter == patternListModeCardGroups) ? "Delete Group"
+                                                                             : "Delete Pattern";
     }
     else
     {
-      title = "Load Pattern";
+      title = (uiState.patternListSourceFilter == patternListModeCardGroups) ? "Load Group"
+                                                                             : "Load Pattern";
     }
 
     if (itemCount <= 0)
@@ -2807,6 +2827,10 @@ static void handleCardStorageMenuEncoderEvent(EncoderEvent encoderEvent)
   {
     if (uiState.cardStorageMenuSelection == 0)
     {
+      saveLoadedPatternGroupToCard();
+    }
+    else if (uiState.cardStorageMenuSelection == 1)
+    {
       uiState.patternListOpen = true;
       uiState.patternDeleteMode = false;
       uiState.patternListSourceFilter = patternListModeCardGroups;
@@ -2814,10 +2838,6 @@ static void handleCardStorageMenuEncoderEvent(EncoderEvent encoderEvent)
       uiState.patternListFirstVisibleIndex = 0;
       uiState.patternListNeedsRefresh = true;
       uiState.cardStorageMenuOpen = false;
-    }
-    else if (uiState.cardStorageMenuSelection == 1)
-    {
-      saveLoadedPatternGroupToCard();
     }
     else if (uiState.cardStorageMenuSelection == 2)
     {
@@ -2831,13 +2851,19 @@ static void handleCardStorageMenuEncoderEvent(EncoderEvent encoderEvent)
     }
     else if (uiState.cardStorageMenuSelection == 4)
     {
+      uiState.patternListOpen = true;
+      uiState.patternDeleteMode = true;
+      uiState.patternListSourceFilter = patternListModeCardGroups;
+      uiState.patternListSelection = 0;
+      uiState.patternListFirstVisibleIndex = 0;
+      uiState.patternListNeedsRefresh = true;
+      uiState.cardStorageMenuOpen = false;
+    }
+    else if (uiState.cardStorageMenuSelection == 5)
+    {
       uiState.cardStorageMenuOpen = false;
       uiState.cardStorageMenuSelection = 0;
       uiState.cardStorageMenuFirstVisibleIndex = 0;
-    }
-    else
-    {
-      showPatternStatus("Not implemented\nyet", 2000);
     }
   }
 
@@ -2887,7 +2913,7 @@ static void handleSampleSetListEncoderEvent(EncoderEvent encoderEvent)
 
 } //   handleSampleSetListEncoderEvent()
 
-//-- Handle Pattern list encoder events.
+//-- Handle pattern list encoder events.
 static void handlePatternListEncoderEvent(EncoderEvent encoderEvent)
 {
   if (encoderEvent == ENCODER_EVENT_LEFT)
@@ -2924,36 +2950,7 @@ static void handlePatternListEncoderEvent(EncoderEvent encoderEvent)
   {
     if (uiState.patternCount > 0)
     {
-      if (uiState.patternListSourceFilter == patternListModeCardGroups)
-      {
-        if (loadSelectedCardPatternGroup())
-        {
-          uiState.patternListOpen = false;
-          uiState.patternListSourceFilter = -1;
-          uiState.patternListFirstVisibleIndex = 0;
-        }
-      }
-
-      if (uiState.patternListSourceFilter == patternListModeMemoryPatterns)
-      {
-        if (deleteSelectedPatternFromMemory())
-        {
-          uiState.patternListOpen = false;
-          uiState.patternDeleteMode = false;
-          uiState.patternListSourceFilter = -1;
-          uiState.patternListFirstVisibleIndex = 0;
-        }
-      }
-      else if (!uiState.patternDeleteMode)
-      {
-        if (loadSelectedPattern())
-        {
-          uiState.menuOpen = false;
-          uiState.patternListOpen = false;
-          uiState.patternListFirstVisibleIndex = 0;
-        }
-      }
-      else
+      if (uiState.patternDeleteMode)
       {
         String deletedName;
         PatternEntrySource deletedSource = PatternEntrySource::Local;
@@ -2962,7 +2959,7 @@ static void handlePatternListEncoderEvent(EncoderEvent encoderEvent)
         {
           if (deletedSource == PatternEntrySource::Card)
           {
-            showPatternStatus(deletedName + " deleted from\nSD card", 2000);
+            showPatternStatus(deletedName + " group deleted\nfrom SD card", 2000);
           }
           else
           {
@@ -2974,8 +2971,29 @@ static void handlePatternListEncoderEvent(EncoderEvent encoderEvent)
           showPatternStatus("Delete failed", 2000);
         }
 
+        uiState.patternListNeedsRefresh = true;
+        refreshPatternList();
+
         if (uiState.patternCount == 0)
         {
+          uiState.patternListOpen = false;
+          uiState.patternListFirstVisibleIndex = 0;
+        }
+      }
+      else if (uiState.patternListSourceFilter == patternListModeCardGroups)
+      {
+        if (loadSelectedCardPatternGroup())
+        {
+          uiState.patternListOpen = false;
+          uiState.patternListSourceFilter = -1;
+          uiState.patternListFirstVisibleIndex = 0;
+        }
+      }
+      else if (uiState.patternListSourceFilter == patternListModeMemoryPatterns)
+      {
+        if (loadSelectedPattern())
+        {
+          uiState.menuOpen = false;
           uiState.patternListOpen = false;
           uiState.patternListFirstVisibleIndex = 0;
         }
@@ -3119,6 +3137,7 @@ static void handleMenuEncoderEvent(EncoderEvent encoderEvent)
 void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
 {
   SequencerView view;
+  UiEncoderState encoderState;
 
   if (encoderEvent == ENCODER_EVENT_NONE)
   {
@@ -3127,10 +3146,12 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
 
   sequencerGetView(view);
 
+  encoderState = getUiEncoderState();
+
   ESP_LOGI(logTag, "Encoder event=%d, menuOpen=%d", static_cast<int>(encoderEvent),
            uiState.menuOpen ? 1 : 0);
 
-  if (encoderEvent == ENCODER_EVENT_LONG_PRESS)
+  if (encoderEvent == ENCODER_EVENT_LONG_PRESS && encoderState != UiEncoderState::PatternGroupInput)
   {
     if (handleGlobalLongPressEncoderEvent(view))
     {
@@ -3138,7 +3159,7 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
     }
   }
 
-  switch (getUiEncoderState())
+  switch (encoderState)
   {
   case UiEncoderState::PatternGroupInput:
     handlePatternGroupInputEncoderEvent(encoderEvent);
@@ -3171,16 +3192,27 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
   {
     return;
   }
+  /******
+    if (uiPatternGroupInputIsOpen())
+    {
+      if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
+      {
+        uiPatternGroupInputBackspaceOrCancel();
+      }
+      else if (buttonEvent == BUTTON_EVENT_MEDIUM_PRESS || buttonEvent == BUTTON_EVENT_LONG_PRESS)
+      {
+        uiPatternGroupInputClose();
+        uiState.dirty = true;
+      }
+
+      return;
+    }
+  *****/
   if (uiPatternGroupInputIsOpen())
   {
     if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
     {
       uiPatternGroupInputBackspaceOrCancel();
-    }
-    else if (buttonEvent == BUTTON_EVENT_MEDIUM_PRESS || buttonEvent == BUTTON_EVENT_LONG_PRESS)
-    {
-      uiPatternGroupInputClose();
-      uiState.dirty = true;
     }
 
     return;
