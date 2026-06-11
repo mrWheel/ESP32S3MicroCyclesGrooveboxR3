@@ -1,12 +1,10 @@
-/*** Last Changed: 2026-06-01 - 15:39 ***/
+/*** Last Changed: 2026-06-11 - 14:31 ***/
 #include "uiSystemSettingsMenu.h"
-
 #include "DisplayDriverClass.h"
-
 #include <Arduino.h>
 
 //-- System Settings menu entry count.
-static const int systemSettingsEntryCount = 14;
+static const int systemSettingsEntryCount = 15;
 
 //-- Visible line count used by list screens.
 static const int menuVisibleLineCount = 9;
@@ -61,7 +59,7 @@ static void updateSystemSettingsFirstVisibleIndex(int selectedIndex, int itemCou
 //-- Draw System Settings main menu and update first visible index.
 void uiSystemSettingsMenuDraw(int menuSelection, int& firstVisibleIndex, const String& ssidValue,
                               const String& ipValue, const String& macValue, const char* themeName,
-                              int displayRotation, bool encoderReversed)
+                              int displayRotation, bool encoderReversed, bool patternGroupDirty)
 {
   String items[systemSettingsEntryCount];
   bool disabledItems[systemSettingsEntryCount] = {true,  true,  true,  false, false, false, false,
@@ -81,17 +79,18 @@ void uiSystemSettingsMenuDraw(int menuSelection, int& firstVisibleIndex, const S
   items[0] = fitSystemSettingsRowText("SSID: " + ssidValue);
   items[1] = fitSystemSettingsRowText("IP: " + ipValue);
   items[2] = fitSystemSettingsRowText("MAC: " + macValue);
-  items[3] = "Add Pattern";
-  items[4] = "Delete Pattern";
-  items[5] = fitSystemSettingsRowText(cardStorageEntry);
-  items[6] = "Load Sample Set";
-  items[7] = "Erase WiFi credentials";
-  items[8] = "Start WiFiManager";
-  items[9] = fitSystemSettingsRowText(themeEntry);
-  items[10] = fitSystemSettingsRowText(rotationEntry);
-  items[11] = fitSystemSettingsRowText(encoderOrderEntry);
-  items[12] = "Restart Groovebox";
-  items[13] = "Exit";
+  items[3] = patternGroupDirty ? "Save Group *" : "Save Group";
+  items[4] = "Add Pattern";
+  items[5] = "Delete Pattern";
+  items[6] = fitSystemSettingsRowText(cardStorageEntry);
+  items[7] = "Load Sample Set";
+  items[8] = "Erase WiFi credentials";
+  items[9] = "Start WiFiManager";
+  items[10] = fitSystemSettingsRowText(themeEntry);
+  items[11] = fitSystemSettingsRowText(rotationEntry);
+  items[12] = fitSystemSettingsRowText(encoderOrderEntry);
+  items[13] = "Restart Groovebox";
+  items[14] = "Exit";
 
   updateSystemSettingsFirstVisibleIndex(menuSelection, systemSettingsEntryCount, firstVisibleIndex);
 

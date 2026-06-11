@@ -1,10 +1,18 @@
 {
   "sampleGainPercent": {
-    "kick": 50,
-    "snare": 70,
-    "ch": 300,
-    "oh": 300,
-    "tone": 120,
-    "metal": 120
+    "kick": 187,
+    "snare": 100,
+    "ch": 146,
+    "oh": 164,
+    "tone": 46,
+    "metal": 140
+  },
+  "sampleSource": {
+    "kick": "",
+    "snare": "",
+    "ch": "",
+    "oh": "",
+    "tone": "",
+    "metal": ""
   }
 }

@@ -1,0 +1,18 @@
+{
+  "sampleGainPercent": {
+    "kick": 239,
+    "snare": 126,
+    "ch": 296,
+    "oh": 197,
+    "tone": 208,
+    "metal": 206
+  },
+  "sampleSource": {
+    "kick": "groovebox/99Sounds/99DrumSamples/Samples/kick-acoustic01.wav",
+    "snare": "groovebox/99Sounds/99DrumSamples/Samples/snare-acoustic02.wav",
+    "ch": "groovebox/99Sounds/99DrumSamples/Samples/hihat-ring.wav",
+    "oh": "groovebox/99Sounds/99DrumSamples/Samples/openhat-acoustic01.wav",
+    "tone": "groovebox/99Sounds/99DrumSamples/Samples/kick-tight.wav",
+    "metal": "groovebox/99Sounds/99DrumSamples/Samples/crash-tape.wav"
+  }
+}

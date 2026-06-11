@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-11 - 13:53 ***/
+/*** Last Changed: 2026-06-11 - 14:31 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -1946,11 +1946,11 @@ static void drawSystemSettingsScreen()
     return;
   }
 
-  uiSystemSettingsMenuDraw(uiState.menuSelection, uiState.menuFirstVisibleIndex,
-                           systemManagerGetSsid(), systemManagerGetIpAddress(),
-                           systemManagerGetMacAddress(),
-                           colorProfiles[displayGetThemeColorIndex()].colorName,
-                           displayGetRotation(), input.getEncoderDirectionReversed());
+  uiSystemSettingsMenuDraw(
+      uiState.menuSelection, uiState.menuFirstVisibleIndex, systemManagerGetSsid(),
+      systemManagerGetIpAddress(), systemManagerGetMacAddress(),
+      colorProfiles[displayGetThemeColorIndex()].colorName, displayGetRotation(),
+      input.getEncoderDirectionReversed(), uiState.patternGroupDirty);
 
   if (uiState.patternStatusOpen)
   {
@@ -2006,13 +2006,17 @@ static void executeMenuAction()
 
   if (uiState.menuSelection == 3)
   {
-    addPatternInMemory();
+    saveLoadedPatternGroupToCard();
   }
   else if (uiState.menuSelection == 4)
   {
-    openDeletePatternFromMemory();
+    addPatternInMemory();
   }
   else if (uiState.menuSelection == 5)
+  {
+    openDeletePatternFromMemory();
+  }
+  else if (uiState.menuSelection == 6)
   {
     uiState.cardStorageMenuOpen = true;
     uiState.cardStorageMenuSelection = 0;
@@ -2020,7 +2024,7 @@ static void executeMenuAction()
     uiState.dirty = true;
     return;
   }
-  else if (uiState.menuSelection == 6)
+  else if (uiState.menuSelection == 7)
   {
     SequencerView view;
 
@@ -2036,17 +2040,17 @@ static void executeMenuAction()
     uiState.dirty = true;
     return;
   }
-  else if (uiState.menuSelection == 7)
+  else if (uiState.menuSelection == 8)
   {
     uiState.eraseWifiConfirmOpen = true;
     uiState.eraseWifiConfirmSelection = 1;
   }
-  else if (uiState.menuSelection == 8)
+  else if (uiState.menuSelection == 9)
   {
     uiState.wifiManagerConfirmOpen = true;
     uiState.wifiManagerConfirmSelection = 1;
   }
-  else if (uiState.menuSelection == 9)
+  else if (uiState.menuSelection == 10)
   {
     activeThemeIndex = displayGetThemeColorIndex();
     nextThemeIndex = (activeThemeIndex + 1) % colorProfileCount;
@@ -2054,23 +2058,23 @@ static void executeMenuAction()
     displaySetThemeColorIndex(nextThemeIndex);
     saveRuntimeSettingsFromCurrentState();
   }
-  else if (uiState.menuSelection == 10)
+  else if (uiState.menuSelection == 11)
   {
     nextRotation = (displayGetRotation() == 1) ? 3 : 1;
 
     displaySetRotation(nextRotation);
     saveRuntimeSettingsFromCurrentState();
   }
-  else if (uiState.menuSelection == 11)
+  else if (uiState.menuSelection == 12)
   {
     input.setEncoderDirectionReversed(!input.getEncoderDirectionReversed());
     saveRuntimeSettingsFromCurrentState();
   }
-  else if (uiState.menuSelection == 12)
+  else if (uiState.menuSelection == 13)
   {
     systemManagerQueueCommand(SystemCommand::restartNow);
   }
-  else if (uiState.menuSelection == 13)
+  else if (uiState.menuSelection == 14)
   {
     uiState.menuOpen = false;
   }
