@@ -41,7 +41,7 @@ This class targets the hardware used by this repository:
 - SPI connection
 - 320x240 visible layout used by the current panel configuration
 - inverted panel color behavior
-- LED backlight controlled by `PIN_TFT_BL`
+- LED backlight controlled by `PIN_TFT_BLK`
 
 If you reuse the class in another project, keep the same hardware assumptions or adapt the pin and dimension values at initialization time.
 

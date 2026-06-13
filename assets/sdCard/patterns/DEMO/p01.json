@@ -1,0 +1,1043 @@
+{
+  "tracks": [
+    {
+      "steps": [
+        {
+          "trig": true,
+          "velocity": 119,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": true,
+          "velocity": 87,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": true,
+          "velocity": 151,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": true,
+          "velocity": 95,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        }
+      ],
+      "name": "KICK",
+      "machine": "sample",
+      "sample": "kick",
+      "mute": false,
+      "solo": false,
+      "level": 100,
+      "pan": 64
+    },
+    {
+      "steps": [
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        }
+      ],
+      "name": "SNARE",
+      "machine": "sample",
+      "sample": "snare",
+      "mute": false,
+      "solo": false,
+      "level": 100,
+      "pan": 64
+    },
+    {
+      "steps": [
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 75,
+          "locks": {
+            "enabled": true,
+            "pitch": -24,
+            "decay": 155
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -14,
+            "decay": 35
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 80,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 10,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 75,
+          "locks": {
+            "enabled": true,
+            "pitch": 12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 65,
+          "locks": {
+            "enabled": true,
+            "pitch": 15,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 65,
+          "locks": {
+            "enabled": true,
+            "pitch": 24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        }
+      ],
+      "name": "CH",
+      "machine": "sample",
+      "sample": "ch",
+      "mute": false,
+      "solo": false,
+      "level": 100,
+      "pan": 64
+    },
+    {
+      "steps": [
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 0,
+            "decay": 130
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        }
+      ],
+      "name": "OH",
+      "machine": "sample",
+      "sample": "oh",
+      "mute": false,
+      "solo": false,
+      "level": 100,
+      "pan": 64
+    },
+    {
+      "steps": [
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": true,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        }
+      ],
+      "name": "TONE",
+      "machine": "sample",
+      "sample": "tone",
+      "mute": false,
+      "solo": false,
+      "level": 100,
+      "pan": 64
+    },
+    {
+      "steps": [
+        {
+          "trig": true,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 128,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        }
+      ],
+      "name": "METAL",
+      "machine": "sample",
+      "sample": "metal",
+      "mute": false,
+      "solo": false,
+      "level": 100,
+      "pan": 64
+    }
+  ],
+  "version": 3,
+  "name": "p01",
+  "bpm": 124,
+  "swing": 54,
+  "chainEnabled": false,
+  "chainLength": 6,
+  "chainTarget": "",
+  "chain": {
+    "enabled": false,
+    "length": 6,
+    "target": ""
+  },
+  "masterLevel": 100
+}

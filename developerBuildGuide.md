@@ -104,11 +104,11 @@ Pin mapping is defined in `platformio.ini`.
 ### Display
 
 ```text
-PIN_TFT_BL  = 2
+PIN_TFT_BLK  = 2
 PIN_TFT_RST = 4
 PIN_TFT_CS  = 5
-PIN_TFT_SCL = 18
-PIN_TFT_SDA = 23
+PIN_TFT_SCLK = 18
+PIN_TFT_MOSI = 23
 PIN_TFT_DC  = 15
 ```
 

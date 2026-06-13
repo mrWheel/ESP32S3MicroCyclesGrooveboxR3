@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-31 - 12:29 ***/
+/*** Last Changed: 2026-06-13 - 14:54 ***/
 #include "DisplayDriverClass.h"
 #include "appConfig.h"
 #include "colorSettings.h"
@@ -564,9 +564,9 @@ void displayDrawTextInput(const char* title, const std::string& textValue,
 //--- showQuarters:         true = show 4 quarter tiles below
 //--- quarterCursorSlot:    -1 = no active slot cursor, 0-3 = cursor on this slot
 //--- quarterSlotHasCursor: true = slot label is cursor; false = slot is locked, type label may be
-//cursor
+// cursor
 //--- quarterTypeCursorLabel: nullptr = no separate type cursor; else override active slot's state
-//label
+// label
 //--- quarterTypeIsCursor:  true = type label shown as cursor <X>, false as locked [X]
 void displayDraw24hTimerEditor(uint8_t hourIndex, bool hourIsCursor, const char* typeLabel,
                                bool typeIsCursor, bool showQuarters,
@@ -1401,10 +1401,10 @@ void DisplayDriver::init(uint16_t width, uint16_t height, int rotation)
   displayWidth = width;
   displayHeight = height;
 
-  pinMode(PIN_TFT_BL, OUTPUT);
-  digitalWrite(PIN_TFT_BL, HIGH);
+  pinMode(PIN_TFT_BLK, OUTPUT);
+  digitalWrite(PIN_TFT_BLK, HIGH);
 
-  SPI.begin(PIN_TFT_SCL, -1, PIN_TFT_SDA, PIN_TFT_CS);
+  SPI.begin(PIN_TFT_SCLK, -1, PIN_TFT_MOSI, PIN_TFT_CS);
 
   activeDisplayRotation = rotation;
 
@@ -1472,7 +1472,7 @@ const DisplayTheme& DisplayDriver::getTheme() const
 //--- Set display backlight state
 void DisplayDriver::setBacklight(bool enabled)
 {
-  digitalWrite(PIN_TFT_BL, enabled ? HIGH : LOW);
+  digitalWrite(PIN_TFT_BLK, enabled ? HIGH : LOW);
 
 } //   DisplayDriver::setBacklight()
 

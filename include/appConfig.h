@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-24 - 16:40 ***/
+/*** Last Changed: 2026-06-13 - 14:54 ***/
 #ifndef APP_CONFIG_H
 #define APP_CONFIG_H
 
@@ -6,55 +6,43 @@
 
 //--- Build flag fallback values
 #ifndef PIN_TFT_CS
-#define PIN_TFT_CS 21
+#define PIN_TFT_CS 5
 #endif
 
 #ifndef PIN_TFT_DC
-#define PIN_TFT_DC 22
+#define PIN_TFT_DC 15
 #endif
 
 #ifndef PIN_TFT_RST
-#define PIN_TFT_RST 17
+#define PIN_TFT_RST 4
 #endif
 
-#ifndef PIN_TFT_BL
-#define PIN_TFT_BL 16
+#ifndef PIN_TFT_BLK
+#define PIN_TFT_BLK 2
 #endif
 
-#ifndef PIN_TFT_SCL
-#define PIN_TFT_SCL 18
+#ifndef PIN_TFT_SCLK
+#define PIN_TFT_SCLK 12
 #endif
 
-#ifndef PIN_TFT_SDA
-#define PIN_TFT_SDA 23
+#ifndef PIN_TFT_MOSI
+#define PIN_TFT_MOSI 11
 #endif
 
 #ifndef PIN_ENC_A
-#define PIN_ENC_A 32
+#define PIN_ENC_A 16
 #endif
 
 #ifndef PIN_ENC_B
-#define PIN_ENC_B 33
+#define PIN_ENC_B 17
 #endif
 
 #ifndef PIN_ENC_BTN
-#define PIN_ENC_BTN 25
+#define PIN_ENC_BTN 6
 #endif
 
 #ifndef PIN_KEY0
-#define PIN_KEY0 26
-#endif
-
-#ifndef PIN_OUTPUT
-#define PIN_OUTPUT 27
-#endif
-
-#ifndef PIN_TRIGGER
-#define PIN_TRIGGER 34
-#endif
-
-#ifndef PIN_RESET
-#define PIN_RESET 35
+#define PIN_KEY0 1
 #endif
 
 #ifndef PIN_SD_CS
@@ -62,15 +50,15 @@
 #endif
 
 #ifndef PIN_SD_SCK
-#define PIN_SD_SCK 18
+#define PIN_SD_SCK 14
 #endif
 
 #ifndef PIN_SD_MISO
-#define PIN_SD_MISO 19
+#define PIN_SD_MISO 18
 #endif
 
 #ifndef PIN_SD_MOSI
-#define PIN_SD_MOSI 23
+#define PIN_SD_MOSI 21
 #endif
 
 #ifndef TFT_WIDTH
@@ -110,7 +98,7 @@
 #endif
 
 #ifndef DEFAULT_AP_SSID
-#define DEFAULT_AP_SSID "UTimer"
+#define DEFAULT_AP_SSID "UGroovebox"
 #endif
 
 #ifndef DEFAULT_AP_PASSWORD
@@ -118,47 +106,7 @@
 #endif
 
 #ifndef DEFAULT_WIFI_HOSTNAME
-#define DEFAULT_WIFI_HOSTNAME "u-timer"
-#endif
-
-#ifndef DEFAULT_ON_TIME
-#define DEFAULT_ON_TIME 5
-#endif
-
-#ifndef DEFAULT_OFF_TIME
-#define DEFAULT_OFF_TIME 5
-#endif
-
-#ifndef DEFAULT_ON_UNIT
-#define DEFAULT_ON_UNIT 1
-#endif
-
-#ifndef DEFAULT_OFF_UNIT
-#define DEFAULT_OFF_UNIT 1
-#endif
-
-#ifndef DEFAULT_REPEAT_COUNT
-#define DEFAULT_REPEAT_COUNT 0
-#endif
-
-#ifndef DEFAULT_TRIGGER_MODE
-#define DEFAULT_TRIGGER_MODE 0
-#endif
-
-#ifndef DEFAULT_TRIGGER_EDGE
-#define DEFAULT_TRIGGER_EDGE 1
-#endif
-
-#ifndef DEFAULT_OUTPUT_POLARITY
-#define DEFAULT_OUTPUT_POLARITY 1
-#endif
-
-#ifndef DEFAULT_LOCK_INPUT_DURING_RUN
-#define DEFAULT_LOCK_INPUT_DURING_RUN 0
-#endif
-
-#ifndef DEFAULT_AUTO_SAVE_LAST_PROFILE
-#define DEFAULT_AUTO_SAVE_LAST_PROFILE 1
+#define DEFAULT_WIFI_HOSTNAME "groovebox"
 #endif
 
 #endif

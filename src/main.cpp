@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-11 - 14:31 ***/
+/*** Last Changed: 2026-06-13 - 14:54 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -19,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v1.2.0";
+const char* PROG_VERSION = "v1.2.1";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -350,13 +350,13 @@ static void runSdSmokeTestAndHalt()
 static void logPinConflictWarnings()
 {
   if (PIN_I2S_WS == PIN_TFT_RST || PIN_I2S_WS == PIN_TFT_CS || PIN_I2S_WS == PIN_TFT_DC ||
-      PIN_I2S_WS == PIN_TFT_SCL || PIN_I2S_WS == PIN_TFT_SDA || PIN_I2S_WS == PIN_TFT_BL)
+      PIN_I2S_WS == PIN_TFT_SCLK || PIN_I2S_WS == PIN_TFT_MOSI || PIN_I2S_WS == PIN_TFT_BLK)
   {
     ESP_LOGE(logTag, "Pin conflict: PIN_I2S_WS=%d overlaps TFT pin assignment", PIN_I2S_WS);
   }
 
   if (PIN_I2S_DOUT == PIN_TFT_RST || PIN_I2S_DOUT == PIN_TFT_CS || PIN_I2S_DOUT == PIN_TFT_DC ||
-      PIN_I2S_DOUT == PIN_TFT_SCL || PIN_I2S_DOUT == PIN_TFT_SDA || PIN_I2S_DOUT == PIN_TFT_BL)
+      PIN_I2S_DOUT == PIN_TFT_SCLK || PIN_I2S_DOUT == PIN_TFT_MOSI || PIN_I2S_DOUT == PIN_TFT_BLK)
   {
     ESP_LOGE(logTag, "Pin conflict: PIN_I2S_DOUT=%d overlaps TFT pin assignment", PIN_I2S_DOUT);
   }
@@ -507,7 +507,7 @@ void setup()
 
   ESP_LOGI(logTag, "Booting ESP32 MicroCycles Groovebox (%s)", PROG_VERSION);
   ESP_LOGI(logTag, "TFT pins: CS=%d DC=%d RST=%d BL=%d SCL=%d SDA=%d", PIN_TFT_CS, PIN_TFT_DC,
-           PIN_TFT_RST, PIN_TFT_BL, PIN_TFT_SCL, PIN_TFT_SDA);
+           PIN_TFT_RST, PIN_TFT_BLK, PIN_TFT_SCLK, PIN_TFT_MOSI);
   ESP_LOGI(logTag, "I2S pins: BCLK=%d WS=%d DOUT=%d", PIN_I2S_BCLK, PIN_I2S_WS, PIN_I2S_DOUT);
 
   logPinConflictWarnings();
