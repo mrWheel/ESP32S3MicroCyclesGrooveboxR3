@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-13 - 16:34 ***/
+/*** Last Changed: 2026-06-17 - 10:53 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -19,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v1.3.1";
+const char* PROG_VERSION = "v1.3.2";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -476,16 +476,24 @@ void setup()
 
   settingsStoreLoadRuntimeSettings(runtimeSettings);
 
-  bootStatusInit(runtimeSettings);
-  bootStatusPush(String("Boot ") + PROG_VERSION);
-  bootStatusPush("Display ready");
+  displayInit();
+  displaySetRotation(static_cast<int>(runtimeSettings.displayRotation));
+  displaySetThemeColorIndex(runtimeSettings.themeColorIndex);
+
+  displayBootLogClear("Groovebox boot");
+  displayBootLogLine(String("Version ") + PROG_VERSION);
+  displayBootLogLine("Display ready");
+  displayBootLogLine("Read samples");
 
   if (!sampleManagerInit())
   {
     ESP_LOGW(logTag, "Sample manager init failed, using fallback waveforms");
+    displayBootLogLine("Samples failed");
   }
-
-  bootStatusPush(sampleManagerIsSdCardReady() ? "Sample manager ready" : "Sample init failed");
+  else
+  {
+    displayBootLogLine("Samples ready");
+  }
 
   inputQueue =
       xQueueCreateStatic(24, sizeof(InputEventMessage), inputQueueStorage, &inputQueueStruct);
@@ -493,78 +501,44 @@ void setup()
   input.begin();
   input.setEncoderDirectionReversed(runtimeSettings.encoderDirectionReversed);
 
-  bootStatusPush("Input ready");
+  displayBootLogLine("Input ready");
 
   ESP_LOGI(logTag, "Loaded settings: rotation=%u theme=%d encoder=%s",
            static_cast<unsigned>(runtimeSettings.displayRotation), runtimeSettings.themeColorIndex,
            runtimeSettings.encoderDirectionReversed ? "B-A" : "A-B");
 
-  bootStatusPush("Pattern storage: SD/Card model");
-
-#ifdef DISPLAY_DEBUG_INFO
-  if (sampleManagerIsSdCardReady())
-  {
-    bootStatusPush("SD listing /");
-    displayFilesystemDirectoryRecursive(SD, "/");
-  }
-  else
-  {
-    bootStatusPush("SD unavailable");
-  }
-
-  for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
-  {
-    const SampleSlot& slot = sampleManagerGetSample(static_cast<SampleId>(sampleIndex));
-    String sampleLine = String("SMP ") + slot.name + " ";
-
-    if (!slot.valid)
-    {
-      sampleLine += "invalid";
-    }
-    else if (!slot.fromSd)
-    {
-      sampleLine += "fallback";
-    }
-    else
-    {
-      sampleLine += slot.storedInPsram ? "PSRAM" : "RAM";
-    }
-
-    bootStatusPush(sampleLine);
-  }
-#endif
-
-  bootStatusPush("Init sequencer");
+  displayBootLogLine("Init sequencer");
   sequencerInit();
 
-  bootStatusPush("Init audio engine");
+  displayBootLogLine("Init audio");
 
   if (!audioEngineInit())
   {
     ESP_LOGE(logTag, "Audio engine init failed");
-    bootStatusPush("Audio init failed");
+    displayBootLogLine("Audio failed");
   }
   else
   {
-    bootStatusPush("Audio engine ready");
+    displayBootLogLine("Audio ready");
   }
 
-  bootStatusPush("WiFi action");
+  displayBootLogLine("WiFi check");
   systemManagerInit();
 
   if (WiFi.status() == WL_CONNECTED)
   {
-    bootStatusPush(String("WiFi ") + WiFi.SSID() + " " + WiFi.localIP().toString());
+    displayBootLogLine("WiFi yes");
+    displayBootLogLine(String("AP ") + WiFi.SSID());
   }
   else
   {
-    bootStatusPush("WiFi standby");
+    displayBootLogLine("WiFi no");
   }
 
-  bootStatusPush("System manager ready");
-  bootStatusPush("Open Groovebox UI");
-
+  displayBootLogLine("Read patterns");
   uiManagerInit();
+
+  displayBootLogLine("Open UI");
 
   //-- Draw first full UI frame directly from setup.
   uiManagerUpdate();
@@ -584,26 +558,31 @@ void setup()
   if (!audioTaskStarted)
   {
     ESP_LOGE(logTag, "AudioTask creation failed");
+    displayBootLogLine("AudioTask failed");
   }
 
   if (!uiTaskStarted)
   {
     ESP_LOGE(logTag, "UiTask creation failed");
+    displayBootLogLine("UiTask failed");
   }
 
   if (!inputTaskStarted)
   {
     ESP_LOGE(logTag, "InputTask creation failed");
+    displayBootLogLine("InputTask failed");
   }
 
   if (!systemTaskStarted)
   {
     ESP_LOGE(logTag, "SystemTask creation failed");
+    displayBootLogLine("SystemTask failed");
   }
 
   if (!uiTaskStarted || !inputTaskStarted)
   {
     ESP_LOGW(logTag, "Input/UI fallback is active in loop() because one or more tasks failed");
+    displayBootLogLine("Fallback active");
   }
 
 } //   setup()

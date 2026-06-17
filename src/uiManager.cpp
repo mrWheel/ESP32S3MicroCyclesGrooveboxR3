@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-11 - 14:31 ***/
+/*** Last Changed: 2026-06-17 - 10:53 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -6,6 +6,7 @@
 #include "uiGrooveboxScreen.h"
 #include "uiSystemSettingsMenu.h"
 #include "uiSequencerInput.h"
+#include "DisplayDriverClass.h"
 
 #include "DisplayDriverClass.h"
 #include "audioEngine.h"
@@ -1504,6 +1505,8 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
     return false;
   }
 
+  displayBootLogLine("Group " + groupName);
+
   if (!settingsStoreListPatternsInGroupOnCard(groupName, cardPatternNames, patternStoreMaxEntries,
                                               cardPatternCount))
   {
@@ -1544,6 +1547,9 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
 
       return false;
     }
+
+    //--??-displayBootLogLine("Pattern " + patternName);
+    displayBootLogLine("Pattern " + cardPatternNames[patternIndex]);
 
     sequencerImportPatternToSlot(static_cast<uint8_t>(patternIndex), patternData);
 

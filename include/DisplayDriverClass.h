@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-13 - 15:22 ***/
+/*** Last Changed: 2026-06-17 - 10:53 ***/
 #ifndef DISPLAY_DRIVER_H
 #define DISPLAY_DRIVER_H
 
@@ -193,5 +193,11 @@ void displayDrawTestColorFade(const char* colorName, uint16_t darkColorVisual,
 
 //--- Set display backlight state
 void displaySetBacklight(bool enabled);
+
+//-- Clear boot log area and prepare direct boot line output.
+void displayBootLogClear(const char* title);
+
+//-- Append one boot log line using partial row redraws.
+void displayBootLogLine(const String& line);
 
 #endif

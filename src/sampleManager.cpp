@@ -1,7 +1,8 @@
-/*** Last Changed: 2026-06-13 - 15:22 ***/
+/*** Last Changed: 2026-06-17 - 10:53 ***/
 #include "sampleManager.h"
 #include "appConfig.h"
 #include "settingsStore.h"
+#include "DisplayDriverClass.h"
 
 #include <ArduinoJson.h>
 #include <SD.h>
@@ -248,6 +249,7 @@ bool sampleManagerLoadSampleSet(const char* sampleSetName)
 
     String wavPath = sampleSetDir + sampleFileNames[sampleIndex];
 
+    displayBootLogLine(String("Sample ") + sampleNames[sampleIndex]);
     ESP_LOGI(logTag, "Loading sample %s from %s", sampleNames[sampleIndex], wavPath.c_str());
 
     if (!loadSampleFromSdPath(sampleIndex, wavPath.c_str()))
@@ -771,6 +773,7 @@ bool sampleManagerInit()
   if (!sdCardReady)
   {
     ESP_LOGW(logTag, "Warning: SD unavailable, all tracks use fallback waveforms");
+    displayBootLogLine("SD unavailable");
   }
 
   String storedSampleSet = settingsStoreGetActiveSampleSet();
@@ -781,6 +784,7 @@ bool sampleManagerInit()
   }
 
   ESP_LOGI(logTag, "Active sample set: %s", activeSampleSet);
+  displayBootLogLine(String("Reading sample set ") + activeSampleSet);
 
   if (sdCardReady)
   {
@@ -791,6 +795,7 @@ bool sampleManagerInit()
 
     loadSampleGainPercent();
   }
+
   String sampleSetDir = getSampleSetDir();
 
   for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
@@ -807,6 +812,10 @@ bool sampleManagerInit()
             sizeof(sampleSlots[sampleIndex].name) - 1);
     sampleSlots[sampleIndex].name[sizeof(sampleSlots[sampleIndex].name) - 1] = '\0';
 
+    displayBootLogLine(
+        String("Sample ") + sampleNames[sampleIndex] + " " +
+        String(sampleManagerGetSampleGainPercent(static_cast<SampleId>(sampleIndex))) + "%");
+
     if (sdCardReady)
     {
       String wavPath = sampleSetDir + sampleFileNames[sampleIndex];
@@ -822,6 +831,7 @@ bool sampleManagerInit()
       else
       {
         ESP_LOGW(logTag, "Warning: Missing or invalid sample %s, using fallback", wavPath.c_str());
+        displayBootLogLine(String("Fallback ") + sampleNames[sampleIndex]);
       }
     }
   }

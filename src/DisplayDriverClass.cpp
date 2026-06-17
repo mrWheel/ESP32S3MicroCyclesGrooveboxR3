@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-13 - 15:22 ***/
+/*** Last Changed: 2026-06-17 - 10:53 ***/
 #include "DisplayDriverClass.h"
 #include "appConfig.h"
 #include "colorSettings.h"
@@ -1101,6 +1101,78 @@ void displaySetBacklight(bool enabled)
   display.setBacklight(enabled);
 
 } //   displaySetBacklight()
+
+//-- Boot log display state.
+static const uint8_t bootLogVisibleLineCount = 11;
+static const uint16_t bootLogTitleY = 0;
+static const uint16_t bootLogFirstLineY = 26;
+static const uint16_t bootLogLineHeight = 16;
+static String bootLogLines[bootLogVisibleLineCount];
+
+//-- Clip boot log text to display row width.
+static String fitBootLogLineText(const String& text)
+{
+  const size_t maxBootLogChars = 18;
+
+  if (text.length() <= maxBootLogChars)
+  {
+    return text;
+  }
+
+  return text.substring(0, maxBootLogChars);
+
+} //   fitBootLogLineText()
+
+//-- Draw one boot log row without redrawing the full screen.
+static void drawBootLogRow(uint8_t rowIndex)
+{
+  if (rowIndex >= bootLogVisibleLineCount)
+  {
+    return;
+  }
+
+  uint16_t rowY = bootLogFirstLineY + (static_cast<uint16_t>(rowIndex) * bootLogLineHeight);
+
+  tft.fillRect(0, rowY, displayWidth, bootLogLineHeight, ST77XX_BLACK);
+  tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(2, rowY);
+  tft.print(bootLogLines[rowIndex]);
+
+} //   drawBootLogRow()
+
+//-- Clear boot log area and prepare direct boot line output.
+void displayBootLogClear(const char* title)
+{
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setTextWrap(false);
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+  tft.setCursor(2, bootLogTitleY + 5);
+  //--??-tft.print(title);
+  drawHeader(title);
+
+  for (uint8_t rowIndex = 0; rowIndex < bootLogVisibleLineCount; rowIndex++)
+  {
+    bootLogLines[rowIndex] = "";
+    drawBootLogRow(rowIndex);
+  }
+
+} //   displayBootLogClear()
+
+//-- Append one boot log line using partial row redraws.
+void displayBootLogLine(const String& line)
+{
+  for (uint8_t rowIndex = 0; rowIndex < (bootLogVisibleLineCount - 1); rowIndex++)
+  {
+    bootLogLines[rowIndex] = bootLogLines[rowIndex + 1];
+    drawBootLogRow(rowIndex);
+  }
+
+  bootLogLines[bootLogVisibleLineCount - 1] = fitBootLogLineText(line);
+  drawBootLogRow(bootLogVisibleLineCount - 1);
+
+} //   displayBootLogLine()
 
 //--- Draw screen header
 static void drawHeader(const char* title, const char* rightText)
