@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-13 - 15:22 ***/
+/*** Last Changed: 2026-06-17 - 12:53 ***/
 #ifndef APP_CONFIG_H
 #define APP_CONFIG_H
 
@@ -59,6 +59,18 @@
 
 #ifndef PIN_SD_MOSI
 #define PIN_SD_MOSI 21
+#endif
+
+#ifndef PIN_SD_DTCT
+#define PIN_SD_DTCT -1
+#endif
+
+#ifndef PIN_SD_DTCT_ENABLED
+#define PIN_SD_DTCT_ENABLED 0
+#endif
+
+#ifndef PIN_SD_DTCT_NO_CARD_LEVEL
+#define PIN_SD_DTCT_NO_CARD_LEVEL HIGH
 #endif
 
 #ifndef TFT_SPI_HOST

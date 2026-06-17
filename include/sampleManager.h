@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 11:48 ***/
+/*** Last Changed: 2026-06-17 - 12:53 ***/
 #ifndef SAMPLE_MANAGER_H
 #define SAMPLE_MANAGER_H
 
@@ -33,6 +33,9 @@ bool sampleManagerInit();
 
 //-- True when SD card is mounted and usable.
 bool sampleManagerIsSdCardReady();
+
+//-- True when the SD card detect pin indicates that a card is inserted.
+bool sampleManagerIsSdCardInserted();
 
 bool sampleManagerListSampleSets(char sampleSetNames[][4], uint8_t maxSampleSets,
                                  uint8_t* sampleSetCount);

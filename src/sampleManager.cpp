@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 11:48 ***/
+/*** Last Changed: 2026-06-17 - 12:53 ***/
 #include "sampleManager.h"
 #include "appConfig.h"
 #include "settingsStore.h"
@@ -28,6 +28,7 @@ struct FmtChunk
 };
 
 static bool initSdCard();
+static void initSdCardDetectPin();
 static void buildFallbackSample(uint8_t sampleIndex);
 static void loadSampleGainPercent();
 static String getSampleSetDir();
@@ -585,10 +586,28 @@ static bool readMonoSampleFromFile(File& wavFile, uint32_t dataSize, uint32_t& c
 
 } //   readMonoSampleFromFile()
 
+//-- Initialize optional SD card detect pin.
+static void initSdCardDetectPin()
+{
+#if PIN_SD_DTCT_ENABLED && PIN_SD_DTCT >= 0
+  pinMode(PIN_SD_DTCT, INPUT_PULLUP);
+#endif
+
+} //   initSdCardDetectPin()
+
 //-- Initialize SD card on configured pins.
 static bool initSdCard()
 {
   static const uint32_t initFrequenciesHz[] = {400000U, 1000000U, 4000000U};
+
+  initSdCardDetectPin();
+
+  if (!sampleManagerIsSdCardInserted())
+  {
+    ESP_LOGE(logTag, "Error: No SD card inserted");
+    displayBootLogError("No SD card");
+    return false;
+  }
 
   pinMode(PIN_TFT_CS, OUTPUT);
   digitalWrite(PIN_TFT_CS, HIGH);
@@ -617,6 +636,13 @@ static bool initSdCard()
   {
     uint32_t initFrequency = initFrequenciesHz[attemptIndex];
 
+    if (!sampleManagerIsSdCardInserted())
+    {
+      ESP_LOGE(logTag, "Error: SD card removed during init");
+      displayBootLogError("SD card removed");
+      return false;
+    }
+
     SD.end();
 
     ESP_LOGI(logTag, "SD init attempt %u at %luHz", static_cast<unsigned>(attemptIndex + 1),
@@ -641,6 +667,7 @@ static bool initSdCard()
 
   ESP_LOGW(logTag, "Warning: SD mount failed (CS=%d SCK=%d MISO=%d MOSI=%d)", PIN_SD_CS, PIN_SD_SCK,
            PIN_SD_MISO, PIN_SD_MOSI);
+  displayBootLogWarning("SD mount failed");
 
   return false;
 
@@ -847,6 +874,17 @@ bool sampleManagerIsSdCardReady()
   return sdCardReady;
 
 } //   sampleManagerIsSdCardReady()
+
+//-- True when the SD card detect pin indicates that a card is inserted.
+bool sampleManagerIsSdCardInserted()
+{
+#if PIN_SD_DTCT_ENABLED && PIN_SD_DTCT >= 0
+  return digitalRead(PIN_SD_DTCT) != PIN_SD_DTCT_NO_CARD_LEVEL;
+#else
+  return true;
+#endif
+
+} //   sampleManagerIsSdCardInserted()
 
 //-- Return one sample slot by fixed identifier.
 const SampleSlot& sampleManagerGetSample(SampleId sampleId)

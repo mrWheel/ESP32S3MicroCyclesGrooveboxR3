@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 11:48 ***/
+/*** Last Changed: 2026-06-17 - 12:53 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -1443,10 +1443,28 @@ static void moveGrooveboxCursorAcrossPatterns(int delta)
 
 } //   moveGrooveboxCursorAcrossPatterns()
 
+//-- Show a clear popup when an SD action is requested without an inserted card.
+static bool ensureSdCardPresentForUiAction(const String& actionName)
+{
+  if (sampleManagerIsSdCardInserted())
+  {
+    return true;
+  }
+
+  showPatternStatus(actionName + "\nNo SD card", 3000);
+  return false;
+
+} //   ensureSdCardPresentForUiAction()
+
 //-- Load selected Card pattern group.
 static bool loadSelectedCardPatternGroup()
 {
   SequencerView view;
+
+  if (!ensureSdCardPresentForUiAction("Load Group"))
+  {
+    return false;
+  }
 
   if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 ||
       uiState.patternListSelection >= uiState.patternCount)
@@ -1595,6 +1613,11 @@ static bool saveLoadedPatternGroupToCard()
   uint8_t loadedPatternCount = getLoadedPatternSlotCount();
   int savedCount = 0;
 
+  if (!ensureSdCardPresentForUiAction("Save Group"))
+  {
+    return false;
+  }
+
   if (groupName.isEmpty())
   {
     showPatternStatus("No active\ngroup name", 2500);
@@ -1631,6 +1654,12 @@ static bool saveLoadedPatternGroupToCard()
     if (!patternData.chainEnabled)
     {
       patternData.chainTarget = "";
+    }
+
+    if (!sampleManagerIsSdCardInserted())
+    {
+      showPatternStatus("Save Group\nSD removed", 3000);
+      return false;
     }
 
     if (!settingsStoreSavePatternToCard(groupName, patternName, patternData))
@@ -1760,6 +1789,14 @@ static void refreshSampleSetList()
 //-- Load selected sample set from menu without restarting.
 static void loadSelectedSampleSetFromMenu()
 {
+  if (!ensureSdCardPresentForUiAction("Load Samples"))
+  {
+    uiState.sampleSetListOpen = false;
+    uiState.sampleSetListFirstVisibleIndex = 0;
+    uiState.dirty = true;
+    return;
+  }
+
   if (uiState.sampleSetCount <= 0 || uiState.sampleSetListSelection < 0 ||
       uiState.sampleSetListSelection >= uiState.sampleSetCount)
   {
@@ -1773,6 +1810,15 @@ static void loadSelectedSampleSetFromMenu()
   audioEngineStopAllVoices();
 
   drawBusyPopupNow("Load Samples", "Loading " + selectedSampleSet);
+
+  if (!sampleManagerIsSdCardInserted())
+  {
+    showPatternStatus("Load Samples\nSD removed", 3000);
+    uiState.sampleSetListOpen = false;
+    uiState.sampleSetListFirstVisibleIndex = 0;
+    uiState.dirty = true;
+    return;
+  }
 
   if (!sampleManagerLoadSampleSet(selectedSampleSet.c_str()))
   {
@@ -2032,6 +2078,11 @@ static void executeMenuAction()
   else if (uiState.menuSelection == 7)
   {
     SequencerView view;
+
+    if (!ensureSdCardPresentForUiAction("Load Samples"))
+    {
+      return;
+    }
 
     sequencerGetView(view);
 
