@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 10:53 ***/
+/*** Last Changed: 2026-06-17 - 11:48 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -19,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v1.3.2";
+const char* PROG_VERSION = "v1.3.3";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -481,18 +481,20 @@ void setup()
   displaySetThemeColorIndex(runtimeSettings.themeColorIndex);
 
   displayBootLogClear("Groovebox boot");
-  displayBootLogLine(String("Version ") + PROG_VERSION);
-  displayBootLogLine("Display ready");
-  displayBootLogLine("Read samples");
+  displayBootLogError("TEST ERROR");
+  delay(1000);
+  displayBootLogInfo(String("Version ") + PROG_VERSION);
+  displayBootLogInfo("Display ready");
+  displayBootLogInfo("Read samples");
 
   if (!sampleManagerInit())
   {
     ESP_LOGW(logTag, "Sample manager init failed, using fallback waveforms");
-    displayBootLogLine("Samples failed");
+    displayBootLogInfo("Samples failed");
   }
   else
   {
-    displayBootLogLine("Samples ready");
+    displayBootLogInfo("Samples ready");
   }
 
   inputQueue =
@@ -501,44 +503,44 @@ void setup()
   input.begin();
   input.setEncoderDirectionReversed(runtimeSettings.encoderDirectionReversed);
 
-  displayBootLogLine("Input ready");
+  displayBootLogInfo("Input ready");
 
   ESP_LOGI(logTag, "Loaded settings: rotation=%u theme=%d encoder=%s",
            static_cast<unsigned>(runtimeSettings.displayRotation), runtimeSettings.themeColorIndex,
            runtimeSettings.encoderDirectionReversed ? "B-A" : "A-B");
 
-  displayBootLogLine("Init sequencer");
+  displayBootLogInfo("Init sequencer");
   sequencerInit();
 
-  displayBootLogLine("Init audio");
+  displayBootLogInfo("Init audio");
 
   if (!audioEngineInit())
   {
     ESP_LOGE(logTag, "Audio engine init failed");
-    displayBootLogLine("Audio failed");
+    displayBootLogError("Audio failed");
   }
   else
   {
-    displayBootLogLine("Audio ready");
+    displayBootLogInfo("Audio ready");
   }
 
-  displayBootLogLine("WiFi check");
+  displayBootLogInfo("WiFi check");
   systemManagerInit();
 
   if (WiFi.status() == WL_CONNECTED)
   {
-    displayBootLogLine("WiFi yes");
-    displayBootLogLine(String("AP ") + WiFi.SSID());
+    displayBootLogInfo("WiFi yes");
+    displayBootLogInfo(String("AP ") + WiFi.SSID());
   }
   else
   {
-    displayBootLogLine("WiFi no");
+    displayBootLogInfo("WiFi no");
   }
 
-  displayBootLogLine("Read patterns");
+  displayBootLogInfo("Read patterns");
   uiManagerInit();
 
-  displayBootLogLine("Open UI");
+  displayBootLogInfo("Open UI");
 
   //-- Draw first full UI frame directly from setup.
   uiManagerUpdate();
@@ -558,31 +560,31 @@ void setup()
   if (!audioTaskStarted)
   {
     ESP_LOGE(logTag, "AudioTask creation failed");
-    displayBootLogLine("AudioTask failed");
+    displayBootLogError("AudioTask failed");
   }
 
   if (!uiTaskStarted)
   {
     ESP_LOGE(logTag, "UiTask creation failed");
-    displayBootLogLine("UiTask failed");
+    displayBootLogError("UiTask failed");
   }
 
   if (!inputTaskStarted)
   {
     ESP_LOGE(logTag, "InputTask creation failed");
-    displayBootLogLine("InputTask failed");
+    displayBootLogError("InputTask failed");
   }
 
   if (!systemTaskStarted)
   {
     ESP_LOGE(logTag, "SystemTask creation failed");
-    displayBootLogLine("SystemTask failed");
+    displayBootLogError("SystemTask failed");
   }
 
   if (!uiTaskStarted || !inputTaskStarted)
   {
     ESP_LOGW(logTag, "Input/UI fallback is active in loop() because one or more tasks failed");
-    displayBootLogLine("Fallback active");
+    displayBootLogError("Fallback active");
   }
 
 } //   setup()

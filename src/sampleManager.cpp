@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 10:53 ***/
+/*** Last Changed: 2026-06-17 - 11:48 ***/
 #include "sampleManager.h"
 #include "appConfig.h"
 #include "settingsStore.h"
@@ -249,7 +249,7 @@ bool sampleManagerLoadSampleSet(const char* sampleSetName)
 
     String wavPath = sampleSetDir + sampleFileNames[sampleIndex];
 
-    displayBootLogLine(String("Sample ") + sampleNames[sampleIndex]);
+    displayBootLogInfo(String("Sample ") + sampleNames[sampleIndex]);
     ESP_LOGI(logTag, "Loading sample %s from %s", sampleNames[sampleIndex], wavPath.c_str());
 
     if (!loadSampleFromSdPath(sampleIndex, wavPath.c_str()))
@@ -712,6 +712,7 @@ static bool loadSampleFromSdPath(uint8_t sampleIndex, const char* wavPath)
   {
     ESP_LOGE(logTag, "Error: Sample %s memory allocation failed (%lu bytes)",
              sampleNames[sampleIndex], static_cast<unsigned long>(allocBytes));
+    displayBootLogError("Alloc " + String(sampleNames[sampleIndex]) + " failed");
 
     wavFile.close();
     return false;
@@ -730,7 +731,7 @@ static bool loadSampleFromSdPath(uint8_t sampleIndex, const char* wavPath)
     {
       ESP_LOGE(logTag, "Error: Sample %s decode error at frame %lu", sampleNames[sampleIndex],
                static_cast<unsigned long>(frame));
-
+      displayBootLogError("Decode " + String(sampleNames[sampleIndex]) + " failed");
       free(buffer);
       wavFile.close();
 
@@ -773,7 +774,7 @@ bool sampleManagerInit()
   if (!sdCardReady)
   {
     ESP_LOGW(logTag, "Warning: SD unavailable, all tracks use fallback waveforms");
-    displayBootLogLine("SD unavailable");
+    displayBootLogInfo("SD unavailable");
   }
 
   String storedSampleSet = settingsStoreGetActiveSampleSet();
@@ -784,7 +785,7 @@ bool sampleManagerInit()
   }
 
   ESP_LOGI(logTag, "Active sample set: %s", activeSampleSet);
-  displayBootLogLine(String("Reading sample set ") + activeSampleSet);
+  displayBootLogInfo(String("Reading sample set ") + activeSampleSet);
 
   if (sdCardReady)
   {
@@ -812,7 +813,7 @@ bool sampleManagerInit()
             sizeof(sampleSlots[sampleIndex].name) - 1);
     sampleSlots[sampleIndex].name[sizeof(sampleSlots[sampleIndex].name) - 1] = '\0';
 
-    displayBootLogLine(
+    displayBootLogInfo(
         String("Sample ") + sampleNames[sampleIndex] + " " +
         String(sampleManagerGetSampleGainPercent(static_cast<SampleId>(sampleIndex))) + "%");
 
@@ -831,7 +832,7 @@ bool sampleManagerInit()
       else
       {
         ESP_LOGW(logTag, "Warning: Missing or invalid sample %s, using fallback", wavPath.c_str());
-        displayBootLogLine(String("Fallback ") + sampleNames[sampleIndex]);
+        displayBootLogInfo(String("Fallback ") + sampleNames[sampleIndex]);
       }
     }
   }

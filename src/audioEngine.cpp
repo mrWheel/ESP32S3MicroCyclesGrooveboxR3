@@ -1,6 +1,7 @@
-/*** Last Changed: 2026-06-13 - 16:34 ***/
+/*** Last Changed: 2026-06-17 - 11:48 ***/
 #include "audioEngine.h"
 #include "appConfig.h"
+#include "DisplayDriverClass.h"
 
 #include <Arduino.h>
 #include <driver/i2s.h>
@@ -556,6 +557,7 @@ bool audioEngineInit()
   {
     audioOutputReady = false;
     ESP_LOGE(logTag, "Failed to install I2S driver");
+    displayBootLogError("I2S driver failed");
     return false;
   }
 
@@ -564,6 +566,7 @@ bool audioEngineInit()
     audioOutputReady = false;
     i2s_driver_uninstall(audioI2sPort);
     ESP_LOGE(logTag, "Failed to set I2S pins");
+    displayBootLogError("I2S pins failed");
     return false;
   }
 
@@ -572,6 +575,7 @@ bool audioEngineInit()
     audioOutputReady = false;
     i2s_driver_uninstall(audioI2sPort);
     ESP_LOGE(logTag, "Failed to clear I2S DMA buffer");
+    displayBootLogError("I2S DMA buffer failed");
     return false;
   }
 

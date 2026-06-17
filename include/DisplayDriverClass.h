@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 10:53 ***/
+/*** Last Changed: 2026-06-17 - 11:48 ***/
 #ifndef DISPLAY_DRIVER_H
 #define DISPLAY_DRIVER_H
 
@@ -194,10 +194,24 @@ void displayDrawTestColorFade(const char* colorName, uint16_t darkColorVisual,
 //--- Set display backlight state
 void displaySetBacklight(bool enabled);
 
+//-- Boot log severity.
+enum BootLogSeverity
+{
+  bootLogInfo,
+  bootLogWarning,
+  bootLogError
+};
+
 //-- Clear boot log area and prepare direct boot line output.
 void displayBootLogClear(const char* title);
 
-//-- Append one boot log line using partial row redraws.
-void displayBootLogLine(const String& line);
+//-- Append boot log line with normal theme colors.
+void displayBootLogInfo(const String& line);
+
+//-- Append boot log line with warning colors.
+void displayBootLogWarning(const String& line);
+
+//-- Append boot log line with error colors.
+void displayBootLogError(const String& line);
 
 #endif
