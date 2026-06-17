@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 11:48 ***/
+/*** Last Changed: 2026-06-17 - 12:15 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -19,7 +19,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v1.3.3";
+const char* PROG_VERSION = "v1.3.4";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -41,73 +41,6 @@ static bool audioTaskStarted = false;
 static bool uiTaskStarted = false;
 static bool inputTaskStarted = false;
 static bool systemTaskStarted = false;
-
-//-- Boot status scroller state.
-static const int bootStatusVisibleLines = 9;
-static String bootStatusLines[bootStatusVisibleLines];
-static bool bootStatusDisplayReady = false;
-
-#ifdef DISPLAY_DEBUG_INFO
-//-- Draw the current boot status line buffer.
-static void bootStatusDraw()
-{
-  if (!bootStatusDisplayReady)
-  {
-    return;
-  }
-  display.drawListScreen("Startup", bootStatusLines, bootStatusVisibleLines, -1, 0, PROG_VERSION);
-} //   bootStatusDraw()
-
-//-- Keep only the tail of long lines so right edge remains visible.
-static String compactBootStatusLine(const String& line)
-{
-  const int maxChars = 26;
-
-  if (line.length() <= maxChars)
-  {
-    return line;
-  }
-
-  return String("...") + line.substring(line.length() - (maxChars - 3));
-
-} //   compactBootStatusLine()
-#endif
-
-//-- Append one startup status line at the bottom and scroll older lines upward.
-static void bootStatusPush(const String& rawLine)
-{
-  if (!bootStatusDisplayReady)
-  {
-    return;
-  }
-
-#ifdef DISPLAY_DEBUG_INFO
-  for (int lineIndex = 0; lineIndex < (bootStatusVisibleLines - 1); lineIndex++)
-  {
-    bootStatusLines[lineIndex] = bootStatusLines[lineIndex + 1];
-  }
-  bootStatusLines[bootStatusVisibleLines - 1] = compactBootStatusLine(rawLine);
-  bootStatusDraw();
-#endif
-} //   bootStatusPush()
-
-//-- Prepare the display for boot status after SD initialization is complete.
-static void bootStatusInit(const RuntimeSettings& runtimeSettings)
-{
-  for (int lineIndex = 0; lineIndex < bootStatusVisibleLines; lineIndex++)
-  {
-    bootStatusLines[lineIndex] = "";
-  }
-
-  displayInit();
-  displaySetRotation(static_cast<int>(runtimeSettings.displayRotation));
-  displaySetThemeColorIndex(runtimeSettings.themeColorIndex);
-
-  bootStatusDisplayReady = true;
-
-  display.drawMessage("Groovebox", "Booting...");
-
-} //   bootStatusInit()
 
 //-- Build absolute child path for recursive filesystem traversal.
 static String buildFilesystemChildPath(const char* parentPath, const char* entryName)
@@ -179,52 +112,6 @@ static void logFilesystemDirectoryRecursive(fs::FS& filesystem, const char* file
   directory.close();
 
 } //   logFilesystemDirectoryRecursive()
-
-//-- Show recursive filesystem listing on the startup display.
-static void displayFilesystemDirectoryRecursive(fs::FS& filesystem, const char* directoryPath)
-{
-  File directory = filesystem.open(directoryPath, "r");
-
-  if (!directory)
-  {
-    bootStatusPush(String("open failed ") + directoryPath);
-    return;
-  }
-
-  if (!directory.isDirectory())
-  {
-    bootStatusPush(String("not a dir ") + directoryPath);
-    directory.close();
-    return;
-  }
-
-  while (true)
-  {
-    File entry = directory.openNextFile();
-
-    if (!entry)
-    {
-      break;
-    }
-
-    String entryPath = buildFilesystemChildPath(directoryPath, entry.name());
-
-    if (entry.isDirectory())
-    {
-      bootStatusPush(String("SD ") + entryPath + "/");
-      displayFilesystemDirectoryRecursive(filesystem, entryPath.c_str());
-    }
-    else
-    {
-      bootStatusPush(String("SD ") + entryPath);
-    }
-
-    entry.close();
-  }
-
-  directory.close();
-
-} //   displayFilesystemDirectoryRecursive()
 
 //-- Run isolated SD smoke test and stop firmware startup.
 #ifdef SD_SMOKE_TEST
@@ -481,8 +368,6 @@ void setup()
   displaySetThemeColorIndex(runtimeSettings.themeColorIndex);
 
   displayBootLogClear("Groovebox boot");
-  displayBootLogError("TEST ERROR");
-  delay(1000);
   displayBootLogInfo(String("Version ") + PROG_VERSION);
   displayBootLogInfo("Display ready");
   displayBootLogInfo("Read samples");
