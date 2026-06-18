@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-18 - 11:21 ***/
+/*** Last Changed: 2026-06-18 - 12:08 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -48,7 +48,7 @@ static const int settingsEntryCount = 14;
 static const int patternListModeCardGroups = 1001;
 static const int patternListModeMemoryPatterns = 1002;
 //-- Card Storage menu item count.
-static const int cardStorageMenuEntryCount = 6;
+static const int cardStorageMenuEntryCount = 7;
 static const int sampleSetListMaxEntries = 9;
 static const int settingsFirstActionIndex = 3;
 static const int patternListMaxEntries = static_cast<int>(patternStoreMaxEntries * 2U);
@@ -325,6 +325,7 @@ static void syncSequencerChainTargetsFromUi()
 
 } //   syncSequencerChainTargetsFromUi()
 
+/*** no longer in use (??) *******
 //-- Return true when every loaded pattern is part of the chain starting at p01.
 static bool areAllLoadedPatternsIncludedInPlaybackChain()
 {
@@ -382,6 +383,7 @@ static bool areAllLoadedPatternsIncludedInPlaybackChain()
   return visitedCount == loadedPatternCount;
 
 } //   areAllLoadedPatternsIncludedInPlaybackChain()
+ ****/
 
 //-- Map current parameter page to popup selection index.
 static int popupSelectionFromParameterPage(uint8_t parameterPage)
@@ -583,6 +585,8 @@ static void openEditPopupForCurrentStep()
   {
     sequencerToggleCurrentStep();
     sequencerGetView(view);
+
+    uiState.patternGroupDirty = true;
   }
 
   uiState.editPopupSelection = popupSelectionFromParameterPage(uiState.parameterPageIndex);
@@ -977,12 +981,90 @@ static void drawBusyPopupNow(const String& title, const String& message)
 
 } //   drawBusyPopupNow()
 
-//-- Commit Rename or Copy pattern group input.
+//-- Show a clear popup when an SD action is requested without an inserted card.
+static bool ensureSdCardPresentForUiAction(const String& actionName);
+
+//-- Save current runtime settings to storage.
+static void saveRuntimeSettingsFromCurrentState();
+
+//-- Create one empty pattern payload for a new group.
+static void buildEmptyPatternData(PatternData& patternData)
+{
+  patternData.bpm = 120;
+  patternData.swingPercent = 8;
+  patternData.chainEnabled = false;
+  patternData.chainLength = 1;
+  patternData.chainTarget = "";
+
+  for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
+  {
+    patternData.pattern.tracks[trackIndex].mute = false;
+
+    for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
+    {
+      patternData.pattern.tracks[trackIndex].steps[stepIndex].trigger = false;
+      patternData.pattern.tracks[trackIndex].steps[stepIndex].velocity = 128;
+      patternData.pattern.tracks[trackIndex].steps[stepIndex].probability = 100;
+      patternData.pattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
+      patternData.pattern.tracks[trackIndex].steps[stepIndex].lockPitch = 0;
+      patternData.pattern.tracks[trackIndex].steps[stepIndex].lockDecay = 100;
+    }
+  }
+
+} //   buildEmptyPatternData()
+
+//-- Create a new Card pattern group with one empty p01 pattern.
+static bool createNewPatternGroupOnCard(const String& groupName, String& statusMessage)
+{
+  PatternData patternData;
+
+  if (!ensureSdCardPresentForUiAction("New Group"))
+  {
+    statusMessage = "No SD card";
+    return false;
+  }
+
+  buildEmptyPatternData(patternData);
+
+  drawBusyPopupNow("New Group", "Creating " + groupName);
+
+  if (!settingsStoreSavePatternToCard(groupName, "p01", patternData))
+  {
+    statusMessage = "Create failed\n" + groupName;
+    return false;
+  }
+
+  if (!loadCardPatternGroupIntoMemory(groupName, false))
+  {
+    statusMessage = "Load failed\n" + groupName;
+    return false;
+  }
+
+  if (!settingsStoreSetActivePatternGroup(groupName))
+  {
+    statusMessage = "NVS save failed\n" + groupName;
+    return false;
+  }
+
+  saveRuntimeSettingsFromCurrentState();
+
+  uiState.activePatternName = "p01";
+  uiState.patternGroupDirty = false;
+  uiState.patternListNeedsRefresh = true;
+
+  statusMessage = "Created group\n" + groupName;
+
+  return true;
+
+} //   createNewPatternGroupOnCard()
+
+//-- Commit Rename, Copy or New pattern group input.
 static void commitPatternGroupNameInput()
 {
   String oldGroupName = settingsStoreGetActivePatternGroup();
   String newGroupName = uiPatternGroupInputGetTrimmedName();
   bool copyMode = uiPatternGroupInputIsCopyMode();
+  bool newGroupMode = uiPatternGroupInputIsNewGroupMode();
   String statusMessage;
   bool success = false;
 
@@ -1002,23 +1084,20 @@ static void commitPatternGroupNameInput()
   uiState.patternStatusText = "";
   uiState.dirty = true;
 
-  if (copyMode)
+  if (newGroupMode)
   {
-    display.drawMessage("Copy Pattern", "Copying...");
+    success = createNewPatternGroupOnCard(newGroupName, statusMessage);
   }
-  else
+  else if (copyMode)
   {
-    display.drawMessage("Rename Pattern", "Renaming...");
-  }
-
-  delay(50);
-
-  if (copyMode)
-  {
+    display.drawMessage("Copy Group", "Copying...");
+    delay(50);
     success = uiCardStorageCopyPatternGroup(oldGroupName, newGroupName, statusMessage);
   }
   else
   {
+    display.drawMessage("Rename Group", "Renaming...");
+    delay(50);
     success = uiCardStorageRenamePatternGroup(oldGroupName, newGroupName, statusMessage);
   }
 
@@ -2727,6 +2806,8 @@ static bool handleGlobalLongPressEncoderEvent(const SequencerView& view)
 //-- Handle encoder events on the main Groovebox screen.
 static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const SequencerView& view)
 {
+  bool patternWasModified = false;
+
   if (encoderEvent == ENCODER_EVENT_LEFT)
   {
     if (view.editMode)
@@ -2738,18 +2819,22 @@ static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const Sequenc
       else if (uiState.parameterPageIndex == parameterPageVelocity)
       {
         sequencerAdjustCurrentStepVelocity(-8);
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPagePitch)
       {
         sequencerAdjustCurrentStepLockPitch(-1);
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPageDecay)
       {
         sequencerAdjustCurrentStepLockDecay(-5);
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPageProbability)
       {
         sequencerAdjustCurrentStepProbability(-5);
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPageMute)
       {
@@ -2759,6 +2844,7 @@ static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const Sequenc
       {
         sequencerAdjustChainLength(-1);
         uiState.chainSettingsDirty = true;
+        patternWasModified = true;
       }
     }
     else
@@ -2777,18 +2863,22 @@ static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const Sequenc
       else if (uiState.parameterPageIndex == parameterPageVelocity)
       {
         sequencerAdjustCurrentStepVelocity(8);
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPagePitch)
       {
         sequencerAdjustCurrentStepLockPitch(1);
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPageDecay)
       {
         sequencerAdjustCurrentStepLockDecay(5);
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPageProbability)
       {
         sequencerAdjustCurrentStepProbability(5);
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPageMute)
       {
@@ -2798,6 +2888,7 @@ static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const Sequenc
       {
         sequencerAdjustChainLength(1);
         uiState.chainSettingsDirty = true;
+        patternWasModified = true;
       }
     }
     else
@@ -2816,24 +2907,29 @@ static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const Sequenc
       if (uiState.parameterPageIndex == parameterPageTrig)
       {
         sequencerToggleCurrentStep();
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPageMute)
       {
         sequencerToggleMuteForSelectedTrack();
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPagePitch ||
                uiState.parameterPageIndex == parameterPageDecay)
       {
         sequencerToggleCurrentStepLock();
+        patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPageChain)
       {
         sequencerToggleChainEnabled();
         uiState.chainSettingsDirty = true;
+        patternWasModified = true;
       }
       else
       {
         sequencerToggleCurrentStep();
+        patternWasModified = true;
       }
     }
   }
@@ -2849,6 +2945,11 @@ static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const Sequenc
       uiState.tempoEditSelection = 0;
       uiState.tempoEditValueEdit = false;
     }
+  }
+
+  if (patternWasModified)
+  {
+    uiState.patternGroupDirty = true;
   }
 
   uiState.dirty = true;
@@ -2900,15 +3001,20 @@ static void handleCardStorageMenuEncoderEvent(EncoderEvent encoderEvent)
     }
     else if (uiState.cardStorageMenuSelection == 2)
     {
-      uiPatternGroupInputOpen(false);
+      uiPatternGroupInputOpenNewGroup();
       uiState.dirty = true;
     }
     else if (uiState.cardStorageMenuSelection == 3)
     {
-      uiPatternGroupInputOpen(true);
+      uiPatternGroupInputOpen(false);
       uiState.dirty = true;
     }
     else if (uiState.cardStorageMenuSelection == 4)
+    {
+      uiPatternGroupInputOpen(true);
+      uiState.dirty = true;
+    }
+    else if (uiState.cardStorageMenuSelection == 5)
     {
       uiState.patternListOpen = true;
       uiState.patternDeleteMode = true;
@@ -2918,7 +3024,7 @@ static void handleCardStorageMenuEncoderEvent(EncoderEvent encoderEvent)
       uiState.patternListNeedsRefresh = true;
       uiState.cardStorageMenuOpen = false;
     }
-    else if (uiState.cardStorageMenuSelection == 5)
+    else if (uiState.cardStorageMenuSelection == 6)
     {
       uiState.cardStorageMenuOpen = false;
       uiState.cardStorageMenuSelection = 0;

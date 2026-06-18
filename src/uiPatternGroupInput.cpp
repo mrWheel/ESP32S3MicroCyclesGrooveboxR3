@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-01 - 14:45 ***/
+/*** Last Changed: 2026-06-18 - 12:08 ***/
 #include "uiPatternGroupInput.h"
 #include "DisplayDriverClass.h"
 #include <string.h>
@@ -12,6 +12,7 @@ struct UiPatternGroupInputState
 {
   bool open;
   bool copyMode;
+  bool newGroupMode;
   int cursor;
   int tokenIndex;
   char value[patternGroupNameInputLength + 1];
@@ -56,6 +57,7 @@ void uiPatternGroupInputInit()
 {
   inputState.open = false;
   inputState.copyMode = false;
+  inputState.newGroupMode = false;
   inputState.cursor = 0;
   inputState.tokenIndex = 0;
   inputState.drawn = false;
@@ -78,11 +80,30 @@ void uiPatternGroupInputOpen(bool copyMode)
   inputState.value[patternGroupNameInputLength] = '\0';
   inputState.open = true;
   inputState.copyMode = copyMode;
+  inputState.newGroupMode = false;
   inputState.cursor = 0;
   inputState.tokenIndex = 0;
   inputState.drawn = false;
 
 } //   uiPatternGroupInputOpen()
+
+//-- Open pattern group input for new group mode.
+void uiPatternGroupInputOpenNewGroup()
+{
+  for (int charIndex = 0; charIndex < patternGroupNameInputLength; charIndex++)
+  {
+    inputState.value[charIndex] = ' ';
+  }
+
+  inputState.value[patternGroupNameInputLength] = '\0';
+  inputState.open = true;
+  inputState.copyMode = false;
+  inputState.newGroupMode = true;
+  inputState.cursor = 0;
+  inputState.tokenIndex = 0;
+  inputState.drawn = false;
+
+} //   uiPatternGroupInputOpenNewGroup()
 
 //-- Close pattern group input and reset redraw state.
 void uiPatternGroupInputClose()
@@ -105,6 +126,13 @@ bool uiPatternGroupInputIsCopyMode()
   return inputState.copyMode;
 
 } //   uiPatternGroupInputIsCopyMode()
+
+//-- Return true when pattern group input is in new group mode.
+bool uiPatternGroupInputIsNewGroupMode()
+{
+  return inputState.newGroupMode;
+
+} //   uiPatternGroupInputIsNewGroupMode()
 
 //-- Return trimmed input name.
 String uiPatternGroupInputGetTrimmedName()
@@ -133,16 +161,29 @@ void uiPatternGroupInputDraw(const String& sourceGroupName)
   String lines[6];
   String inputText = buildPatternGroupNameInputText();
   String tokenText = "Turn=" + String(patternGroupNameInputTokens[inputState.tokenIndex]);
-  const char* title = inputState.copyMode ? "Copy Pattern" : "Rename Pattern";
+  const char* title =
+      inputState.newGroupMode ? "New Group" : (inputState.copyMode ? "Copy Group" : "Rename Group");
 
   if (!inputState.drawn)
   {
-    lines[0] = inputState.copyMode ? "Copy:" : "Rename:";
-    lines[1] = sourceGroupName;
-    lines[2] = "To:";
-    lines[3] = inputText;
-    lines[4] = tokenText;
-    lines[5] = inputState.copyMode ? "Hold=Copy K0=Back" : "Hold=Rename K0=Back";
+    if (inputState.newGroupMode)
+    {
+      lines[0] = "Create:";
+      lines[1] = "New group";
+      lines[2] = "Name:";
+      lines[3] = inputText;
+      lines[4] = tokenText;
+      lines[5] = "Hold=Create K0=Back";
+    }
+    else
+    {
+      lines[0] = inputState.copyMode ? "Copy:" : "Rename:";
+      lines[1] = sourceGroupName;
+      lines[2] = "To:";
+      lines[3] = inputText;
+      lines[4] = tokenText;
+      lines[5] = inputState.copyMode ? "Hold=Copy K0=Back" : "Hold=Rename K0=Back";
+    }
 
     display.drawSelectionOverlay(title, lines, 6, -1);
 

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-01 - 14:45 ***/
+/*** Last Changed: 2026-06-18 - 12:08 ***/
 #ifndef UI_PATTERN_GROUP_INPUT_H
 #define UI_PATTERN_GROUP_INPUT_H
 
@@ -18,6 +18,12 @@ bool uiPatternGroupInputIsOpen();
 
 //-- Return true when pattern group input is in copy mode.
 bool uiPatternGroupInputIsCopyMode();
+
+//-- Return true when pattern group input is in new group mode.
+bool uiPatternGroupInputIsNewGroupMode();
+
+//-- Open pattern group input for new group mode.
+void uiPatternGroupInputOpenNewGroup();
 
 //-- Return trimmed input name.
 String uiPatternGroupInputGetTrimmedName();
