@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 18:38 ***/
+/*** Last Changed: 2026-06-18 - 11:21 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -97,6 +97,8 @@ void sequencerAdjustChainLength(int delta);
 void sequencerToggleChainEnabled();
 //-- Start playback from the active visible pattern.
 void sequencerStartFromActivePattern();
+//-- Request switch to another pattern at the next pattern boundary.
+void sequencerRequestPatternSwitchAfterCurrentPattern(uint8_t patternIndex);
 
 //-- Pattern memory actions.
 void sequencerStorePattern(uint8_t slotIndex);

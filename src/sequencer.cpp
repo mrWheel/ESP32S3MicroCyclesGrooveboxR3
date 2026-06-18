@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-10 - 18:38 ***/
+/*** Last Changed: 2026-06-18 - 11:21 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -32,6 +32,7 @@ struct SequencerState
   uint8_t chainLength;
   uint8_t finalStopPatternIndex;
   uint8_t loadedPatternCount;
+  uint8_t pendingPatternIndex;
 
   uint8_t chainTargetIndex[sequencerPatternCount];
   bool chainTargetValid[sequencerPatternCount];
@@ -39,6 +40,7 @@ struct SequencerState
   bool playing;
   bool editMode;
   bool chainEnabled;
+  bool pendingPatternSwitch;
 
   TransportState transportState;
 
@@ -195,9 +197,11 @@ void sequencerInit()
   state.chainLength = 1;
   state.finalStopPatternIndex = 0;
   state.loadedPatternCount = 1;
+  state.pendingPatternIndex = 0;
   state.playing = false;
   state.editMode = false;
   state.chainEnabled = false;
+  state.pendingPatternSwitch = false;
   state.transportState = transportStopped;
   state.nextStepDueUs = 0;
 
@@ -213,7 +217,7 @@ void sequencerInit()
 } //   sequencerInit()
 
 //-- Advance timing from AudioTask clock and return track trigger bitmask with per-track levels,
-// decays and pitches.
+//-- decays and pitches.
 bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& outTrackMask,
                              uint8_t outTrackLevels[sequencerTrackCount],
                              uint8_t outTrackDecays[sequencerTrackCount],
@@ -287,20 +291,21 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
 
       if (state.currentStep == 0)
       {
-        if (state.transportState == transportStopRequested)
+        if (state.pendingPatternSwitch)
         {
-          if (state.playingPatternIndex == state.finalStopPatternIndex)
+          if (state.pendingPatternIndex < state.loadedPatternCount)
           {
-            state.playing = false;
-            state.transportState = transportStopped;
-            state.nextStepDueUs = 0;
+            state.playingPatternIndex = state.pendingPatternIndex;
           }
-          else
-          {
-            state.playingPatternIndex = state.finalStopPatternIndex;
-            state.transportState = transportPlayingFinalPattern;
-            state.nextStepDueUs = 0;
-          }
+
+          state.pendingPatternSwitch = false;
+          state.nextStepDueUs = 0;
+        }
+        else if (state.transportState == transportStopRequested)
+        {
+          state.playing = false;
+          state.transportState = transportStopped;
+          state.nextStepDueUs = 0;
         }
         else if (state.transportState == transportPlayingFinalPattern)
         {
@@ -349,6 +354,8 @@ void sequencerStartFromActivePattern()
   state.playing = true;
   state.transportState = transportRunning;
   state.playingPatternIndex = state.activePatternIndex;
+  state.pendingPatternIndex = state.activePatternIndex;
+  state.pendingPatternSwitch = false;
   state.currentStep = 0;
   state.nextStepDueUs = 0;
 
@@ -356,7 +363,6 @@ void sequencerStartFromActivePattern()
 
 } //   sequencerStartFromActivePattern()
 
-//=========
 //-- Stop immediately without waiting for musical pattern boundaries.
 void sequencerStopImmediately()
 {
@@ -364,12 +370,33 @@ void sequencerStopImmediately()
 
   state.playing = false;
   state.transportState = transportStopped;
+  state.pendingPatternSwitch = false;
   state.currentStep = 0;
   state.nextStepDueUs = 0;
 
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerStopImmediately()
+
+//-- Request switch to another pattern at the next pattern boundary.
+void sequencerRequestPatternSwitchAfterCurrentPattern(uint8_t patternIndex)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (patternIndex >= state.loadedPatternCount)
+  {
+    patternIndex = static_cast<uint8_t>(state.loadedPatternCount - 1U);
+  }
+
+  if (state.playing && !state.chainEnabled)
+  {
+    state.pendingPatternIndex = patternIndex;
+    state.pendingPatternSwitch = true;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerRequestPatternSwitchAfterCurrentPattern()
 
 //-- Store how many pattern slots are currently loaded in RAM.
 void sequencerSetLoadedPatternCount(uint8_t loadedPatternCount)

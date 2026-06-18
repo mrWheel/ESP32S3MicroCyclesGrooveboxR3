@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 12:53 ***/
+/*** Last Changed: 2026-06-18 - 11:21 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -1426,18 +1426,27 @@ static bool deleteSelectedPattern(String* outDeletedName = nullptr,
 //-- Move Groovebox cursor across tracks and loaded pattern slots.
 static void moveGrooveboxCursorAcrossPatterns(int delta)
 {
-  SequencerView view;
+  SequencerView viewBefore;
+  SequencerView viewAfter;
   uint8_t loadedPatternCount = getLoadedPatternSlotCount();
 
   flushPendingChainSettings();
 
+  sequencerGetView(viewBefore);
+
   sequencerMoveTrackAndPattern(delta, loadedPatternCount);
 
-  sequencerGetView(view);
+  sequencerGetView(viewAfter);
 
-  uiState.activePatternName = buildPatternNameForSlot(view.activePatternIndex);
+  uiState.activePatternName = buildPatternNameForSlot(viewAfter.activePatternIndex);
 
   loadChainSettingsForActivePattern();
+
+  if (viewBefore.playing && !viewBefore.chainEnabled &&
+      viewBefore.activePatternIndex != viewAfter.activePatternIndex)
+  {
+    sequencerRequestPatternSwitchAfterCurrentPattern(viewAfter.activePatternIndex);
+  }
 
   uiState.dirty = true;
 
@@ -1710,12 +1719,10 @@ static void stopPlaybackForStorageAction()
 
 } //   stopPlaybackForStorageAction()
 
-//-- Start immediately or request musical deferred stop from the Groovebox screen.
+//-- Start immediately or stop immediately from the Groovebox screen.
 static void handleGrooveboxTransportButton()
 {
   SequencerView view;
-  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
-  uint8_t finalPatternIndex = 0;
 
   sequencerGetView(view);
 
@@ -1737,15 +1744,7 @@ static void handleGrooveboxTransportButton()
     return;
   }
 
-  if (areAllLoadedPatternsIncludedInPlaybackChain())
-  {
-    sequencerStopImmediately();
-    return;
-  }
-
-  finalPatternIndex = static_cast<uint8_t>(loadedPatternCount - 1U);
-
-  sequencerRequestStopAfterFinalPattern(finalPatternIndex);
+  sequencerStopImmediately();
 
 } //   handleGrooveboxTransportButton()
 
