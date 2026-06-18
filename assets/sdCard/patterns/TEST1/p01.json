@@ -45,9 +45,9 @@
         {
           "trig": true,
           "velocity": 87,
-          "probability": 100,
+          "probability": 95,
           "locks": {
-            "enabled": false,
+            "enabled": true,
             "pitch": 0,
             "decay": 100
           }
@@ -85,10 +85,10 @@
         {
           "trig": true,
           "velocity": 151,
-          "probability": 100,
+          "probability": 95,
           "locks": {
-            "enabled": false,
-            "pitch": 0,
+            "enabled": true,
+            "pitch": 12,
             "decay": 100
           }
         },
@@ -125,7 +125,7 @@
         {
           "trig": true,
           "velocity": 95,
-          "probability": 100,
+          "probability": 95,
           "locks": {
             "enabled": true,
             "pitch": 24,
@@ -517,8 +517,8 @@
       "steps": [
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
+          "velocity": 200,
+          "probability": 90,
           "locks": {
             "enabled": false,
             "pitch": 0,
@@ -767,12 +767,12 @@
           }
         },
         {
-          "trig": true,
-          "velocity": 128,
+          "trig": false,
+          "velocity": 56,
           "probability": 100,
           "locks": {
-            "enabled": false,
-            "pitch": 0,
+            "enabled": true,
+            "pitch": -1,
             "decay": 100
           }
         },
@@ -858,7 +858,7 @@
     {
       "steps": [
         {
-          "trig": true,
+          "trig": false,
           "velocity": 128,
           "probability": 100,
           "locks": {

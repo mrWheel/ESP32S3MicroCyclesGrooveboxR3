@@ -4,7 +4,17 @@
       "steps": [
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -14,7 +24,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -24,7 +34,27 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -34,7 +64,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -44,7 +74,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -54,7 +84,27 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -64,7 +114,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -74,7 +124,17 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -84,7 +144,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -94,67 +154,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -175,7 +175,7 @@
       "steps": [
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -185,7 +185,17 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -195,7 +205,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -205,7 +215,17 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -215,7 +235,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -225,7 +245,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -235,7 +255,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -245,7 +265,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -255,7 +275,17 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -265,7 +295,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -275,7 +305,17 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -24,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -285,47 +325,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -346,17 +346,37 @@
       "steps": [
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": true,
-            "pitch": 0,
-            "decay": 145
+            "pitch": -24,
+            "decay": 100
           }
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 75,
+          "locks": {
+            "enabled": true,
+            "pitch": -24,
+            "decay": 155
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -366,7 +386,27 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -14,
+            "decay": 35
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -376,7 +416,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -386,7 +426,17 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 80,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -396,7 +446,27 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 10,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
+          "probability": 75,
+          "locks": {
+            "enabled": true,
+            "pitch": 12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -406,97 +476,27 @@
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
+          "velocity": 100,
+          "probability": 65,
           "locks": {
-            "enabled": false,
-            "pitch": 0,
+            "enabled": true,
+            "pitch": 15,
             "decay": 100
           }
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
+          "velocity": 100,
+          "probability": 65,
           "locks": {
-            "enabled": false,
-            "pitch": 0,
+            "enabled": true,
+            "pitch": 24,
             "decay": 100
           }
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -517,6 +517,16 @@
       "steps": [
         {
           "trig": true,
+          "velocity": 156,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": 12,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
           "velocity": 100,
           "probability": 100,
           "locks": {
@@ -527,7 +537,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -537,17 +547,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -558,7 +558,7 @@
         {
           "trig": true,
           "velocity": 100,
-          "probability": 100,
+          "probability": 95,
           "locks": {
             "enabled": false,
             "pitch": 0,
@@ -567,36 +567,6 @@
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": true,
           "velocity": 100,
           "probability": 100,
           "locks": {
@@ -607,36 +577,6 @@
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": true,
           "velocity": 100,
           "probability": 100,
           "locks": {
@@ -647,7 +587,27 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": true,
+          "velocity": 100,
+          "probability": 95,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -657,7 +617,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -667,7 +627,47 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": true,
+          "velocity": 124,
+          "probability": 75,
+          "locks": {
+            "enabled": true,
+            "pitch": -12,
+            "decay": 130
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": false,
+            "pitch": 0,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -688,7 +688,7 @@
       "steps": [
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -698,7 +698,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -708,7 +708,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -718,7 +718,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -728,7 +728,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -738,7 +738,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -748,7 +748,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -758,7 +758,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -768,7 +768,17 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
+          "probability": 100,
+          "locks": {
+            "enabled": true,
+            "pitch": -1,
+            "decay": 100
+          }
+        },
+        {
+          "trig": false,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -778,7 +788,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -788,7 +798,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -798,7 +808,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -808,7 +818,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -818,7 +828,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -828,17 +838,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
-          "probability": 100,
-          "locks": {
-            "enabled": false,
-            "pitch": 0,
-            "decay": 100
-          }
-        },
-        {
-          "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -859,7 +859,7 @@
       "steps": [
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -869,7 +869,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -879,7 +879,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -889,7 +889,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -899,7 +899,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -909,7 +909,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -919,7 +919,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -929,7 +929,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -939,7 +939,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -949,7 +949,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -959,7 +959,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -969,7 +969,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -979,7 +979,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -989,7 +989,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -999,7 +999,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -1009,7 +1009,7 @@
         },
         {
           "trig": false,
-          "velocity": 128,
+          "velocity": 100,
           "probability": 100,
           "locks": {
             "enabled": false,
@@ -1031,13 +1031,13 @@
   "name": "p04",
   "bpm": 124,
   "swing": 54,
-  "chainEnabled": true,
+  "chainEnabled": false,
   "chainLength": 6,
-  "chainTarget": "p05",
+  "chainTarget": "",
   "chain": {
-    "enabled": true,
+    "enabled": false,
     "length": 6,
-    "target": "p05"
+    "target": ""
   },
   "masterLevel": 100
 }
