@@ -26,56 +26,122 @@
     </div>
 
     <div class="content">
-<h2>Encoder</h2>
+      <h2>Your Control Interface</h2>
 
-<p>Rotate:</p>
-<ul>
-<li>Move cursor</li>
-<li>Select menu entries</li>
-<li>Change values</li>
-</ul>
+      <p>The Groovebox has two main controls:</p>
+      <ul>
+        <li>An <strong>encoder</strong> (rotary knob with push button)</li>
+        <li>A <strong>KEY0 button</strong> (auxiliary button)</li>
+      </ul>
 
-<p>Short press:</p>
-<ul>
-<li>Confirm</li>
-<li>Enter edit mode</li>
-</ul>
+      <p>By combining rotations and different press types (short, medium, long), you can control every function on the device.</p>
 
-<p>Medium press:</p>
-<ul>
-<li>Tempo editor</li>
-</ul>
+      <h2>The Encoder Knob</h2>
 
-<p>Long press:</p>
-<ul>
-<li>System Settings</li>
-</ul>
+      <h3>Rotate (turn the knob)</h3>
+      <ul>
+        <li><strong>On main screen:</strong> Move the track cursor up/down to select which drum to edit</li>
+        <li><strong>In menus:</strong> Move up/down through menu items</li>
+        <li><strong>Editing values:</strong> Change the selected value up or down</li>
+      </ul>
 
-<h2>KEY0</h2>
+      <h3>Short Press (quick tap)</h3>
+      <ul>
+        <li><strong>On main screen:</strong> Enter track edit mode to change triggers, velocity, pitch, etc.</li>
+        <li><strong>In menus:</strong> Confirm selection or open submenu</li>
+        <li><strong>In popups:</strong> Confirm choice and close popup</li>
+      </ul>
 
-<p>Short press:</p>
-<ul>
-<li>Play / Stop</li>
-</ul>
+      <h3>Medium Press (hold ~0.3 seconds)</h3>
+      <ul>
+        <li><strong>On main screen (not in edit mode):</strong> Open the <strong>Tempo Popup</strong> to adjust BPM, Swing, and Master Gain. Scroll through parameters with encoder rotation; press to edit.</li>
+        <li><strong>In track edit mode:</strong> Open the <strong>Edit Popup</strong> with options for Velocity, Pitch, Decay, Probability, Mute, and Chain. Works the same way—rotate to scroll, press to edit values.</li>
+      </ul>
 
-<p>Medium press:</p>
-<ul>
-<li>BPM quick edit</li>
-</ul>
+      <h3>Long Press (hold ~1 second)</h3>
+      <ul>
+        <li><strong>On main screen (not in edit mode):</strong> Open <strong>System Settings</strong> menu</li>
+        <li><strong>In menus or System Settings:</strong> Go back to the previous screen</li>
+      </ul>
 
-<p>Long press:</p>
-<ul>
-<li>Swing quick edit</li>
-</ul>
+      <h2>The KEY0 Button</h2>
 
-<hr>
+      <h3>Short Press (quick tap)</h3>
+      <ul>
+        <li><strong>On main screen:</strong> Play/Stop playback of the current pattern</li>
+      </ul>
+
+      <h3>Medium Press (hold ~0.3 seconds)</h3>
+      <ul>
+        <li><strong>On main screen (not in edit mode):</strong> Opens the same Tempo Popup as encoder medium press — adjust BPM, Swing, and Master Gain</li>
+      </ul>
+
+      <h3>Long Press (hold ~1 second)</h3>
+      <ul>
+        <li><strong>On main screen (not in edit mode):</strong> May trigger alternate functions depending on context (reserved for future use)</li>
+      </ul>
+
+      <h2>Modes Explained</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Mode</th>
+            <th>What It Is</th>
+            <th>How to Enter</th>
+            <th>How to Exit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Browse Mode</strong></td>
+            <td>Main screen showing your pattern and all tracks</td>
+            <td>Default when Groovebox starts</td>
+            <td>Always the default</td>
+          </tr>
+          <tr>
+            <td><strong>Edit Mode</strong></td>
+            <td>Editing a specific track's parameters</td>
+            <td>Select a track and press encoder (short press)</td>
+            <td>Press encoder short press again</td>
+          </tr>
+          <tr>
+            <td><strong>Tempo Popup</strong></td>
+            <td>Quick access to BPM, Swing, and Gain</td>
+            <td>Press encoder (medium press) or KEY0 (medium press)</td>
+            <td>Press encoder (short press) to confirm</td>
+          </tr>
+          <tr>
+            <td><strong>Edit Popup</strong></td>
+            <td>Edit Velocity, Pitch, Decay, Probability, Mute, Chain of current step</td>
+            <td>In track edit mode, press encoder (medium press)</td>
+            <td>Press encoder (short press) to confirm</td>
+          </tr>
+          <tr>
+            <td><strong>System Settings</strong></td>
+            <td>Save/load groups, sample sets, WiFi, display settings</td>
+            <td>Press encoder (long press) from browse mode</td>
+            <td>Press encoder (long press) to go back</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Quick Tips</h2>
+
+      <ul>
+        <li><strong>Lost?</strong> Press encoder long press to go back to System Settings, then exit again to get to the main screen.</li>
+        <li><strong>Double-check press timing:</strong> If a button doesn't do what you expect, you might be doing a short press when you need a medium or long press.</li>
+        <li><strong>Play while editing:</strong> You can edit patterns while the sequencer is playing—changes take effect immediately in the next loop.</li>
+      </ul>
+
+      <hr>
     </div>
 
     <div class="chapter-nav"><a href="chapter-01.html" class="nav-btn prev">← First Power On</a><a href="chapter-03.html" class="nav-btn next">Understanding Patterns → </a></div>
   </div>
 
   <footer class="site-footer">
-    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v0.8.5
+    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v1.3.7
   </footer>
 </body>
 </html>

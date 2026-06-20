@@ -26,45 +26,138 @@
     </div>
 
     <div class="content">
-<p>Chain creates song structure.</p>
+      <h2>What is Chain?</h2>
 
-<p>Example:</p>
+      <p>Chain allows you to <strong>link patterns together</strong> so they play one after another automatically. Instead of manually switching between patterns, you can set up a sequence that the Groovebox plays through.</p>
 
-<pre><code>
-P01 -&gt; P02
-P02 -&gt; P03
-P03 -&gt; P04
-P04 -&gt; P01
-</code></pre>
+      <p>Think of it like creating a song structure: Intro → Verse → Verse → Chorus → Verse → Chorus → Outro.</p>
 
-<p>Result:</p>
+      <h2>Chain Basics</h2>
 
-<pre><code>
-P01
-P02
-P03
-P04
-repeat
-</code></pre>
+      <p><strong>Example: Linear chain</strong></p>
 
-<p>Another example:</p>
+      <pre><code>P01 → P02
+P02 → P03
+P03 → P04
+P04 → P01 (loop back)</code></pre>
 
-<pre><code>
-P01 -&gt; P02
-P02 -&gt; P03
-P03 -&gt; P02
-</code></pre>
+      <p>Result: The Groovebox plays P01, then P02, then P03, then P04, then repeats.</p>
 
-<p>Creates an endless groove.</p>
+      <p><strong>Example: Custom loop</strong></p>
 
-<hr>
+      <pre><code>P01 → P02
+P02 → P03
+P03 → P02 (loop back to P02)</code></pre>
+
+      <p>Result: P01 plays once, then P02 and P03 alternate forever (endless groove).</p>
+
+      <h2>Setting Up a Chain in the Edit Popup</h2>
+
+      <p>When you're in the Edit Popup for a step and highlight the "CHAIN" parameter, you'll see three editable fields:</p>
+
+      <pre><code>CHAIN >ON< L5 p02</code></pre>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>What It Means</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>ON / OFF</strong></td>
+            <td>Enable or disable chaining. ON = chain active, OFF = single pattern</td>
+          </tr>
+          <tr>
+            <td><strong>L5</strong></td>
+            <td>Chain length (number of patterns in the chain). L5 = 5 patterns</td>
+          </tr>
+          <tr>
+            <td><strong>p02</strong></td>
+            <td>Next pattern number. Which pattern plays after this one finishes</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>How to Edit Chain Settings</h2>
+
+      <ol>
+        <li>In the Edit Popup, highlight "CHAIN" and press the encoder (short press)</li>
+        <li>A cursor appears on the first field (ON/OFF): `>ON<`</li>
+        <li><strong>To toggle ON/OFF:</strong> Rotate the encoder to switch between ON and OFF</li>
+        <li><strong>Move to next field:</strong> Press the encoder (short press) to move to the chain length field: `L>5<`</li>
+        <li><strong>To set chain length:</strong> Rotate the encoder to change how many patterns are in the chain (usually 1-8)</li>
+        <li><strong>Move to next field:</strong> Press the encoder (short press) to move to the target pattern: `>p02<`</li>
+        <li><strong>To set target pattern:</strong> Rotate the encoder to choose which pattern plays next (p01, p02, p03, etc.)</li>
+        <li><strong>Confirm:</strong> Press the encoder (short press) again to lock in all three chain settings</li>
+      </ol>
+
+      <h2>Using the Edit Popup</h2>
+
+      <p>When you press medium press, a popup appears showing all editable parameters for the selected step:</p>
+
+      <pre><code>Edit Step 5
+    VELOCITY     100
+    PITCH        +00
+    DECAY        50%
+    PROBABILITY  100%
+    MUTE   OFF
+   >CHAIN<       NO</code></pre>
+
+      <ol>
+        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Mute, and Chain. The highlighted parameter is between `>..<`.</li>
+        <li><strong>Edit a parameter:</strong> When a parameter is highlighted, press the encoder (short press) to enter edit mode</li>
+        <li><strong>Change the value:</strong> For Chain, editing works differently than other parameters. When you press short press on CHAIN, a three-field display appears:
+          <pre><code>Edit Step 5
+    VELOCITY     100
+    PITCH        +00
+    DECAY        50%
+    PROBABILITY  100%
+    MUTE   OFF
+    CHAIN  >ON< L5 p02</code></pre>
+        </li>
+        <li><strong>Edit Chain ON/OFF:</strong> The cursor starts on the first field (>ON<). Rotate to toggle between ON and OFF</li>
+        <li><strong>Move to chain length:</strong> Press encoder (short press) to move to L5. Rotate to set how many patterns are in the chain (usually 1-8)</li>
+        <li><strong>Move to target pattern:</strong> Press encoder (short press) to move to p02. Rotate to choose which pattern plays next (p01, p02, p03, etc.)</li>
+        <li><strong>Confirm all chain settings:</strong> Press the encoder (short press) to lock in all three values and return to parameter selection</li>
+        <li><strong>Continue editing:</strong> Repeat steps 1-7 to adjust other parameters</li>
+        <li><strong>Close the popup:</strong> Press KEY0 (short press) to close the popup. Your changes are saved.</li>
+      </ol>
+
+      <h2>Common Chain Patterns</h2>
+
+      <p><strong>4-pattern loop (building tension):</strong></p>
+      <pre><code>P01 → P02 (intro)
+P02 → P03 (verse 1)
+P03 → P04 (verse 2)
+P04 → P02 (loop verses)</code></pre>
+
+      <p><strong>Bridge to chorus:</strong></p>
+      <pre><code>P01 → P02 (verse)
+P02 → P03 (break/fill)
+P03 → P04 (chorus)</code></pre>
+
+      <p><strong>Endless groove:</strong></p>
+      <pre><code>P01 → P01 (loops forever)</code></pre>
+
+      <h2>Pro Tips</h2>
+
+      <ul>
+        <li><strong>Test your chain:</strong> Set up a chain and press Play to hear how patterns flow together</li>
+        <li><strong>Smooth transitions:</strong> Make sure the last step of one pattern lines up rhythmically with the first step of the next</li>
+        <li><strong>Use fills:</strong> Insert a "fill" pattern between verse and chorus for dynamic transitions</li>
+        <li><strong>Loop count:</strong> The loop count (L5) tells you how many patterns are in the chain—this helps you remember the structure</li>
+      </ul>
+
+      <hr>
     </div>
 
     <div class="chapter-nav"><a href="chapter-10.html" class="nav-btn prev">← Mute</a><a href="chapter-12.html" class="nav-btn next">Tempo Screen → </a></div>
   </div>
 
   <footer class="site-footer">
-    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v0.8.5
+    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v1.3.7
   </footer>
 </body>
 </html>

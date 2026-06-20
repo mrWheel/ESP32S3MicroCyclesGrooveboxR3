@@ -26,24 +26,92 @@
     </div>
 
     <div class="content">
-<pre><code>
- Load Pattern
- Save Pattern
- Copy Group
- Rename Group
- Delete Group
-</code></pre>
+      <h2>Accessing Card Storage</h2>
 
-<p>All long-term storage happens here.</p>
+      <p>Card Storage is where you manage all your pattern groups on the SD card. To access it:</p>
 
-<hr>
+      <ol>
+        <li>From the main <strong>[Groovebox]</strong> screen, press encoder (long press) to open <strong>System Settings</strong></li>
+        <li>Find and select <strong>Card Storage</strong></li>
+        <li>The Card Storage menu opens</li>
+      </ol>
+
+      <h2>Card Storage Menu</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Menu Item</th>
+            <th>What It Does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Save Group *</strong></td>
+            <td>Write your current patterns to SD card. An asterisk (*) appears if you've made unsaved changes.</td>
+          </tr>
+          <tr>
+            <td><strong>Load Group</strong></td>
+            <td>Load a previously saved pattern group from SD card into memory</td>
+          </tr>
+          <tr>
+            <td><strong>New Group</strong></td>
+            <td>Create a new empty pattern group and give it a name</td>
+          </tr>
+          <tr>
+            <td><strong>Rename Group</strong></td>
+            <td>Change the name of the current pattern group</td>
+          </tr>
+          <tr>
+            <td><strong>Copy Group</strong></td>
+            <td>Duplicate the current group with a new name (great for backup or variations)</td>
+          </tr>
+          <tr>
+            <td><strong>Delete Group</strong></td>
+            <td>Remove a pattern group from SD card (careful—this can't be undone)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Understanding the Asterisk (*)</h2>
+
+      <p>You'll notice an asterisk (*) on some menu items, particularly "Save Group":</p>
+
+      <ul>
+        <li><strong>Asterisk appears</strong> when you've edited patterns but haven't saved them to SD card yet</li>
+        <li><strong>No asterisk</strong> means all your current work is saved</li>
+        <li>If you power off with unsaved changes, you'll lose them</li>
+        <li>Always save before turning off the Groovebox if you want to keep your work</li>
+      </ul>
+
+      <h2>Workflow: Save Your Patterns</h2>
+
+      <ol>
+        <li>Edit your patterns on the main Groovebox screen</li>
+        <li>When satisfied, press encoder (long press) → System Settings → Save Group</li>
+        <li>Your work is now on SD card and won't be lost</li>
+        <li>The asterisk disappears from "Save Group" to show everything is saved</li>
+      </ol>
+
+      <h2>Workflow: Load a Previous Group</h2>
+
+      <ol>
+        <li>Press encoder (long press) → System Settings → Card Storage → Load Group</li>
+        <li>Select the group you want (you'll see a list of saved groups)</li>
+        <li>Press encoder (short press) to load it</li>
+        <li>The group's patterns fill your memory, replacing what was there</li>
+      </ol>
+
+      <p><strong>Note:</strong> Unsaved changes to the current group are lost if you load a different group without saving first.</p>
+
+      <hr>
     </div>
 
     <div class="chapter-nav"><a href="chapter-14.html" class="nav-btn prev">← Pattern Groups</a><a href="chapter-16.html" class="nav-btn next">Load Pattern → </a></div>
   </div>
 
   <footer class="site-footer">
-    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v0.8.5
+    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v1.3.7
   </footer>
 </body>
 </html>

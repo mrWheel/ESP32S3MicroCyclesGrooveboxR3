@@ -26,60 +26,180 @@
     </div>
 
     <div class="content">
-<p>Range:</p>
+      <h2>What is Velocity?</h2>
+      <p>Velocity controls <strong>how hard</strong> each drum sound is played. Think of it like the force with which someone hits a drum with a drumstick.</p>
 
-<pre><code>
-1 - 127
-</code></pre>
+      <p>In real drumming:</p>
+      <ul>
+        <li><strong>Light touch</strong> = quiet, subtle sound</li>
+        <li><strong>Medium hit</strong> = normal playing volume</li>
+        <li><strong>Hard whack</strong> = loud, punchy sound</li>
+      </ul>
 
-<p>Velocity controls impact.</p>
+      <p>On the Groovebox, velocity works the same way. You control how hard each step plays from 0 (silent) to 100 (maximum loudness).</p>
 
-<table><thead><tr>
-<th>Value</th>
-<th>What You Hear</th>
-</tr></thead><tbody>
-<tr>
-<td>1-20</td>
-<td>Almost silent</td>
-</tr>
-<tr>
-<td>21-50</td>
-<td>Soft hit</td>
-</tr>
-<tr>
-<td>51-90</td>
-<td>Normal hit</td>
-</tr>
-<tr>
-<td>91-120</td>
-<td>Strong hit</td>
-</tr>
-<tr>
-<td>121-127</td>
-<td>Maximum attack</td>
-</tr>
-</tbody></table>
+      <h2>Why Does Velocity Matter?</h2>
 
-<p>Example:</p>
+      <p>If every hit on the same drum plays at exactly the same volume, it sounds robotic and unnatural. Real drummers vary how hard they hit—they might hit the snare softly during a verse and crack it hard during a chorus.</p>
 
-<pre><code>
-127 80 115 70
-</code></pre>
+      <p>By adjusting velocity on individual steps, you add <strong>human feel</strong> and <strong>musical expression</strong> to your patterns.</p>
 
-<p>This sounds more human than:</p>
+      <h2>Velocity Ranges</h2>
 
-<pre><code>
-127 127 127 127
-</code></pre>
+      <table>
+        <thead>
+          <tr>
+            <th>Velocity Value</th>
+            <th>What You Hear</th>
+            <th>When to Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0–51</td>
+            <td>Soft, quiet sound</td>
+            <td>Ghost notes, subtle accents, quiet sections</td>
+          </tr>
+          <tr>
+            <td>52–153</td>
+            <td>Medium, normal playing level</td>
+            <td>Standard groove, typical beats</td>
+          </tr>
+          <tr>
+            <td>154–204</td>
+            <td>Strong, punchy sound</td>
+            <td>Accents, emphasis, drop beats</td>
+          </tr>
+          <tr>
+            <td>205–255</td>
+            <td>Loud, maximum impact</td>
+            <td>Kicks and crashes, climactic moments</td>
+          </tr>
+        </tbody>
+      </table>
 
-<hr>
+      <h2>Example: Building Dynamics</h2>
+
+      <p>Here's a snare track that sounds more natural because velocity varies:</p>
+
+      <pre><code>Step:    1  2  3  4
+Velocity: 80 100 75 90</code></pre>
+
+      <p>Compare this to a robotic version where every hit is identical:</p>
+
+      <pre><code>Step:    1  2  3  4
+Velocity: 100 100 100 100</code></pre>
+
+      <p>The first pattern sounds like a real drummer playing with feel. The second sounds mechanical.</p>
+
+      <h2>How to Adjust Velocity</h2>
+
+      <ol>
+        <li>Select the track you want to edit on the main screen</li>
+        <li>Short Press the encoder to enter track-edit mode</li>
+        <li>Rotate the encoder until you are on the step you want to edit</li>
+        <li>Medium Press the encoder to enter Step Edit mode</li>
+        <li>Rotate the encoder to cycle through the popup items until you see "VELOCITY"</li>
+        <li>Short Press encoder (cursor moves to the value field)</li>
+        <li>Rotate the encoder to change the velocity value (0–255)</li>
+        <li>Lower values = softer sound. Higher values = harder/louder sound</li>
+        <li>Short press encoder to accept selected value</li>
+        <li>Short press KEY0 to exit step edit mode and return to track-edit mode</li>
+      </ol>
+
+      <h2>Using the Edit Popup</h2>
+
+      <p>When you press medium press, a popup appears showing all editable parameters for the selected step:</p>
+
+      <pre><code>Edit Step 5
+    VELOCITY     100
+    PITCH        +00
+   >DECAY<        50%
+    PROBABILITY  100%
+    MUTE   OFF
+    CHAIN   NO</code></pre>
+
+      <ol>
+        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Mute, and Chain. The highlighted parameter is between `>..<`.</li>
+        <li><strong>Edit a parameter:</strong> When a parameter is highlighted, press the encoder (short press) to enter edit mode</li>
+        <li><strong>Change the value:</strong> Rotate the encoder to increase or decrease the value:
+          <pre><code>Edit Step 5
+    VELOCITY     >100<
+    PITCH        +00
+    DECAY        50%
+    PROBABILITY  100%
+    MUTE   OFF
+    CHAIN   NO</code></pre>
+        </li>
+        <li><strong>Confirm the value:</strong> Press the encoder (short press) to lock in the new value and return to parameter selection</li>
+        <li><strong>Continue editing:</strong> Repeat steps 1-4 to adjust other parameters</li>
+        <li><strong>Close the popup:</strong> Press KEY0 (short press) to close the popup. Your changes are saved.</li>
+      </ol>
+
+      <h2>Quick Reference</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Range</th>
+            <th>What It Does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>VEL (Velocity)</strong></td>
+            <td>0–255</td>
+            <td>How hard the step plays (0=silent, 255=maximum)</td>
+          </tr>
+          <tr>
+            <td><strong>PITCH</strong></td>
+            <td>-24 to +24</td>
+            <td>Pitch offset in semitones</td>
+          </tr>
+          <tr>
+            <td><strong>DECAY</strong></td>
+            <td>10–100%</td>
+            <td>How long the sound rings out</td>
+          </tr>
+          <tr>
+            <td><strong>PROB</strong></td>
+            <td>0–100%</td>
+            <td>Probability (chance) the step plays</td>
+          </tr>
+          <tr>
+            <td><strong>MUTE</strong></td>
+            <td>ON / OFF</td>
+            <td>Silence this step</td>
+          </tr>
+          <tr>
+            <td><strong>CHAIN</strong></td>
+            <td>See Chapter 11</td>
+            <td>Pattern chaining settings</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Pro Tips</h2>
+
+      <p><strong>Create Swing:</strong> Make even-numbered steps slightly quieter than odd-numbered steps to add groove:</p>
+      <pre><code>Step:    1  2  3  4
+Velocity: 90 70 90 70</code></pre>
+
+      <p><strong>Add Emphasis:</strong> Make specific important steps louder to emphasize them. This draws the listener's ear to key moments in your pattern.</p>
+
+      <p><strong>Ghost Notes:</strong> Set some steps to very low velocity (10–20) for subtle "ghost notes" that add texture without overwhelming the mix.</p>
+
+      <p><strong>Match Your Drums:</strong> Different drum samples respond differently to velocity. Punch drums (kicks, snares) benefit from varied velocity. Metallic sounds (cymbals, hi-hats) can work with more consistent velocity.</p>
+
+      <hr>
     </div>
 
-    <div class="chapter-nav"><a href="chapter-05.html" class="nav-btn prev">← Trigger Page (TRIG)</a><a href="chapter-07.html" class="nav-btn next">Pitch (PITCH) → </a></div>
+    <div class="chapter-nav"><a href="chapter-05.html" class="nav-btn prev">← Trigger Page (TRIG)</a><a href="chapter-07.html" class="nav-btn next">Pitch (PITCH) →</a></div>
   </div>
 
   <footer class="site-footer">
-    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v0.8.5
+    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v1.3.7
   </footer>
 </body>
 </html>

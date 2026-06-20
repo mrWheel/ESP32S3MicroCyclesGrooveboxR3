@@ -26,56 +26,173 @@
     </div>
 
     <div class="content">
-<p>Range:</p>
+      <h2>What is Pitch?</h2>
 
-<pre><code>
--24 to +24
-</code></pre>
+      <p>Pitch controls how <strong>high or low</strong> a drum sound plays. It's the musical tone or frequency of the sound.</p>
 
-<p>What you hear:</p>
+      <p>Think of how:</p>
+      <ul>
+        <li>A kick drum can be deep and low or punchy and higher</li>
+        <li>A tom drum can be low (floor tom), mid (mid tom), or high (tom)</li>
+        <li>Your voice changes pitch when you speak higher or lower</li>
+      </ul>
 
-<table><thead><tr>
-<th>Value</th>
-<th>Result</th>
-</tr></thead><tbody>
-<tr>
-<td>-24</td>
-<td>Very deep</td>
-</tr>
-<tr>
-<td>-12</td>
-<td>One octave lower</td>
-</tr>
-<tr>
-<td>0</td>
-<td>Original sound</td>
-</tr>
-<tr>
-<td>+12</td>
-<td>One octave higher</td>
-</tr>
-<tr>
-<td>+24</td>
-<td>Very high</td>
-</tr>
-</tbody></table>
+      <p>On the Groovebox, pitch lets you shift any drum sound up or down by up to 12 semitones in either direction. That's one full octave of musical range.</p>
 
-<p>Useful for:</p>
+      <h2>Why Does Pitch Matter?</h2>
 
-<ul>
-<li>Tuned kicks</li>
-<li>Bass sounds</li>
-<li>Melodic percussion</li>
-</ul>
+      <p>Adjusting pitch adds <strong>variation</strong> and <strong>musicality</strong> to your patterns:</p>
 
-<hr>
+      <ul>
+        <li><strong>Create melodies:</strong> Use pitch to make drum fills that sound like they're singing or talking</li>
+        <li><strong>Add movement:</strong> Gradually shift pitch across steps to create ascending or descending patterns</li>
+        <li><strong>Sound design:</strong> Completely transform a drum sound by shifting its pitch</li>
+        <li><strong>Simulate different drums:</strong> One sample can behave like a low tom, mid tom, or high tom by changing the pitch</li>
+      </ul>
+
+      <h2>Understanding Pitch Values</h2>
+
+      <p>Pitch is measured in <strong>semitones</strong>—the musical steps you'd find on a piano or guitar. You can shift sounds up to two full octaves in either direction:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Pitch Value</th>
+            <th>What You Hear</th>
+            <th>Example Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>-24</td>
+            <td>Extremely low (two octaves down)</td>
+            <td>Ultra-deep, sub-bass-like sound</td>
+          </tr>
+          <tr>
+            <td>-12</td>
+            <td>Much lower (one full octave down)</td>
+            <td>Deep, boom-like sound</td>
+          </tr>
+          <tr>
+            <td>-6</td>
+            <td>Noticeably lower</td>
+            <td>Floor tom-like tone</td>
+          </tr>
+          <tr>
+            <td>0</td>
+            <td>Original, unmodified pitch</td>
+            <td>Natural drum sound</td>
+          </tr>
+          <tr>
+            <td>+6</td>
+            <td>Noticeably higher</td>
+            <td>High tom-like tone</td>
+          </tr>
+          <tr>
+            <td>+12</td>
+            <td>Much higher (one full octave up)</td>
+            <td>Bright, thin sound</td>
+          </tr>
+          <tr>
+            <td>+24</td>
+            <td>Extremely high (two octaves up)</td>
+            <td>Thin, squeaky, bell-like sound</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>How to Adjust Pitch</h2>
+
+      <ol>
+        <li>Select the track you want to edit on the main screen</li>
+        <li>Short Press the encoder to enter track-edit mode</li>
+        <li>Rotate the encoder until you are on the step you want to edit</li>
+        <li>Medium Press the encoder to enter Step Edit mode</li>
+        <li>Rotate the encoder to cycle through the popup items until you see "PITCH"</li>
+        <li>Short Press encoder (cursor moves to the value field)</li>
+        <li>Rotate the encoder to change the pitch value (-24 to +24 semitones)</li>
+        <li>Lower values = lower pitch. Higher values = higher pitch</li>
+        <li>Short press encoder to accept selected value</li>
+        <li>Short press KEY0 to exit step edit mode and return to track-edit mode</li>
+      </ol>
+
+      <h2>Using the Edit Popup</h2>
+
+      <p>When you press medium press, a popup appears showing all editable parameters for the selected step:</p>
+
+      <pre><code>Edit Step 5
+    VELOCITY     100
+   >PITCH<       +00
+    DECAY        50%
+    PROBABILITY  100%
+    MUTE   OFF
+    CHAIN   NO</code></pre>
+
+      <ol>
+        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Mute, and Chain. The highlighted parameter is between `>..<`.</li>
+        <li><strong>Edit a parameter:</strong> When a parameter is highlighted, press the encoder (short press) to enter edit mode</li>
+        <li><strong>Change the value:</strong> Rotate the encoder to increase or decrease the value:
+          <pre><code>Edit Step 5
+    VELOCITY     100
+    PITCH        >+06<
+    DECAY        50%
+    PROBABILITY  100%
+    MUTE   OFF
+    CHAIN   NO</code></pre>
+        </li>
+        <li><strong>Confirm the value:</strong> Press the encoder (short press) to lock in the new value and return to parameter selection</li>
+        <li><strong>Continue editing:</strong> Repeat steps 1-4 to adjust other parameters</li>
+        <li><strong>Close the popup:</strong> Press KEY0 (short press) to close the popup. Your changes are saved.</li>
+      </ol>
+
+      <h2>Practical Examples</h2>
+
+      <h3>Creating a Melodic Fill</h3>
+
+      <p>Use one drum sample on different pitch values to create a descending fill:</p>
+
+      <pre><code>Step:    1  2  3  4
+Pitch:   0  +3 +6 +9</code></pre>
+
+      <p>This sounds like the drum is getting higher with each step—musical and interesting.</p>
+
+      <h3>Simulating Different Tom Pitches</h3>
+
+      <p>Most drum kits have three toms: low, mid, and high. You can simulate this with one sample:</p>
+
+      <pre><code>Low tom:  pitch = -6
+Mid tom:  pitch = 0
+High tom: pitch = +6</code></pre>
+
+      <h3>Adding Texture Within a Track</h3>
+
+      <p>Vary pitch subtly to prevent monotony:</p>
+
+      <pre><code>Step:    1  2  3  4   5  6  7  8
+Pitch:   0 -1 +1 -1  +2 +1 -2 0</code></pre>
+
+      <p>These small pitch shifts keep the sound interesting without being obvious.</p>
+
+      <h2>Pro Tips</h2>
+
+      <p><strong>Combine with Velocity:</strong> Low pitch values often sound better with lower velocity. Higher pitches can handle higher velocity without sounding harsh.</p>
+
+      <p><strong>Use Sparingly:</strong> Extreme pitch shifts (like -12 or +12) are dramatic. For subtle musicality, try using -3 to +3 instead.</p>
+
+      <p><strong>Descending Fills:</strong> A classic technique is to descend in pitch over a fill: +12, +8, +4, 0. This creates a satisfying downward motion.</p>
+
+      <p><strong>Lock It:</strong> You can lock the pitch for an entire track so all steps use the same pitch value, then adjust individual steps as needed.</p>
+
+      <p><strong>Pitch + Decay:</strong> Combine pitch shifts with shorter decay times for crisp, pitch-bent hits that sound like percussion fills on a classic drum machine.</p>
+
+      <hr>
     </div>
 
-    <div class="chapter-nav"><a href="chapter-06.html" class="nav-btn prev">← Velocity (VEL)</a><a href="chapter-08.html" class="nav-btn next">Decay (DECAY) → </a></div>
+    <div class="chapter-nav"><a href="chapter-06.html" class="nav-btn prev">← Velocity (VEL)</a><a href="chapter-08.html" class="nav-btn next">Decay (DECAY) →</a></div>
   </div>
 
   <footer class="site-footer">
-    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v0.8.5
+    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v1.3.7
   </footer>
 </body>
 </html>

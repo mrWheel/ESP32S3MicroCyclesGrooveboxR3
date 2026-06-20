@@ -26,25 +26,98 @@
     </div>
 
     <div class="content">
-<p>Values:</p>
+      <h2>What is Mute?</h2>
 
-<pre><code>
-OFF
-ON
-</code></pre>
+      <p>Mute allows you to <strong>silence a specific step</strong> without deleting it or losing its settings. When a step is muted, it will not play, but all its parameters (Velocity, Pitch, Decay, Probability) are preserved.</p>
 
-<p>Use during performance.</p>
+      <p>This is useful for creating variations on patterns, turning sounds on and off during performance, or temporarily disabling a step while keeping its configuration.</p>
 
-<p>Mute allows tracks to disappear without deleting steps.</p>
+      <h2>Mute Values</h2>
 
-<hr>
+      <table>
+        <thead>
+          <tr>
+            <th>Value</th>
+            <th>What It Does</th>
+            <th>When to Use</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>OFF</strong></td>
+            <td>Step plays normally</td>
+            <td>All steps by default; step is active</td>
+          </tr>
+          <tr>
+            <td><strong>ON</strong></td>
+            <td>Step is silenced (won't play)</td>
+            <td>When you want to disable a step temporarily or create variations</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>How to Adjust Mute</h2>
+
+      <ol>
+        <li>Select the track you want to edit on the main screen</li>
+        <li>Short Press the encoder to enter track-edit mode</li>
+        <li>Rotate the encoder until you are on the step you want to edit</li>
+        <li>Medium Press the encoder to enter Step Edit mode</li>
+        <li>Rotate the encoder to cycle through the popup items until you see "MUTE"</li>
+        <li>Short Press encoder (cursor moves to the value field)</li>
+        <li>Rotate the encoder to toggle between OFF and ON</li>
+        <li>OFF = step plays, ON = step is silenced</li>
+        <li>Short press encoder to accept selected value</li>
+        <li>Short press KEY0 to exit step edit mode and return to track-edit mode</li>
+      </ol>
+
+      <h2>Using the Edit Popup</h2>
+
+      <p>When you press medium press, a popup appears showing all editable parameters for the selected step:</p>
+
+      <pre><code>Edit Step 5
+    VELOCITY     100
+    PITCH        +00
+    DECAY        50%
+    PROBABILITY  100%
+   >MUTE<        OFF
+    CHAIN   NO</code></pre>
+
+      <ol>
+        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Mute, and Chain. The highlighted parameter is between `>..<`.</li>
+        <li><strong>Edit a parameter:</strong> When a parameter is highlighted, press the encoder (short press) to enter edit mode</li>
+        <li><strong>Change the value:</strong> Rotate the encoder to toggle OFF/ON:
+          <pre><code>Edit Step 5
+    VELOCITY     100
+    PITCH        +00
+    DECAY        50%
+    PROBABILITY  100%
+    MUTE         >ON<
+    CHAIN   NO</code></pre>
+        </li>
+        <li><strong>Confirm the value:</strong> Press the encoder (short press) to lock in the new value and return to parameter selection</li>
+        <li><strong>Continue editing:</strong> Repeat steps 1-4 to adjust other parameters</li>
+        <li><strong>Close the popup:</strong> Press KEY0 (short press) to close the popup. Your changes are saved.</li>
+      </ol>
+
+      <h2>Practical Uses</h2>
+
+      <p><strong>Create Pattern Variations:</strong> Keep step settings but mute them to create a simpler version of a pattern. Unmute them to bring back complexity.</p>
+
+      <p><strong>Live Performance:</strong> During a performance, mute certain steps to create fill effects or build/drop moments without stopping the pattern.</p>
+
+      <p><strong>Troubleshooting Mix Clarity:</strong> If multiple sounds are playing and the mix sounds muddy, try muting some background sounds to see if that clears things up.</p>
+
+      <p><strong>Quick Off/On:</strong> Faster than deleting and re-creating a step—just toggle mute OFF or ON.</p>
+
+      <hr>
     </div>
 
     <div class="chapter-nav"><a href="chapter-09.html" class="nav-btn prev">← Probability (PROB)</a><a href="chapter-11.html" class="nav-btn next">Chain → </a></div>
   </div>
 
   <footer class="site-footer">
-    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v0.8.5
+    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v1.3.7
   </footer>
 </body>
 </html>

@@ -26,58 +26,183 @@
     </div>
 
     <div class="content">
-<p>Range:</p>
+      <h2>What is Decay?</h2>
 
-<pre><code>
-0 - 127
-</code></pre>
+      <p>Decay controls <strong>how long a sound lasts</strong> after you trigger it. It determines whether the sound stops quickly or fades away gradually.</p>
 
-<p>Controls sound length.</p>
+      <p>Think of real-world sounds:</p>
+      <ul>
+        <li>A kick drum has a short decay—it hits and quickly stops</li>
+        <li>A cymbal crash has a long decay—it rings out for several seconds</li>
+        <li>A snare crack has medium decay—quick attack, then fades</li>
+      </ul>
 
-<table><thead><tr>
-<th>Value</th>
-<th>What You Hear</th>
-</tr></thead><tbody>
-<tr>
-<td>0-20</td>
-<td>Extremely short</td>
-</tr>
-<tr>
-<td>21-50</td>
-<td>Tight</td>
-</tr>
-<tr>
-<td>51-90</td>
-<td>Natural</td>
-</tr>
-<tr>
-<td>91-127</td>
-<td>Long tail</td>
-</tr>
-</tbody></table>
+      <p>On the Groovebox, you control the decay from 0 (cuts off almost instantly) to 100 (rings out for a long time).</p>
 
-<p>Typical settings:</p>
+      <h2>Why Does Decay Matter?</h2>
 
-<p>Kick:</p>
+      <p>Different drum sounds have different natural decay characteristics. By adjusting decay:</p>
 
-<pre><code>
-20-50
-</code></pre>
+      <ul>
+        <li><strong>Shape your tone:</strong> Short decay = punchy and tight. Long decay = washy and atmospheric</li>
+        <li><strong>Control mix clarity:</strong> Shorter decays prevent sounds from overlapping and muddying the mix</li>
+        <li><strong>Create effects:</strong> Extremely short decays sound like clicks. Very long decays create pad-like atmospherics</li>
+        <li><strong>Match the music:</strong> Fast songs need tighter decay. Slower songs can use longer decay for more space</li>
+      </ul>
 
-<p>Open Hat:</p>
+      <h2>Understanding Decay Values</h2>
 
-<pre><code>
-90-127
-</code></pre>
+      <p>Decay ranges from 10% (very short) to 100% (very long). Values below 10% are not available to protect against excessively clipped sounds.</p>
 
-<hr>
+      <table>
+        <thead>
+          <tr>
+            <th>Decay Value</th>
+            <th>What You Hear</th>
+            <th>Use Case</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>10–25%</td>
+            <td>Short and punchy</td>
+            <td>Kicks, snares, tight drums, percussive hits</td>
+          </tr>
+          <tr>
+            <td>26–50%</td>
+            <td>Medium, natural length</td>
+            <td>Standard drum sounds, typical cymbals</td>
+          </tr>
+          <tr>
+            <td>51–75%</td>
+            <td>Long, ringing sound</td>
+            <td>Open hats, crashes, ambient pads</td>
+          </tr>
+          <tr>
+            <td>76–100%</td>
+            <td>Very long, sustained tail</td>
+            <td>Atmospheric effects, ambient cymbal rings, sustained tones</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>How to Adjust Decay</h2>
+
+      <ol>
+        <li>Select the track you want to edit</li>
+        <li>Short Press the encoder to enter track-edit mode</li>
+        <li>Rotate the encoder until you are on the step you want to edit</li>
+        <li>Medium Press the encoder to enter Step Edit mode</li>
+        <li>Rotate the encoder to cycle through the popup items until you see "DECAY"</li>
+        <li>Short Press encoder (cursor moves to the value field)</li>
+        <li>Rotate the encoder to change the decay value (0–100)</li>
+        <li>Lower values = shorter decay. Higher values = longer decay</li>
+        <li>Short press encoder to accept selected value</li>
+        <li>Short press KEY0 to exit step edit mode and return to track-edit mode</li>
+      </ol>
+
+      <h2>Practical Examples</h2>
+
+      <h3>Building a Complete Drum Kit from One Sample</h3>
+
+      <p>Here's how you can shape one sound into different drum-like sounds using decay and other parameters:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Desired Sound</th>
+            <th>Decay Value</th>
+            <th>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tight Kick</td>
+            <td>20–30</td>
+            <td>Punchy, cuts off quickly</td>
+          </tr>
+          <tr>
+            <td>Snare</td>
+            <td>30–45</td>
+            <td>Natural snare ring time</td>
+          </tr>
+          <tr>
+            <td>Hi-Hat (Closed)</td>
+            <td>10–20</td>
+            <td>Very short and tight</td>
+          </tr>
+          <tr>
+            <td>Hi-Hat (Open)</td>
+            <td>60–100</td>
+            <td>Rings out like a real open hat</td>
+          </tr>
+          <tr>
+            <td>Cymbal Crash</td>
+            <td>100 (maximum)</td>
+            <td>Long, shimmering tail</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Creating Variation in a Pattern</h3>
+
+      <p>Use decay changes to add interest without changing the actual sound:</p>
+
+      <pre><code>Step:  1  2  3  4   5  6  7  8
+Decay: 50 40 50 35  45 60 40 50</code></pre>
+
+      <p>This creates a living, breathing groove even though the drum is the same sample.</p>
+
+      <h2>Pro Tips</h2>
+
+      <p><strong>Match Your Genre:</strong> Trap and hip-hop often use short decay for a snappy feel. House and techno might use slightly longer decay for a smoother flow.</p>
+
+      <p><strong>Prevent Muddiness:</strong> If multiple sounds are overlapping and the mix sounds cloudy, try shortening the decay of background sounds.</p>
+
+      <p><strong>Create Fills:</strong> Build interest in a fill by gradually lengthening decay towards the end, creating a sense of expansion and release.</p>
+
+      <p><strong>Stack Sounds:</strong> Use a very short decay (10) on one layer and a longer decay (60) on another layer of the same sound for extra dimension.</p>
+
+      <p><strong>Experiment:</strong> Try extreme values on different sounds. A 0-10 decay on a cymbal becomes a click. A 100 decay on a kick becomes ambient.</p>
+
+
+      <h2>Using the Edit Popup</h2>
+
+      <p>When you press medium press, a popup appears showing all editable parameters for the selected step:</p>
+
+      <pre><code>Edit Step 5
+    VELOCITY     100
+    PITCH        +00
+   >DECAY<        50%
+    PROBABILITY  100%
+    MUTE   OFF
+    CHAIN   NO</code></pre>
+
+      <ol>
+        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Mute, and Chain. The highlighted parameter is between `>..<`.</li>
+        <li><strong>Edit a parameter:</strong> When a parameter is highlighted, press the encoder (short press) to enter edit mode</li>
+        <li><strong>Change the value:</strong> Rotate the encoder to increase or decrease the value:
+          <pre><code>Edit Step 5
+    VELOCITY     100
+    PITCH        +00
+    DECAY        >50%<
+    PROBABILITY  100%
+    MUTE   OFF
+    CHAIN   NO</code></pre>
+        </li>
+        <li><strong>Confirm the value:</strong> Press the encoder (short press) to lock in the new value and return to parameter selection</li>
+        <li><strong>Continue editing:</strong> Repeat steps 1-4 to adjust other parameters</li>
+        <li><strong>Close the popup:</strong> Press KEY0 (short press) to close the popup. Your changes are saved.</li>
+      </ol>
+
+      <hr>
     </div>
 
-    <div class="chapter-nav"><a href="chapter-07.html" class="nav-btn prev">← Pitch (PITCH)</a><a href="chapter-09.html" class="nav-btn next">Probability (PROB) → </a></div>
+    <div class="chapter-nav"><a href="chapter-07.html" class="nav-btn prev">← Pitch (PITCH)</a><a href="chapter-09.html" class="nav-btn next">Probability (PROB) →</a></div>
   </div>
 
   <footer class="site-footer">
-    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v0.8.5
+    ESP32 MicroCycles Groovebox &mdash; End User Manual &mdash; v1.3.7
   </footer>
 </body>
 </html>
