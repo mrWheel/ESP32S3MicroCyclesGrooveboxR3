@@ -1,46 +1,78 @@
-# `src/uiPatternGroupInput.cpp`
+# `src/uiPatternGroupInput.cpp` — Pattern Group Name Input Editor
 
-[Back](developerBuildGuide.md)
-
----
-
-## Purpose
-
-This file owns the small name-input editor used for pattern group copy and rename operations.
+**Purpose:** Character-by-character text input UI for naming pattern groups during copy and rename operations. Supports token rotation and character validation.
 
 ---
 
 ## Responsibilities
 
-```text
-open/close group name input
-track copy-vs-rename mode
-rotate through character options
-accept characters
-backspace or cancel
-return trimmed group name
-draw input field
+```
+1. Initialize input state
+2. Open input in copy mode (new name) or rename mode (edit existing)
+3. Track active input cursor
+4. Rotate through available characters
+5. Accept characters one by one
+6. Backspace or cancel input
+7. Return trimmed group name
+8. Draw input field on screen
 ```
 
 ---
 
-## Important Implementation Notes
+## Input States
 
-- Long press and medium press behavior is routed in `uiManager.cpp`.
-- Keep accepted names compatible with settingsStore group-name validation.
-- Avoid modal leakage: while this editor is open, global long-press settings must not trigger.
+**UiPatternGroupInputState struct:**
+
+```cpp
+struct UiPatternGroupInputState {
+  bool isOpen;
+  bool isCopyMode;           // true = new name, false = rename existing
+  String buffer;
+  uint8_t cursorPos;
+  uint8_t currentTokenIndex; // position in character token set
+  uint32_t lastAcceptTime;   // debounce on KEY0 confirm
+};
+```
 
 ---
 
-## Important Internal Areas
+## Character Set (Tokens)
 
-```text
-character token list
-input buffer
-copyMode flag
-buildPatternGroupNameInputText()
-KEY0 backspace/cancel behavior
-encoder medium/long commit handled by uiManager
+Available characters for input (order matters for encoder rotation):
+
+```
+Uppercase:   A-Z
+Digits:      0-9
+Symbols:     - _ . ( )
+Special:     [SPACE] [BACKSPACE] [ACCEPT]
+```
+
+Encoder rotation cycles through available characters at current cursor position.
+
+---
+
+## Typical Workflow
+
+**Copy Group Flow:**
+
+```
+User selects "Copy Group" from menu
+  ↓
+uiManager opens text input: uiPatternGroupInputOpen(true)
+  ↓
+Screen shows: "Enter name: [_______]"
+  ↓
+User rotates encoder → cycles through A-Z, 0-9, symbols
+  ↓
+User presses button short → accept character, move to next position
+  ↓
+Repeat until name entered (e.g., "DEMO2")
+  ↓
+User presses button long or encoder medium → confirm
+  ↓
+uiPatternGroupInputGetTrimmedName() → "DEMO2"
+  ↓
+uiManager calls uiCardStorageCopyPatternGroup("DEMO", "DEMO2")
 ```
 
 ---
@@ -49,45 +81,149 @@ encoder medium/long commit handled by uiManager
 
 ### `uiPatternGroupInputInit()`
 
-Initializes input state.
+**Purpose:** Initialize input state to defaults.
+
+**Call during:** `uiManagerInit()`
 
 ### `uiPatternGroupInputOpen(bool copyMode)`
 
-Opens the input editor in copy or rename mode.
+**Purpose:** Open the group name input editor.
+
+**Parameters:**
+
+- `copyMode` — true for new name (copy), false for rename (edit existing)
+
+**Actions:**
+
+1. Set `isOpen = true`
+2. Set `isCopyMode = copyMode`
+3. Clear or populate buffer (if rename, start with old name)
+4. Reset cursor position and token index
+5. Flag screen for redraw
 
 ### `uiPatternGroupInputClose()`
 
-Closes the input editor.
+**Purpose:** Close the input editor.
 
-### `uiPatternGroupInputIsOpen()`
+**Actions:**
 
-Returns whether input is active.
+1. Set `isOpen = false`
+2. Clear buffer
+3. Return to previous UI state
 
-### `uiPatternGroupInputIsCopyMode()`
+### `uiPatternGroupInputIsOpen() → bool`
 
-Returns whether input is copy mode.
+**Purpose:** Check if input editor is currently active.
 
-### `uiPatternGroupInputGetTrimmedName()`
+**Returns:** true if input is open, false otherwise
 
-Returns the entered group name without padding.
+### `uiPatternGroupInputIsCopyMode() → bool`
 
-### `uiPatternGroupInputDraw(...)`
+**Purpose:** Return whether input is copy mode (new name) vs rename mode.
 
-Draws the group name input screen.
+**Returns:** true if copy mode, false if rename mode
 
-### `uiPatternGroupInputRotate(int)`
+### `uiPatternGroupInputGetTrimmedName() → String`
 
-Moves through available characters.
+**Purpose:** Return the entered group name without padding or trailing spaces.
+
+**Returns:** Trimmed name (e.g., "DEMO2")
+
+**Note:** Call only after user confirms input. Caller uses this name for actual copy/rename operation.
+
+### `uiPatternGroupInputDraw()`
+
+**Purpose:** Draw the group name input screen.
+
+**Display:**
+
+```
+Enter Group Name:
+[D][E][M][O][2][_][_][_]
+ ^-- cursor here (highlighted)
+```
+
+Shows buffer with cursor at current position. Character selector rotates as user changes token index.
+
+### `uiPatternGroupInputRotate(int direction)`
+
+**Purpose:** Move through available characters at current position.
+
+**Parameters:**
+
+- `direction` — +1 for next character, -1 for previous
+
+**Actions:**
+
+1. Advance `currentTokenIndex` by direction
+2. Wrap token index at boundaries
+3. Flag screen for redraw
+
+**Called by:** `uiManager` on encoder rotate events
 
 ### `uiPatternGroupInputAcceptCharacter()`
 
-Accepts the current character.
+**Purpose:** Accept the current character and move to next position.
+
+**Actions:**
+
+1. Append current token to buffer
+2. Advance cursor position
+3. Reset token index to first character
+4. Flag screen for redraw
+5. If buffer full (max length reached), auto-confirm
+
+**Called by:** `uiManager` on encoder short press
 
 ### `uiPatternGroupInputBackspaceOrCancel()`
 
-Backspaces or cancels input.
+**Purpose:** Backspace or cancel input.
 
+**Actions (KEY0 press):**
+
+1. If buffer not empty → backspace (remove last char, move cursor left)
+2. If buffer empty → cancel input (close editor, discard entry)
+3. Flag screen for redraw
+
+**Called by:** `uiManager` on KEY0 short press
 
 ---
 
-[UP](developerBuildGuide.md) | [README](../README.md)
+## Character Validation
+
+**Accepted characters:**
+
+- Uppercase A–Z (recommended for group names)
+- Digits 0–9
+- Special chars: hyphen, underscore, dot, parentheses
+- Space (for multi-word names)
+
+**Rejected:**
+
+- Lowercase (auto-uppercase)
+- Symbols /\:|*?"<> (invalid for filesystem)
+- Control characters
+
+---
+
+## Dependencies
+
+- `DisplayDriverClass.h` — input screen rendering
+
+---
+
+## Important Implementation Notes
+
+1. **Modal isolation.** While text input is open, global UI state (like long-press settings) must not interfere. uiManager coordinates this.
+
+2. **UTF-8 not supported.** Input accepts ASCII only for filesystem compatibility.
+
+3. **Max length enforcement.** Group names limited to ~20 characters (filesystem path limitations).
+
+4. **Cursor wrapping.** If user presses accept at buffer end, auto-confirm and close input (prevent infinite entry).
+
+5. **Token rotation wraps.** Encoder rotation at A wraps around to last token (Z, 9, _, etc.) to support cycling back.
+
+---
+
+[⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)

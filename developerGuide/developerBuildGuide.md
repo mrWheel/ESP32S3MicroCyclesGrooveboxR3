@@ -1,195 +1,218 @@
-# ESP32S3 MicroCycles Groovebox R3
-# Developer Build Guide
+# ESP32S3 MicroCycles Groovebox R3 — Developer Build Guide
 
-**Current firmware version:** `v1.3.5`  
+**Current firmware version:** `v1.3.7`  
 **Hardware platform:** `TFT_LCD_Display_EC11` with ESP32-S3 piggy-back board  
 **Target board class:** ESP32-S3 N8R8, native USB, external I2S DAC, ST7789 TFT, SD card over dedicated SPI
 
-This guide is the main developer document for rebuilding a compatible Groovebox from zero. It describes the hardware, firmware structure, runtime model, storage model, build environment, and the role of every `.cpp` source file.
+This guide is the main developer document for rebuilding a compatible Groovebox from zero. It describes the hardware, firmware architecture, runtime model, storage model, build environment, and the role of every `.cpp` source file.
+---
+
+## Source File Reference
+
+| File | Purpose |
+|------|---------|
+| [main.md](main.md#src-main-cpp) | Firmware entry point, task orchestration, boot order |
+| [DisplayDriverClass.md](DisplayDriverClass.md) | TFT driver, text rendering, UI layout engine |
+| [InputClass.md](InputClass.md) | Encoder and button input handling |
+| [WiFiManagerExtClass.md](WiFiManagerExtClass.md) | WiFi management, credentials, portal |
+| [audioEngine.md](audioEngine.md) | I2S output, voice pool, synthesis, mixing |
+| [sampleManager.md](sampleManager.md) | SD card, WAV loading, memory allocation |
+| [sequencer.md](sequencer.md) | Pattern sequencing, step timing, BPM control |
+| [settingsStore.md](settingsStore.md) | NVS/LittleFS persistence, JSON pattern I/O |
+| [systemManager.md](systemManager.md) | WiFi lifecycle, system commands, credential storage |
+| [uiManager.md](uiManager.md) | UI state machine, input routing, screen dispatch |
+| [uiGrooveboxScreen.md](uiGrooveboxScreen.md) | Sequencer screen layout and rendering |
+| [uiSystemSettingsMenu.md](uiSystemSettingsMenu.md) | System settings menu (theme, rotation, etc.) |
+| [uiCardStorageMenu.md](uiCardStorageMenu.md) | Card storage menu (save/load/copy/etc.) |
+| [uiCardStorageActions.md](uiCardStorageActions.md) | Pattern group I/O delegation |
+| [uiPatternGroupInput.md](uiPatternGroupInput.md) | Text input for pattern group names |
+| [uiSequencerInput.md](uiSequencerInput.md) | Common UI list navigation utilities |
 
 ---
 
-## Table of contents
+## Table of Contents
 
-- [`src/main.cpp`](main.md)
-- [`src/DisplayDriverClass.cpp`](DisplayDriverClass.md)
-- [`src/InputClass.cpp`](InputClass.md)
-- [`src/WiFiManagerExtClass.cpp`](WiFiManagerExtClass.md)
-- [`src/audioEngine.cpp`](audioEngine.md)
-- [`src/sampleManager.cpp`](sampleManager.md)
-- [`src/sequencer.cpp`](sequencer.md)
-- [`src/settingsStore.cpp`](settingsStore.md)
-- [`src/systemManager.cpp`](systemManager.md)
-- [`src/uiManager.cpp`](uiManager.md)
-- [`src/uiGrooveboxScreen.cpp`](uiGrooveboxScreen.md)
-- [`src/uiSystemSettingsMenu.cpp`](uiSystemSettingsMenu.md)
-- [`src/uiCardStorageMenu.cpp`](uiCardStorageMenu.md)
-- [`src/uiCardStorageActions.cpp`](uiCardStorageActions.md)
-- [`src/uiPatternGroupInput.cpp`](uiPatternGroupInput.md)
-- [`src/uiSequencerInput.cpp`](uiSequencerInput.md)
+- [1. Project Goal](#1-project-goal)
+- [2. Hardware Platform](#2-hardware-platform)
+- [3. Pin Mapping](#3-pin-mapping)
+- [4. SPI Architecture](#4-spi-architecture)
+- [5. PlatformIO Environment](#5-platformio-environment)
+- [6. Required Libraries](#6-required-libraries)
+- [7. SD Card Layout](#7-sd-card-layout)
+- [8. WAV Sample Requirements](#8-wav-sample-requirements)
+- [9. setGain.json](#9-setgainjson)
+- [10. Pattern Storage Model](#10-pattern-storage-model)
+- [11. Pattern JSON Model](#11-pattern-json-model)
+- [12. Boot Sequence](#12-boot-sequence)
+- [13. Tasks and Timing](#13-tasks-and-timing)
+- [14. UI Philosophy](#14-ui-philosophy)
+- [15. Main Screen Layout](#15-main-screen-layout)
+- [16. Controls and Input Routing](#16-controls-and-input-routing)
+- [17. Audio Architecture](#17-audio-architecture)
+- [18. Development Rules](#18-development-rules)
+- [19. Building From Zero](#19-building-from-zero)
+- [20. Source File Reference](#20-source-file-reference)
 
 ---
 
 ## 1. Project Goal
 
-The project implements a compact six-track sample groovebox for the ESP32-S3 platform. It is designed as a realtime musical instrument, not as a general-purpose menu application.
+The project implements a compact six-track sample groovebox for the ESP32-S3 platform, designed as a realtime musical instrument rather than a general-purpose menu application.
 
-The system provides:
+**Capabilities:**
 
-```text
-six sample tracks
-16-step pattern editing
-multiple pattern slots in RAM
-SD-card pattern groups
-SD-card sample sets
-per-sample gain files
-chain playback
-runtime sample-set switching
-TFT boot diagnostics
-I2S audio output
-WiFi manager portal support
-NVS/LittleFS runtime settings
+- Six independent sample tracks with per-track controls
+- 16-step pattern editing with variable chain length
+- Multiple pattern slots in RAM (up to 64 patterns)
+- SD-card pattern groups for persistent storage
+- SD-card sample sets (S1–S9) for swapping sample palettes
+- Per-sample gain profiles via `setGain.json`
+- Chain playback for pattern sequencing
+- Runtime sample-set switching without reboot
+- TFT boot diagnostics with real-time status logging
+- I2S stereo audio output with sample-accurate pitch and decay control
+- WiFi manager portal for credential management
+- NVS/LittleFS runtime settings persistence
+
+**Preferred user workflow:**
+
 ```
-
-The preferred user workflow is:
-
-```text
 Boot
-  -> initialize display
-  -> initialize SD card
-  -> load active sample set
-  -> initialize input, sequencer, audio and WiFi system manager
-  -> load active pattern group into RAM
-  -> edit/play in RAM
-  -> Save Group writes active RAM patterns back to SD card
+  → initialize display with boot log
+  → initialize SD card
+  → load active sample set
+  → initialize input, sequencer, audio and WiFi system
+  → load active pattern group into RAM
+  → edit/play in RAM
+  → Save Group writes active RAM patterns back to SD card
 ```
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 2. Hardware Platform
 
-Required hardware:
+**Required hardware:**
 
-```text
-ESP32-S3 N8R8 module or board
-TFT_LCD_Display_EC11 carrier/front-panel board
-ESP32-S3 piggy-back board
-ST7789 320x240 TFT LCD
-EC11 rotary encoder with push button
-KEY0 auxiliary button
-microSD card socket with card-detect pin
-I2S DAC module, such as PCM5102-compatible module
-USB-C native programming/serial connection
-```
+- ESP32-S3 N8R8 module (8 MB flash, 8 MB PSRAM, native USB)
+- TFT_LCD_Display_EC11 carrier/front-panel PCB
+- ESP32-S3 piggy-back adapter board
+- ST7789 320×240 TFT LCD display
+- EC11 rotary encoder with integrated push button
+- KEY0 auxiliary momentary button
+- microSD card socket with card-detect pin
+- I2S DAC module (e.g., PCM5102-compatible)
+- USB-C for programming and serial debugging
 
-Important ESP32-S3 GPIO notes:
+**Important ESP32-S3 GPIO notes:**
 
-```text
-GPIO22-GPIO25 do not exist on ESP32-S3.
-GPIO26-GPIO37 are generally flash/PSRAM related and must be avoided.
-GPIO45 and GPIO46 are strapping/input-special pins and must be avoided for normal output.
-Native USB uses GPIO19/GPIO20.
-```
+- GPIO 22–25: Do not exist on ESP32-S3
+- GPIO 26–37: Generally reserved for flash/PSRAM; avoid for normal I/O
+- GPIO 45 & 46: Strapping pins; avoid for normal output
+- GPIO 19 & 20: Used by native USB; avoid unless repurposing USB
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 3. Pin Mapping
 
-The active pin mapping is defined in `platformio.ini`.
+The active pin mapping is defined in `platformio.ini` via `-DPIN_*` build flags.
 
-### TFT LCD
+### TFT LCD (SPI1)
 
-```text
-PIN_TFT_BLK  = GPIO2
-PIN_TFT_RST  = GPIO4
-PIN_TFT_CS   = GPIO5
-PIN_TFT_SCLK = GPIO12
-PIN_TFT_MOSI = GPIO11
-PIN_TFT_DC   = GPIO15
+```
+PIN_TFT_BLK  = GPIO2   (backlight enable, PWM capable)
+PIN_TFT_RST  = GPIO4   (reset)
+PIN_TFT_CS   = GPIO5   (chip select)
+PIN_TFT_SCLK = GPIO12  (clock)
+PIN_TFT_MOSI = GPIO11  (MOSI)
+PIN_TFT_DC   = GPIO15  (data/command)
 ```
 
-The TFT uses a dedicated SPI object, independent of the SD card bus.
+TFT uses a dedicated `SPIClass(TFT_SPI_HOST)`, isolated from SD card.
 
 ### Encoder and Button
 
-```text
-PIN_ENC_BTN = GPIO6
-PIN_KEY0    = GPIO1
-PIN_ENC_A   = GPIO16
-PIN_ENC_B   = GPIO17
+```
+PIN_ENC_BTN = GPIO6   (encoder push button)
+PIN_KEY0    = GPIO1   (auxiliary button)
+PIN_ENC_A   = GPIO16  (quadrature A)
+PIN_ENC_B   = GPIO17  (quadrature B)
 ```
 
-### I2S Audio
+### I2S Audio (Stereo)
 
-```text
-PIN_I2S_BCLK = GPIO38
-PIN_I2S_WS   = GPIO40
-PIN_I2S_DOUT = GPIO42
-PIN_I2S_SD   = GPIO41
+```
+PIN_I2S_BCLK = GPIO38  (bit clock)
+PIN_I2S_WS   = GPIO40  (word select / LRCK)
+PIN_I2S_DOUT = GPIO42  (data out)
+PIN_I2S_SD   = GPIO41  (serial data, usually tied to DOUT or GND)
 ```
 
-The current audio path outputs standard I2S. A PCM5102-style DAC must be configured for I2S format, not Left Justified.
+The DAC must be configured for **standard I2S**, not Left Justified or other variants.
 
-### SD Card
+### SD Card (SPI2)
 
-```text
-PIN_SD_DTCT              = GPIO7
-PIN_SD_DTCT_ENABLED      = 1
-PIN_SD_DTCT_NO_CARD_LEVEL = HIGH
-PIN_SD_CS                = GPIO13
-PIN_SD_SCK               = GPIO14
-PIN_SD_MISO              = GPIO18
-PIN_SD_MOSI              = GPIO21
+```
+PIN_SD_DTCT              = GPIO7   (card detect line)
+PIN_SD_DTCT_ENABLED      = 1       (detection enabled)
+PIN_SD_DTCT_NO_CARD_LEVEL = HIGH   (high = no card)
+PIN_SD_CS                = GPIO13  (chip select)
+PIN_SD_SCK               = GPIO14  (clock)
+PIN_SD_MISO              = GPIO18  (MISO)
+PIN_SD_MOSI              = GPIO21  (MOSI)
 ```
 
-The SD card uses a dedicated SPI object, independent of the TFT bus. SD card presence is checked before SD-dependent boot and UI operations.
+SD card uses a dedicated `SPIClass(SD_SPI_HOST)`, isolated from TFT. Card presence is verified via `sampleManagerIsSdCardReady()` before SD-dependent operations.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 4. SPI Architecture
 
-Older versions shared one global `SPI` object between TFT and SD. Current firmware does not.
+Older firmware versions shared one global SPI object between TFT and SD, causing contention issues. **Current firmware does not.**
 
-Current architecture:
+**Current architecture:**
 
-```text
-TFT -> dedicated SPIClass tftSpi(TFT_SPI_HOST)
-SD  -> dedicated SPIClass sdSpi(SD_SPI_HOST)
+```
+TFT → dedicated SPIClass(TFT_SPI_HOST)
+SD  → dedicated SPIClass(SD_SPI_HOST)
 ```
 
-This is essential for the ESP32-S3 piggy-back board where TFT and SD are physically wired to separate SPI buses.
+This separation is essential for the ESP32-S3 piggy-back board, where TFT and SD are wired to physically distinct SPI buses.
 
-Do not reintroduce global `SPI.begin(...)` for either display or SD card.
+**Do not reintroduce global `SPI.begin(...)` for either display or SD card.** Each module initializes its own SPIClass independently during setup.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 5. PlatformIO Environment
 
-The main build environment is:
+The main build environment is `ESP32S3GrooveboxR3`.
 
-```text
-ESP32S3GrooveboxR3
-```
-
-Build:
+**Build:**
 
 ```bash
 pio run -e ESP32S3GrooveboxR3
 ```
 
-Upload:
+**Upload:**
 
 ```bash
 pio run -e ESP32S3GrooveboxR3 -t upload
 ```
 
-Serial monitor:
+**Serial monitor:**
 
 ```bash
-pio device monitor -e ESP32S3GrooveboxR3
+pio device monitor -e ESP32S3GrooveboxR3 -b 115200
 ```
 
-Important ESP32-S3 N8R8 settings:
+**Key esp32-s3-devkitc-1 settings in platformio.ini:**
 
 ```ini
 board = esp32-s3-devkitc-1
@@ -201,46 +224,51 @@ board_build.psram = enabled
 -D BOARD_HAS_PSRAM
 ```
 
-The partition file keeps LittleFS small and gives most of the 8 MB flash to the application image.
+The partition file reserves most of the 8 MB flash for the application image while keeping LittleFS small.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 6. Required Libraries
 
-`platformio.ini` declares:
+**PlatformIO dependencies:**
 
-```text
-Adafruit GFX Library
-Adafruit ST7735 and ST7789 Library
-ArduinoJson
-WiFiManager
-```
+- `Adafruit GFX Library` — bitmap graphics primitives
+- `Adafruit ST7735 and ST7789 Library` — TFT driver
+- `ArduinoJson` — JSON parsing and serialization
+- `WiFiManager` — WiFi credential portal
 
-The firmware also uses ESP-IDF/Arduino core services:
+**ESP-IDF/Arduino core services:**
 
-```text
-FreeRTOS tasks
-esp_timer
-NVS / Preferences
-LittleFS
-SD / SPI
-WiFi
-I2S legacy driver
-heap_caps PSRAM allocation
-```
+- FreeRTOS (multi-core tasks, mutexes, queues)
+- esp_timer (microsecond timing for audio)
+- Preferences / NVS (non-volatile storage)
+- LittleFS (flash filesystem for runtime settings)
+- SD / SPI (SD card via dedicated SPI bus)
+- WiFi (native ESP32 WiFi stack)
+- I2S (legacy I2S TX driver for audio output)
+- heap_caps (PSRAM-aware memory allocation)
+- Console / logging (ESP_LOGx macros)
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 7. SD Card Layout
 
-The SD card must be FAT-formatted and contain:
+The SD card must be FAT-formatted with the following structure:
 
-```text
+```
 /
   /patterns
     /DEMO
       p01.json
       p02.json
+      p03.json
+      ...
+    /MyGroup
+      p01.json
       ...
 
   /samples
@@ -251,48 +279,49 @@ The SD card must be FAT-formatted and contain:
       oh.wav
       tone.wav
       metal.wav
-      setGain.json
-
+      setGain.json    (optional)
+    
     /S2
+      kick.wav
+      snare.wav
       ...
 ```
 
-Pattern groups are directories under `/patterns`.
+**Pattern groups** are subdirectories under `/patterns`. Each group contains `p01.json` through `p64.json` (or fewer).
 
-Sample sets are directories named `S1` through `S9` under `/samples`.
+**Sample sets** are subdirectories named `S1` through `S9` under `/samples`. The active sample set is persisted in NVS and restored on boot.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 8. WAV Sample Requirements
 
-Each sample set should contain:
+Each sample set should contain six tracks (kick, snare, ch, oh, tone, metal). Supported properties:
 
-```text
-kick.wav
-snare.wav
-ch.wav
-oh.wav
-tone.wav
-metal.wav
+```
+Container:    WAV
+Codec:        PCM (no compression)
+Sample rate:  44.1 kHz
+Bit depth:    16-bit or 24-bit
+Channels:     mono or stereo
+Max duration: typically 1–4 seconds
 ```
 
-Supported audio properties:
+**Processing:**
 
-```text
-WAV container
-PCM audio format
-44.1 kHz sample rate
-16-bit or 24-bit input
-mono or stereo input
-```
+- The loader converts all input into mono `int16_t` interleaved samples
+- PSRAM is preferred for large samples; RAM is used as fallback
+- Missing, invalid, or oversized samples generate procedural fallback waveforms (sine/sawtooth)
+- Gain is applied before storage via `setGain.json` if present
 
-The loader converts samples into internal mono `int16_t` buffers. PSRAM is preferred when available. If a sample is missing, invalid or too large for available memory, a generated fallback waveform is used.
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 9. setGain.json
 
-A sample set may include `setGain.json`:
+A sample set may include `setGain.json` to define per-sample loudness offset:
 
 ```json
 {
@@ -307,284 +336,390 @@ A sample set may include `setGain.json`:
 }
 ```
 
-The current loader uses the mainstream `setGain` object format. Missing values default to 100 percent.
+**Values:** 0–150, where 100 = unity gain (no change). Missing entries default to 100.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 10. Pattern Storage Model
 
-The Groovebox edits patterns in RAM.
+The Groovebox edits patterns **in RAM only**. SD card storage is explicit via UI menu:
 
-SD card storage is explicit:
+| Operation   | Description                                                          |
+|-------------|----------------------------------------------------------------------|
+| Load Group  | Read all `pNN.json` files from `/patterns/<GROUP>` into RAM slots     |
+| Save Group  | Write RAM slots back to `/patterns/<GROUP>` (overwrites)             |
+| Copy Group  | Duplicate one SD group directory on card                             |
+| Rename Group| Rename one SD group directory                                        |
+| Delete Group| Delete one SD group directory (active group is protected)            |
 
-```text
-Load Group -> read all pNN.json files from /patterns/<GROUP>
-Save Group -> write RAM slots back to /patterns/<GROUP>
-Copy Group -> duplicate one SD group directory
-Rename Group -> rename one SD group directory
-Delete Group -> delete one SD group directory, except the active group is protected
-```
+The **active group name** and **active sample set** are persisted in NVS and restored on boot.
 
-The active group and active sample set names are persisted in NVS.
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 11. Pattern JSON Model
 
-A pattern JSON file stores:
+A pattern JSON file (`pNN.json`) stores:
 
-```text
-version
-name
-bpm
-swing
-chainEnabled
-chainLength
-chainTarget
-masterLevel
-tracks
+```json
+{
+  "version": 1,
+  "name": "Groove 1",
+  "bpm": 120,
+  "swing": 0,
+  "chainEnabled": false,
+  "chainLength": 1,
+  "chainTarget": 1,
+  "masterLevel": 90,
+  "tracks": [
+    {
+      "triggers": [1,0,0,0,1,0,0,0,0,1,0,0,1,0,0,0],
+      "velocity": [100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100],
+      "probability": [100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100],
+      "pitchLocked": false,
+      "pitchValue": 0,
+      "decayLocked": false,
+      "decayValue": 100,
+      "mute": false
+    },
+    ...
+  ]
+}
 ```
 
-Each track stores:
+**Fields:**
 
-```text
-trigger data
-velocity
-probability
-pitch lock
-decay lock
-mute state
-```
+- `version` — JSON format version (currently 1)
+- `name` — User-readable pattern name
+- `bpm` — Tempo (typically 60–180 BPM)
+- `swing` — Swing percentage (0–100)
+- `chainEnabled` — Whether chaining is active
+- `chainLength` — Number of patterns in chain (1–16)
+- `chainTarget` — Next pattern index (1-based, wraps)
+- `masterLevel` — Master output gain (0–100 %)
+- `tracks` — Array of six track objects
 
-Pattern filenames are strict `pNN.json` names. Do not reintroduce legacy pattern filenames or extensionless files.
+**Per-track fields:**
+
+- `triggers` — Array of 16 step booleans (0 or 1)
+- `velocity` — Array of 16 velocities per step (0–100)
+- `probability` — Array of 16 probability percentages (0–100)
+- `pitchLocked` — Whether pitch is fixed for this track
+- `pitchValue` — Pitch offset in semitones (−12 to +12)
+- `decayLocked` — Whether decay is fixed for this track
+- `decayValue` — Decay time in percent (0–100)
+- `mute` — Track mute flag (boolean)
+
+**Pattern filenames** must be strict `pNN.json` format where `NN` is a two-digit number (01–64). Do not use legacy pattern filenames or extensionless files.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 12. Boot Sequence
 
-Current high-level boot sequence:
+**High-level boot order:**
 
-```text
-Serial start
-log firmware version and pins
-check pin conflicts
-load runtime settings
-initialize TFT immediately
-show boot log on TFT
-initialize SD card and load samples
-initialize input
-initialize sequencer
-initialize audio engine
-initialize WiFi/system manager
-initialize UI manager
-load active card pattern group
-start AudioTask
-start UiTask
-start InputTask
-start SystemTask
-loop() remains fallback-only
-```
+1. Serial begin + firmware version log
+2. Pin mapping diagnostics
+3. Load runtime settings from NVS/LittleFS
+4. Initialize TFT display immediately
+5. Show boot log on TFT (via `displayInit()`)
+6. Initialize SD card and load sample set
+7. Initialize EC11 encoder and KEY0 button
+8. Initialize sequencer state and RAM patterns
+9. Initialize audio engine (I2S, voice pool)
+10. Initialize WiFi/system manager
+11. Initialize UI manager
+12. Load active pattern group from SD into RAM
+13. **Start AudioTask** (core 0, realtime)
+14. **Start InputTask** (core 1, input polling)
+15. **Start UiTask** (core 1, UI rendering)
+16. **Start SystemTask** (core 1, WiFi/commands)
+17. `loop()` remains fallback-only (minimal)
 
-The boot log is rendered directly on the TFT using partial row updates. Warnings and errors use severity-colored rows and automatic delay.
+The boot log is rendered directly on the TFT using partial row updates. Warnings and errors use color-coded rows and automatic delays.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 13. Tasks and Timing
 
-The firmware uses four main FreeRTOS tasks.
+The firmware uses four main FreeRTOS tasks, each with specific timing and safety constraints.
 
-### AudioTask
+### AudioTask (Core 0, Realtime)
 
-Runs on core 0 and is timing-sensitive.
+**Frequency:** Fixed 44.1 kHz block rate (~5.8 ms per block)
 
-```text
-sequencerConsumeDueStep()
-audioEngineTriggerSample()
-audioEngineRenderBlock()
+**Loop body:**
+
+```
+sequencerConsumeDueStep()       // check if step needs triggering
+audioEngineTriggerSample(...)   // start samples per sequencer step
+audioEngineRenderBlock()        // render stereo output to I2S DMA
 ```
 
-It must not allocate memory, access SD, draw UI, or do blocking work except its fixed tick delay.
+**Constraints:**
 
-### UiTask
+- ⛔ No memory allocation
+- ⛔ No SD card, LittleFS, or WiFi access
+- ⛔ No display drawing
+- ⛔ No blocking operations (except fixed tick delay)
 
-Consumes queued encoder/button events and redraws UI.
+Violations cause audio glitches or dropouts.
 
-### InputTask
+### InputTask (Core 1)
 
-Polls EC11 encoder and KEY0, converts hardware transitions into logical events, and sends them to `UiTask`.
+**Frequency:** ~10 ms
 
-### SystemTask
+**Loop body:**
 
-Runs WiFi manager/system commands.
+```
+encoder.update()                // poll quadrature encoder state
+auxButton.update()              // poll KEY0 button state
+send InputEventMessage to queue // if state changed
+```
 
-### loop()
+Debounces and detects multi-press (short/medium/long) patterns.
 
-Only fallback logic. It must remain minimal.
+### UiTask (Core 1)
+
+**Frequency:** Event-driven, redraw on input or sequencer update
+
+**Loop body:**
+
+```
+consume InputEventMessage       // input from InputTask
+route to uiManager              // finite-state dispatcher
+redraw affected UI regions      // partial or full screen
+```
+
+### SystemTask (Core 1)
+
+**Frequency:** ~100 ms
+
+**Loop body:**
+
+```
+WiFiManager update (if portal open)
+system command queue dispatch
+WiFi status polling
+```
+
+### loop() (Core 1, Fallback-only)
+
+Runs only if task creation failed. Provides minimal input/UI/system fallback to keep device usable.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 14. UI Philosophy
 
-The UI should behave like a dedicated musical instrument:
+The UI should behave like a **dedicated musical instrument**, not a desktop application:
 
-```text
-fast
-predictable
-muscle-memory friendly
-minimum modal confusion
-safe while playing
-```
+- **Fast:** Immediate response to encoder/button input
+- **Predictable:** Consistent navigation and state transitions
+- **Muscle-memory friendly:** No surprise mode changes during playback
+- **Minimum modal confusion:** Few nested menus; clear escape paths
+- **Safe while playing:** No accidental pattern deletion; no SD I/O interruptions during audio
 
-Avoid desktop-style workflows, deep menus, and unnecessary full-screen redraws during playback.
+**Avoid:**
 
----
+- Deep menu hierarchies (max 2–3 levels)
+- Full-screen redraws during playback
+- Slow animations or transitions
+- Confirmation dialogs that trap the user
 
-## 15. Main Screen
-
-The main `[Groovebox]` screen shows:
-
-```text
-header with version/status
-six track rows
-current parameter/edit page
-active/playing pattern information
-chain status and group name
-```
-
-Tracks:
-
-```text
-KICK
-SNARE
-CH
-OH
-TONE
-METAL
-```
-
-Main parameter pages include:
-
-```text
-TRIG
-VEL
-PITCH
-DECAY
-PROB
-MUTE
-CHAIN
-MASTER
-```
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
-## 16. Controls
+## 15. Main Screen Layout
 
-Normal mode:
+The main **[Groovebox]** sequencer screen shows:
 
-```text
-Encoder rotate       -> move track / move across pattern edge
-Encoder short press  -> enter/edit current page
-Encoder medium press -> tempo/master related edit popup
-Encoder long press   -> System Settings
-KEY0 short           -> play/stop
-KEY0 medium/long     -> alternate tempo/edit shortcuts depending on UI state
+**Header** (top row):
+```
+Version | Status | Group Name | BPM | Swing
 ```
 
-Input routing is implemented as a finite-state dispatcher in `uiManager.cpp`.
+**Track rows** (6 rows, one per sample):
+```
+[KICK  ] [●●●●●●●●●●●●●●●●] [VEL 100] [P 100]
+[SNARE ] [●●●●●●●●●●●●●●●●] [VEL 100] [P 100]
+[CH    ] [●●●●●●●●●●●●●●●●] [VEL 100] [P 100]
+[OH    ] [●●●●●●●●●●●●●●●●] [VEL 100] [P 100]
+[TONE  ] [●●●●●●●●●●●●●●●●] [VEL 100] [P 100]
+[METAL ] [●●●●●●●●●●●●●●●●] [VEL 100] [P 100]
+```
+
+**Parameter page** (rotate via encoder):
+- `TRIG` — trigger/step editing
+- `VEL` — velocity per step
+- `PITCH` — pitch transposition
+- `DECAY` — decay/release time
+- `PROB` — probability per step
+- `MUTE` — track mute state
+- `CHAIN` — chain settings
+- `MASTER` — master output level
+
+**Footer** (bottom row):
+```
+Pattern Name | Chain Status | Mode Indicator
+```
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
+
+---
+
+## 16. Controls and Input Routing
+
+### Encoder (EC11)
+
+| Action                  | Behavior                                          |
+|-------------------------|---------------------------------------------------|
+| Rotate CW/CCW           | Move track cursor up/down; wrap at edges          |
+| Short press (<300 ms)   | Enter/exit edit mode for current parameter page   |
+| Medium press (300–1s)   | Tempo edit popup                                  |
+| Long press (>1s)        | Open System Settings menu                         |
+
+### KEY0 Button
+
+| Action                  | Behavior                                          |
+|-------------------------|---------------------------------------------------|
+| Short press             | Play/Stop (sequencer transport)                   |
+| Medium press            | Alternate tempo/parameter edit (context-dependent)|
+| Long press              | Enter Pattern Group menu (save/load/etc.)         |
+
+Input routing is implemented as a finite-state dispatcher in `uiManager.cpp`. Different UI states route the same button code to different handlers.
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
 ## 17. Audio Architecture
 
-Audio path:
+**Audio signal path:**
 
-```text
-Sequencer due step
-  -> track trigger mask
-  -> audioEngineTriggerSample()
-  -> fixed voice pool
-  -> per-sample gain
-  -> velocity curve
-  -> pitch phase increment
-  -> decay frame limit
-  -> attack/release fade
-  -> pan and mix
-  -> master gain
-  -> limiter/headroom clamp
-  -> stereo I2S DMA buffer
-  -> I2S DAC
+```
+User trigger event
+  ↓
+sequencer outputs track mask per step
+  ↓
+audioEngineTriggerSample(track, sample, pitch, decay, velocity, pan, ...)
+  ↓
+allocate/steal voice from fixed pool
+  ↓
+load sample base gain + setGain.json multiplier
+  ↓
+apply velocity curve (non-linear response)
+  ↓
+calculate pitch phase increment (44.1 kHz → tuned frequency)
+  ↓
+limit playback frames by decay time
+  ↓
+apply attack fade (0 → max over ~5 ms)
+  ↓
+apply release fade (max → 0 over decay time)
+  ↓
+apply stereo pan (L/R balance, optional)
+  ↓
+sum into stereo interleaved buffer
+  ↓
+apply master output gain
+  ↓
+limiter/headroom clamp (prevent digital overdrive)
+  ↓
+write stereo pairs to I2S DMA buffer
+  ↓
+I2S DAC (external PCM5102 or similar)
 ```
 
-Current output is stereo interleaved, with track pan support in the mixer.
+**Key points:**
+
+- Voice pool size is fixed (typically 8 voices)
+- Voice stealing uses estimated RMS level to prioritize new sounds
+- Choke groups allow synchronized release of related samples (e.g., open/closed hats)
+- Output is stereo interleaved (L/R/L/R/...) for I2S DMA
+- Master gain is applied after mixing but before limiter
+- No memory allocation occurs during render
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
-## 18. Diagnostics
+## 18. Development Rules
 
-Useful build flags:
+**Code style:**
 
-```text
-TEST_TONE
-TEST_TONE_FREQUENCY_HZ
-SD_SMOKE_TEST
-NO_DAC_HARDWARE
-DISPLAY_DEBUG_INFO
-SD_VERBOSE_DIRECTORY_LISTING
-CORE_DEBUG_LEVEL
-LOG_LOCAL_LEVEL
 ```
-
-For normal firmware builds, keep diagnostic modes disabled.
-
----
-
-## 19. Development Rules
-
-Recommended code style:
-
-```text
-Allman braces
+Allman braces (opening brace on same line, closing on new line)
 2-space indentation
 lowerCamelCase for functions and variables
-English comments
-comments above the relevant code
+UpperCamelCase for classes and types
+English comments and log messages
+Comments above the relevant code (not inline)
 setup() and loop() at the bottom of main.cpp
-loop() delegates only
-no filesystem/display/WiFi calls from realtime audio rendering
+loop() delegates only; no blocking logic
 ```
 
-Logging prefixes:
+**Real-time safety:**
 
-```text
-Error:
-Warning:
-Info:
-Debug:
+```
+No filesystem/display/WiFi calls from audioTask()
+No memory allocation in render-path functions
+No mutex locks in audioEngineRenderBlock()
+No network I/O from sequencer or audio code
 ```
 
-Use `ESP_LOGx()` for ESP32 diagnostics.
+**Logging prefixes:**
+
+```
+Error:    — critical failure (device should halt or fallback)
+Warning:  — suspicious condition (may indicate misconfiguration)
+Info:     — normal operational messages
+Debug:    — verbose internal state (compile-time gated)
+```
+
+Use `ESP_LOGx()` macros for ESP32 diagnostics:
+
+```cpp
+ESP_LOGE("TAG", "Error message: %d", value);    // Error
+ESP_LOGW("TAG", "Warning: %s", str);             // Warning
+ESP_LOGI("TAG", "Info: %s", str);                // Info
+ESP_LOGD("TAG", "Debug: %d", value);             // Debug
+```
+
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 
-## 20. Building a Compatible Groovebox From Zero
+## 19. Building From Zero
 
-A developer starting from zero should implement in this order:
+A developer implementing a compatible Groovebox from zero should follow this order:
 
-```text
-1. appConfig/platformio pin map and partition table
-2. Display driver with ST7789 and boot log
-3. Input scanner for EC11 and KEY0
-4. SD card and sample manager
-5. Audio engine and I2S DAC output
-6. Sequencer core and RAM pattern model
-7. Settings store and SD pattern JSON format
-8. Groovebox UI rendering
-9. UI manager finite-state routing
-10. Card storage workflows
-11. WiFi/system manager
-12. Diagnostics, boot messages and safety guards
-```
+1. **appConfig** — Define pin mappings and partition table
+2. **Display driver** — ST7789 + boot log rendering
+3. **Input scanner** — EC11 quadrature + KEY0 button debounce
+4. **SD card + sample manager** — FAT access, WAV parsing, memory allocation
+5. **Audio engine** — I2S output, voice pool, pitch/decay/gain processing
+6. **Sequencer core** — Step sequencing, BPM, pattern state in RAM
+7. **Settings store** — NVS, LittleFS, SD pattern JSON serialization
+8. **Groovebox UI screen** — Layout rendering, track display, footer
+9. **UI manager** — Finite-state dispatcher, encoder/button routing
+10. **Card storage workflows** — Group save/load/copy/rename/delete
+11. **WiFi/system manager** — Credential portal, WiFi reconnect, NVS sync
+12. **Diagnostics** — Boot messages, boot log, safety guards, test modes
 
-Use the individual source-file documents below as the implementation map.
+Use the individual source-file documents below as the implementation reference.
 
-- [`UP`](../developerBuildGuide.md) | [`README`](../README.md)
+**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
+
+---
+
+[⬆ UP](#table-of-contents) | [📖 README](../README.md#)

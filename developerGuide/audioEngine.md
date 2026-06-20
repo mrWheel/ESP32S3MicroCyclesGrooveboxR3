@@ -1,4 +1,6 @@
-# `src/audioEngine.cpp`
+# `src/audioEngine.cpp` — Real-Time Audio Synthesis, Voice Pool, and I2S Output Engine
+
+**Purpose:** Sample playback with sample-accurate pitch/pan/decay control, realtime voice mixing, gain processing, and I2S stereo DMA output to external DAC.
 
 [Back](developerBuildGuide.md)
 
