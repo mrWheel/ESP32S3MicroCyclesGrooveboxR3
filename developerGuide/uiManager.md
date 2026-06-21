@@ -11,7 +11,7 @@
 2. Load active pattern group from SD card at boot
 3. Handle Groovebox sequencer screen input and navigation
 4. Handle System Settings menu (theme, rotation, encoder reverse)
-5. Handle Card Storage menu (save/load/copy/rename/delete)
+5. Handle Card Storage menu (save/load/new/copy/rename/delete)
 6. Handle sample-set selection menu
 7. Handle pattern load/delete actions
 8. Handle pattern group name input/editing
@@ -115,6 +115,7 @@ ELSE IF long press:
 Dispatcher table for menu actions:
 - Save Group
 - Load Group
+- New Group
 - Copy Group
 - Rename Group
 - Delete Group (with confirmation)
@@ -315,7 +316,7 @@ Names are stored in the current pattern JSON and synchronized on load/save.
 [⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)
 
 
-## v1.3.8 Control Changes
+## Groovebox Control Behavior
 
 - KEY0 medium press in Groovebox PLAY/STOP opens the same Step popup as encoder medium press.
 - KEY0 long press in Groovebox PLAY/STOP toggles Track Mute for the selected track. Track Mute affects the entire voice and is displayed with `*` after the track name.

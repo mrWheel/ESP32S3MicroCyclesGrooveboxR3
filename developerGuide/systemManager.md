@@ -1,20 +1,22 @@
-# `src/systemManager.cpp` — System Commands, WiFi Lifecycle, and Credentials Management
+# `src/systemManager.cpp` — System Commands, WiFi Lifecycle, and NVS Credential Reconnect
 
-**Purpose:** Central system command dispatcher, WiFi manager lifecycle coordination, WiFi credential storage, and device restart/factory-reset control.
+**Purpose:** Central system command dispatcher, WiFiManager lifecycle coordination, ESP32 WiFi NVS reconnect, and device restart/credential erase control.
 
 ---
 
 ## Responsibilities
 
-```
-1. Initialize WiFiManagerExt wrapper at boot
-2. Load stored WiFi credentials from NVS
-3. Optionally disable WiFi auto-connect (for fast boot)
-4. Queue and dispatch system commands (restart, erase WiFi, open portal, etc.)
-5. Run periodic WiFi manager updates
-6. Provide SSID/IP/MAC/portal info strings to UI
-7. Monitor WiFi connection status
-8. Coordinate WiFi credential save/load between UI and storage
+```text
+1. Create the system command queue
+2. Try to reconnect at boot using ESP32 WiFi credentials stored in NVS
+3. Configure WiFi persistent mode and auto-reconnect
+4. Keep cached SSID/IP information for the settings menu
+5. Start the WiFiManager portal when requested from the UI
+6. Detect newly entered WiFiManager credentials
+7. Restart after new WiFi credentials are accepted
+8. Erase ESP32 WiFi NVS credentials when requested
+9. Provide SSID/IP/MAC/portal info strings to UI
+10. Report whether the WiFiManager portal is active
 ```
 
 ---
@@ -24,99 +26,52 @@
 **SystemCommand enum:**
 
 ```cpp
-enum class SystemCommand {
-  NONE = 0,
-  RESTART_DEVICE,          // reboot via esp_restart()
-  ERASE_WIFI_CREDENTIALS,  // clear NVS WiFi entries
-  OPEN_WIFI_PORTAL,        // start captive WiFi setup
-  CLOSE_WIFI_PORTAL,       // stop portal, return to STA
-  DISABLE_WIFI,            // turn off WiFi entirely
-  ENABLE_WIFI,             // turn WiFi back on
-  SAVE_SCREEN_ROTATION,    // persist display rotation
-  // ... additional commands as needed
+enum class SystemCommand : uint8_t
+{
+  none = 0,
+  startWifiManager,
+  eraseWifiCredentials,
+  restartNow
 };
 ```
 
-Commands are queued and executed in SystemTask to avoid blocking audio/UI.
+Commands are queued from the UI and executed in `SystemTask` to avoid blocking input and display handlers.
 
 ---
 
 ## Core State
 
-**systemState struct:**
-
 ```cpp
-struct {
-  WiFiManagerExt wifiManager;
-  WifiSettings wifiSettings;
-  bool wifiDisabledAtBoot;
-  
-  StaticQueue_t commandQueueStruct;
-  QueueHandle_t commandQueue;
-  
-  String currentSsid;
-  String currentIpAddress;
-  String currentMacAddress;
-  String portalApSsid;
-  
-  uint32_t wifiConnectAttempts;
-  uint32_t lastWifiCheckTime;
-} systemState;
+static StaticQueue_t commandQueueStruct;
+static uint8_t commandQueueStorage[8 * sizeof(SystemCommand)];
+static QueueHandle_t commandQueue = nullptr;
+
+static String cachedConnectedSsid = "";
+static String cachedConnectedIp = "";
 ```
+
+The cached SSID/IP values are display information only. WiFi passwords are **not** stored by `systemManager.cpp` or `settingsStore.cpp`.
 
 ---
 
 ## Key Internal Functions
 
-**ensureWifiSettingsFsMounted() → bool:**
+### `connectUsingStoredNvsCredentials() -> bool`
 
-Mounts LittleFS to allow WiFi credential storage if NVS becomes full.
+**Purpose:** Try to reconnect using credentials stored by the ESP32 WiFi stack in NVS.
 
-**loadStoredWifiCredentials(WifiSettings& out) → bool:**
+**Flow:**
 
-```
-1. Open NVS namespace "wifi"
-2. Read SSID, password, hostname
-3. Return true if found, false if missing (first boot)
-```
-
-**saveWifiCredentials(const WifiSettings& in) → bool:**
-
-```
-1. Open NVS namespace "wifi"
-2. Write SSID, password, hostname
-3. Commit to flash
-4. Return true if successful
+```text
+WiFi.mode(WIFI_STA)
+WiFi.persistent(true)
+WiFi.setAutoReconnect(true)
+WiFi.begin()
+wait up to 8 seconds for WL_CONNECTED
+cache WiFi.SSID() and WiFi.localIP() if connected
 ```
 
-**updateWifiStatus():**
-
-```
-1. Check WiFi connection status
-2. Update currentIpAddress, currentMacAddress
-3. Report changes to UI via status indicators
-4. Handle auto-reconnect retry logic
-```
-
-**executeSystemCommand(SystemCommand cmd):**
-
-```
-switch (cmd) {
-  case RESTART_DEVICE:
-    esp_restart();
-    break;
-  
-  case ERASE_WIFI_CREDENTIALS:
-    NVS.erase("wifi");
-    break;
-  
-  case OPEN_WIFI_PORTAL:
-    wifiManager.startPortal();
-    break;
-  
-  // ... other commands
-}
-```
+This function does not know the password and does not read a project-specific credentials file. The ESP32 WiFi stack owns the credential storage.
 
 ---
 
@@ -124,169 +79,168 @@ switch (cmd) {
 
 ### `systemManagerInit()`
 
-**Purpose:** Initialize system manager and WiFi.
+**Purpose:** Initialize system manager and attempt WiFi reconnect.
 
 **Actions:**
 
-1. Create command queue
-2. Load runtime settings from NVS
-3. Create WiFiManagerExt instance
-4. Load stored WiFi credentials
-5. Call `wifiManager.begin()` (may skip if WiFi disabled at boot)
-6. Initialize status polling
+1. Clear cached SSID/IP.
+2. Prepare default `WiFiManagerExt::WifiSettings` for the captive portal.
+3. Create the static command queue.
+4. Enable WiFi persistence and auto-reconnect.
+5. Call `connectUsingStoredNvsCredentials()`.
+6. If connected, return with WiFi active.
+7. If not connected, initialize `WiFiManagerExt` in disabled mode and continue offline.
 
-**Call during:** `setup()`, after sequencer and UI manager init
+**Call during:** `setup()`, after audio engine initialization and before web server/UI initialization.
 
 ### `systemManagerUpdate()`
 
-**Purpose:** Run periodic WiFi updates and dispatch queued commands.
+**Purpose:** Run periodic WiFiManager updates and dispatch queued system commands.
 
 **Actions:**
 
-1. Check for pending system commands in queue
-2. Execute each command
-3. Update WiFi status (connection check, IP polling)
-4. Update UI info strings (SSID, IP address)
+1. Call `wifiManagerExt.update()`.
+2. Consume newly entered WiFi credentials from the portal.
+3. Keep WiFi persistence and auto-reconnect enabled.
+4. Cache the connected SSID/IP for display.
+5. Restart after portal credentials are accepted.
+6. Process queued commands:
+   - start WiFiManager portal
+   - erase WiFi credentials from ESP32 NVS
+   - restart now
 
-**Call frequency:** ~100 ms (from SystemTask)
+**Call frequency:** from `SystemTask` in `main.cpp`.
 
-### `systemManagerQueueCommand(SystemCommand cmd) → bool`
+### `systemManagerQueueCommand(SystemCommand command)`
 
-**Purpose:** Queue a system command for execution.
-
-**Parameters:**
-
-- `cmd` — command to queue
-
-**Returns:** true if queued successfully, false if queue full
+**Purpose:** Queue a system command for execution by `SystemTask`.
 
 **Typical callers:**
 
-- UI → "Restart" button → RESTART_DEVICE
-- UI → "Erase WiFi" → ERASE_WIFI_CREDENTIALS
-- UI → "WiFi Setup" → OPEN_WIFI_PORTAL
+- System Settings → Start WiFiManager
+- System Settings → Erase WiFi credentials
+- System Settings → Restart Groovebox
 
-### `systemManagerGetSsid() → String`
+### `systemManagerGetSsid()`
 
-**Purpose:** Return current or stored SSID display string.
+**Purpose:** Return the current connected SSID, cached SSID, or portal AP SSID.
 
-**Returns:** e.g., "MyNetwork" or "(not connected)"
+### `systemManagerGetIpAddress()`
 
-Used by UI settings screen.
+**Purpose:** Return the current station IP, cached IP, or portal address string.
 
-### `systemManagerGetIpAddress() → String`
+### `systemManagerGetMacAddress()`
 
-**Purpose:** Return device's current IP address.
+**Purpose:** Return the device MAC address.
 
-**Returns:** e.g., "192.168.1.123" or "(no IP)"
+### `systemManagerGetPortalApSsid()`
 
-### `systemManagerGetMacAddress() → String`
+**Purpose:** Return the WiFiManager portal AP SSID.
 
-**Purpose:** Return device's MAC address.
+### `systemManagerIsWifiPortalActive()`
 
-**Returns:** e.g., "AA:BB:CC:DD:EE:FF"
+**Purpose:** Return whether the WiFiManager portal is currently active.
 
-### `systemManagerGetPortalApSsid() → String`
-
-**Purpose:** Return WiFi portal AP name.
-
-**Returns:** e.g., "Groovebox-AABB"
-
-Used by UI to show "Connect to this network" message when portal is active.
-
-### `systemManagerIsWifiPortalActive() → bool`
-
-**Purpose:** Return whether WiFi portal is currently open.
-
-**Returns:** true if captive setup page is available
-
-### `systemManagerIsWifiConnected() → bool`
-
-**Purpose:** Return whether device is connected to WiFi in STA mode.
-
-**Returns:** true if WiFi connected with valid IP
+This is passed to `webServerManagerUpdate()` so the Groovebox web server can stop while the portal owns port 80.
 
 ---
 
 ## Command Queue
 
-Commands are stored in a FreeRTOS queue created in `main.cpp`:
+`commandQueue` is created in `systemManagerInit()` using static storage:
 
 ```cpp
-StaticQueue_t sysCommandQueueStruct;
-SystemCommand commandBuffer[16];
-QueueHandle_t systemCommandQueue = xQueueCreateStatic(
-  16, sizeof(SystemCommand), ...);
+commandQueue = xQueueCreateStatic(8, sizeof(SystemCommand), commandQueueStorage,
+                                  &commandQueueStruct);
 ```
 
-UiTask pushes commands; SystemTask consumes and executes.
+The queue keeps UI actions non-blocking and lets `SystemTask` perform restart/WiFi operations safely.
 
 ---
 
 ## WiFi Credential Persistence
 
-Credentials are stored in NVS under namespace "wifi":
+WiFi credentials are stored by the **ESP32 WiFi stack in NVS**, not by LittleFS and not by a project JSON file.
 
-| Key | Type | Example |
-|-----|------|---------|
-| `ssid` | String | "MyNetwork" |
-| `password` | String | "secretPassword" |
-| `hostname` | String | "groovebox" |
+Important calls:
 
-On boot, `systemManagerInit()` loads these and attempts auto-connect. User can erase them via System Settings → WiFi → "Erase Credentials".
+```cpp
+WiFi.persistent(true);
+WiFi.setAutoReconnect(true);
+WiFi.begin();
+```
+
+- `WiFi.begin()` without SSID/password uses stored ESP32 NVS credentials.
+- New credentials entered through WiFiManager are accepted by the WiFi stack and then the firmware restarts.
+- Erase uses `WiFi.disconnect(true, true)`, which removes stored WiFi credentials from ESP32 NVS.
+
+There is no `/littlefs/wifiSettings.json` credentials file in the current design.
 
 ---
 
 ## Boot Modes
 
-**Normal boot (WiFi enabled):**
+**Connected boot:**
 
-```
+```text
 systemManagerInit()
   ↓
-Load WiFi credentials
+connectUsingStoredNvsCredentials()
   ↓
-wifiManager.begin() → attempt STA auto-connect
+WiFi connected with valid IP
   ↓
-If connected → normal operation
-  ↓
-If fails → wait for user to open portal
+webServerManager can start from SystemTask
 ```
 
-**Fast boot (WiFi disabled):**
+**Offline boot:**
 
+```text
+systemManagerInit()
+  ↓
+connectUsingStoredNvsCredentials() fails or no credentials exist
+  ↓
+WiFiManagerExt is initialized disabled
+  ↓
+Groovebox continues fully offline
+  ↓
+User may open WiFiManager from System Settings
 ```
-If wifiDisabledAtBoot is set:
-  Skip all WiFi init
-  Device runs offline (no connectivity)
-  UI allows manual enable via System Settings
+
+**WiFiManager portal flow:**
+
+```text
+UI queues startWifiManager
+  ↓
+systemManagerUpdate() enables WiFiManagerExt and starts portal
+  ↓
+User enters credentials
+  ↓
+WiFi connects
+  ↓
+systemManagerUpdate() logs credentials stored in ESP32 NVS
+  ↓
+firmware restarts
 ```
 
 ---
 
 ## Dependencies
 
-- `WiFiManagerExt` — WiFi management wrapper
-- `settingsStore.h` — NVS/LittleFS access
-- `systemManager.h` — status strings
-- FreeRTOS (command queue)
-- ESP32 WiFi HAL
+- `WiFiManagerExtClass.h` — captive portal wrapper
+- `appConfig.h` — default AP SSID/password/hostname
+- `WiFi.h` — ESP32 WiFi stack and NVS-backed credential handling
+- `esp_system.h` — `esp_restart()`
+- FreeRTOS queue API
 
 ---
 
 ## Important Implementation Notes
 
-1. **Command queue isolation.** All system commands queued, never executed directly from UI callbacks. Prevents blocking audio or other tasks.
-
-2. **WiFi optional.** Device works without WiFi. Audio, local sequencing, pattern editing all work offline. WiFi is convenience only.
-
-3. **Credential storage secure.** Passwords stored in NVS (not encrypted by default; consider hardware secure storage for production).
-
-4. **Portal non-blocking.** WiFi setup happens in SystemTask, doesn't freeze audio or UI.
-
-5. **Status polling polls continuously.** IP address and connection status updated every `systemManagerUpdate()` call.
-
-6. **Boot speed optimized.** If WiFi disabled at boot, device skips WiFi init entirely, reducing startup time.
+1. **Do not store WiFi passwords in LittleFS.** Credentials are owned by the ESP32 WiFi stack/NVS.
+2. **WiFi is optional.** The Groovebox must boot and play without WiFi.
+3. **System commands must remain queued.** Do not restart or start the portal directly from menu rendering code.
+4. **WiFiManager portal and web server cannot both own port 80.** `webServerManagerUpdate()` receives portal state and stops the web server when needed.
+5. **Boot reconnect timeout is intentionally bounded.** Do not block startup indefinitely waiting for WiFi.
 
 ---
 

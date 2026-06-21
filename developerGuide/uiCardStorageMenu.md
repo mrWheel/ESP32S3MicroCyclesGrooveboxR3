@@ -13,8 +13,7 @@
 4. Rename Group
 5. Copy Group
 6. Delete Group
-7. ─────────────────          (separator)
-8. Exit
+7. Exit
 ```
 
 Save Group shows * (asterisk) if `patternGroupDirty` flag is set, alerting user of unsaved changes.

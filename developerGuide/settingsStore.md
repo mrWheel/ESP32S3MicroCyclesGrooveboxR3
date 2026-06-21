@@ -13,8 +13,8 @@
 4. Persist theme color index (NVS)
 5. Persist encoder direction reversal (NVS)
 6. Persist master output gain (NVS)
-7. Persist WiFi credentials (NVS via WiFiManagerExt)
-8. Mount LittleFS for local runtime settings
+7. Mount LittleFS for local runtime settings
+8. Serialize PatternData to JSON (pretty-printed)
 9. Serialize PatternData to JSON (pretty-printed)
 10. Deserialize JSON to PatternData (strict parsing)
 11. List pattern groups on SD card
@@ -389,7 +389,7 @@ Not minified. This uses slightly more SD space but aids manual editing and debug
 - `ArduinoJson` — JSON serialization/deserialization
 - `SD` library — SD card I/O
 - `Preferences` / NVS — non-volatile storage
-- `LittleFS` — local flash filesystem (prepared for future use)
+- `LittleFS` — local flash filesystem for local runtime files
 - `sequencer.h` — PatternData struct definition
 
 ---
@@ -415,6 +415,6 @@ Not minified. This uses slightly more SD space but aids manual editing and debug
 [⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)
 
 
-## v1.3.8 Step Mute Storage
+## Step Mute Storage
 
 Each step stores its own `mute` boolean. This field is independent from the track-level `mute` flag. Existing pattern files that do not contain the per-step `mute` field should load with `mute=false` for every step. New pattern files should save the field so STEP OFF states survive reloads.

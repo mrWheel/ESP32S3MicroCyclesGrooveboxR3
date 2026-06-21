@@ -1,19 +1,19 @@
 # `src/WiFiManagerExtClass.cpp` — WiFi Management and Configuration Portal
 
-**Purpose:** Wrap third-party WiFiManager library with a project-specific, stable API for WiFi credential management, configuration portal, and station/AP mode control.
+**Purpose:** Wrap the third-party WiFiManager library with a project-specific, stable API for captive portal control, station/AP mode transitions, and handoff of newly entered WiFi credentials to `systemManager`.
 
 ---
 
 ## Responsibilities
 
 ```
-1. Store and persist WiFi settings (SSID, password, hostname)
+1. Keep a runtime WiFi settings snapshot for portal identity and STA attempts
 2. Initialize WiFi stack (station or AP mode)
 3. Start/stop configuration portal (captive login page)
 4. Scan available networks
 5. Attempt station connection with stored credentials
 6. Monitor connection status
-7. Report newly entered credentials (from portal)
+7. Report newly entered credentials from the portal to `systemManager`
 8. Generate unique AP name with MAC suffix (reduce collisions)
 9. Support portal suspend/resume callbacks
 10. Support disabled mode (WiFi completely offline)
@@ -36,7 +36,7 @@ struct WifiSettings {
 };
 ```
 
-Persisted in NVS via settingsStore.
+This struct is a runtime settings snapshot. The ESP32 WiFi stack stores accepted STA credentials in NVS; this class reports new portal credentials to `systemManager`.
 
 **WiFiManagerExt class:**
 
@@ -291,7 +291,6 @@ NVS key "wifi_hostname"  → device hostname
 
 - `WiFiManager` library (third-party, via platformio.ini)
 - `WiFi` (native ESP32 WiFi stack)
-- `settingsStore.h` — NVS access
 - `esp_system` — WiFi HAL
 
 ---
@@ -304,7 +303,7 @@ NVS key "wifi_hostname"  → device hostname
 
 3. **MAC suffix uniqueness.** Multiple Grooveboxes nearby won't collide on AP name.
 
-4. **Auto-reconnect on boot.** Device remembers last SSID/password and reconnects automatically after power-cycle (unless disabled).
+4. **Portal handoff.** Credentials entered in the portal are reported to `systemManager`, which relies on ESP32 WiFi NVS for persistence and reconnect.
 
 5. **No blocking I/O from AudioTask.** WiFi updates only in SystemTask.
 

@@ -1,6 +1,6 @@
 # ESP32S3 MicroCycles Groovebox R3 — Developer Build Guide
 
-**Current firmware version:** `v1.3.7`  
+**Current firmware version:** `v1.3.9`  
 **Hardware platform:** `TFT_LCD_Display_EC11` with ESP32-S3 piggy-back board  
 **Target board class:** ESP32-S3 N8R8, native USB, external I2S DAC, ST7789 TFT, SD card over dedicated SPI
 
@@ -14,12 +14,13 @@ This guide is the main developer document for rebuilding a compatible Groovebox 
 | [main.md](main.md#src-main-cpp) | Firmware entry point, task orchestration, boot order |
 | [DisplayDriverClass.md](DisplayDriverClass.md) | TFT driver, text rendering, UI layout engine |
 | [InputClass.md](InputClass.md) | Encoder and button input handling |
-| [WiFiManagerExtClass.md](WiFiManagerExtClass.md) | WiFi management, credentials, portal |
+| [WiFiManagerExtClass.md](WiFiManagerExtClass.md) | WiFiManager wrapper and captive portal |
+| [webServerManager.md](webServerManager.md) | HTTP server foundation for future SPA/API access |
 | [audioEngine.md](audioEngine.md) | I2S output, voice pool, synthesis, mixing |
 | [sampleManager.md](sampleManager.md) | SD card, WAV loading, memory allocation |
 | [sequencer.md](sequencer.md) | Pattern sequencing, step timing, BPM control |
 | [settingsStore.md](settingsStore.md) | NVS/LittleFS persistence, JSON pattern I/O |
-| [systemManager.md](systemManager.md) | WiFi lifecycle, system commands, credential storage |
+| [systemManager.md](systemManager.md) | WiFi lifecycle, NVS reconnect, system commands |
 | [uiManager.md](uiManager.md) | UI state machine, input routing, screen dispatch |
 | [uiGrooveboxScreen.md](uiGrooveboxScreen.md) | Sequencer screen layout and rendering |
 | [uiSystemSettingsMenu.md](uiSystemSettingsMenu.md) | System settings menu (theme, rotation, etc.) |
@@ -71,7 +72,7 @@ The project implements a compact six-track sample groovebox for the ESP32-S3 pla
 - Runtime sample-set switching without reboot
 - TFT boot diagnostics with real-time status logging
 - I2S stereo audio output with sample-accurate pitch and decay control
-- WiFi manager portal for credential management
+- WiFi manager portal for credential entry; ESP32 WiFi NVS stores credentials
 - NVS/LittleFS runtime settings persistence
 
 **Preferred user workflow:**
@@ -439,7 +440,7 @@ A pattern JSON file (`pNN.json`) stores:
 13. **Start AudioTask** (core 0, realtime)
 14. **Start InputTask** (core 1, input polling)
 15. **Start UiTask** (core 1, UI rendering)
-16. **Start SystemTask** (core 1, WiFi/commands)
+16. **Start SystemTask** (core 1, WiFi, web server and commands)
 17. `loop()` remains fallback-only (minimal)
 
 The boot log is rendered directly on the TFT using partial row updates. Warnings and errors use color-coded rows and automatic delays.
@@ -718,12 +719,10 @@ A developer implementing a compatible Groovebox from zero should follow this ord
 8. **Groovebox UI screen** — Layout rendering, track display, footer
 9. **UI manager** — Finite-state dispatcher, encoder/button routing
 10. **Card storage workflows** — Group save/load/copy/rename/delete
-11. **WiFi/system manager** — Credential portal, WiFi reconnect, NVS sync
+11. **WiFi/system manager** — Credential portal, ESP32 NVS reconnect, web server support
 12. **Diagnostics** — Boot messages, boot log, safety guards, test modes
 
 Use the individual source-file documents below as the implementation reference.
-
-**[⬆ UP](#table-of-contents) | [📖 README](../README.md#)**
 
 ---
 

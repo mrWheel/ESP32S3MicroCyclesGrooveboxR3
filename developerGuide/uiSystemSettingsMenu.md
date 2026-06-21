@@ -8,21 +8,22 @@
 
 Menu entries displayed in order:
 
-```
-1. [SSID: MyNetwork]           (info, disabled)
-2. [IP: 192.168.1.100]         (info, disabled)
-3. [MAC: AA:BB:CC:DD:EE:FF]    (info, disabled)
-4. ─────────────────            (separator)
-5. WiFi Setup
-6. Save Group *                 (with * if modified)
-7. Load Sample Set
-8. Card Storage
-9. ─────────────────           (separator)
-10. Display Theme
-11. Display Rotation
-12. Encoder Direction
-13. ─────────────────           (separator)
-14. Exit
+```text
+1. SSID: <ssid>                (info, disabled)
+2. IP: <ip>                    (info, disabled)
+3. MAC: <mac>                  (info, disabled)
+4. Save Group *                (with * if modified)
+5. Add Pattern
+6. Delete Pattern
+7. Card Storage
+8. Load Sample Set
+9. Erase WiFi credentials
+10. Start WiFiManager
+11. Set Theme (<name>)
+12. Rotate Display (<rotation>)
+13. Encoder Order (<A-B/B-A>)
+14. Restart Groovebox
+15. Exit
 ```
 
 Informational rows (SSID, IP, MAC) are disabled (not selectable).

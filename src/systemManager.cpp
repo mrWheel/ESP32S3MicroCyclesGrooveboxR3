@@ -1,11 +1,9 @@
-/*** Last Changed: 2026-05-24 - 10:40 ***/
+/*** Last Changed: 2026-06-21 - 12:46 ***/
 #include "systemManager.h"
 
 #include "WiFiManagerExtClass.h"
 #include "appConfig.h"
 
-#include <ArduinoJson.h>
-#include <LittleFS.h>
 #include <WiFi.h>
 #include <esp_log.h>
 #include <esp_system.h>
@@ -18,148 +16,77 @@ static StaticQueue_t commandQueueStruct;
 static uint8_t commandQueueStorage[8 * sizeof(SystemCommand)];
 static QueueHandle_t commandQueue = nullptr;
 
-//-- Persisted WiFi credentials path.
-static const char* wifiSettingsPath = "/wifiSettings.json";
-
 //-- Cached connection info loaded from storage or updated at runtime.
 static String cachedConnectedSsid = "";
 static String cachedConnectedIp = "";
 
-//-- Ensure LittleFS is mounted for WiFi settings persistence.
-static bool ensureWifiSettingsFsMounted()
+//-- Try to connect using WiFi credentials stored by the ESP32 WiFi stack in NVS.
+static bool connectUsingStoredNvsCredentials()
 {
-  static bool mounted = false;
+  WiFi.mode(WIFI_STA);
+  WiFi.persistent(true);
+  WiFi.setAutoReconnect(true);
 
-  if (mounted)
+  ESP_LOGI(logTag, "Connecting using WiFi credentials stored in NVS");
+
+  WiFi.begin();
+
+  unsigned long connectStartMs = millis();
+
+  while (WiFi.status() != WL_CONNECTED && (millis() - connectStartMs) < 8000UL)
   {
-    return true;
+    delay(100);
   }
 
-  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
+  if (WiFi.status() != WL_CONNECTED)
   {
-    ESP_LOGW(logTag, "LittleFS mount failed for WiFi settings");
+    ESP_LOGW(logTag, "Warning: No usable WiFi credentials in NVS or connect failed");
     return false;
   }
 
-  mounted = true;
+  cachedConnectedSsid = WiFi.SSID();
+  cachedConnectedIp = WiFi.localIP().toString();
+
+  ESP_LOGI(logTag, "Connected WiFi: SSID='%s' IP='%s'", cachedConnectedSsid.c_str(),
+           cachedConnectedIp.c_str());
 
   return true;
 
-} //   ensureWifiSettingsFsMounted()
-
-//-- Load saved STA credentials from LittleFS.
-static void loadStoredWifiCredentials(String& staSsid, String& staPassword, String& lastConnectedSsid, String& lastConnectedIp)
-{
-  staSsid = "";
-  staPassword = "";
-  lastConnectedSsid = "";
-  lastConnectedIp = "";
-
-  if (!ensureWifiSettingsFsMounted())
-  {
-    return;
-  }
-
-  if (!LittleFS.exists(wifiSettingsPath))
-  {
-    return;
-  }
-
-  File file = LittleFS.open(wifiSettingsPath, "r");
-
-  if (!file)
-  {
-    ESP_LOGW(logTag, "Failed to open %s", wifiSettingsPath);
-    return;
-  }
-
-  JsonDocument jsonDocument;
-  DeserializationError error = deserializeJson(jsonDocument, file);
-
-  file.close();
-
-  if (error)
-  {
-    ESP_LOGW(logTag, "Failed to parse %s (%s)", wifiSettingsPath, error.c_str());
-    return;
-  }
-
-  staSsid = static_cast<const char*>(jsonDocument["staSsid"] | "");
-  staPassword = static_cast<const char*>(jsonDocument["staPassword"] | "");
-  lastConnectedSsid = static_cast<const char*>(jsonDocument["lastConnectedSsid"] | "");
-  lastConnectedIp = static_cast<const char*>(jsonDocument["lastConnectedIp"] | "");
-
-} //   loadStoredWifiCredentials()
-
-//-- Save STA credentials to LittleFS.
-static bool saveWifiCredentials(const String& staSsid, const String& staPassword, const String& lastConnectedSsid, const String& lastConnectedIp)
-{
-  if (!ensureWifiSettingsFsMounted())
-  {
-    return false;
-  }
-
-  File file = LittleFS.open(wifiSettingsPath, "w");
-
-  if (!file)
-  {
-    ESP_LOGW(logTag, "Failed to open %s for write", wifiSettingsPath);
-    return false;
-  }
-
-  JsonDocument jsonDocument;
-
-  jsonDocument["staSsid"] = staSsid;
-  jsonDocument["staPassword"] = staPassword;
-  jsonDocument["lastConnectedSsid"] = lastConnectedSsid;
-  jsonDocument["lastConnectedIp"] = lastConnectedIp;
-
-  bool success = (serializeJson(jsonDocument, file) > 0);
-
-  file.close();
-
-  if (!success)
-  {
-    ESP_LOGW(logTag, "Failed to serialize %s", wifiSettingsPath);
-  }
-
-  return success;
-
-} //   saveWifiCredentials()
+} //   connectUsingStoredNvsCredentials()
 
 //-- Initialize WiFi manager wrapper.
 void systemManagerInit()
 {
   WiFiManagerExt::WifiSettings wifiSettings;
-  String storedStaSsid;
-  String storedStaPassword;
-  String storedConnectedSsid;
-  String storedConnectedIp;
 
-  loadStoredWifiCredentials(storedStaSsid, storedStaPassword, storedConnectedSsid, storedConnectedIp);
+  cachedConnectedSsid = "";
+  cachedConnectedIp = "";
 
-  cachedConnectedSsid = storedConnectedSsid;
-  cachedConnectedIp = storedConnectedIp;
-
-  wifiSettings.staSsid = storedStaSsid;
-  wifiSettings.staPassword = storedStaPassword;
+  wifiSettings.staSsid = "";
+  wifiSettings.staPassword = "";
   wifiSettings.apSsid = DEFAULT_AP_SSID;
   wifiSettings.apPassword = DEFAULT_AP_PASSWORD;
   wifiSettings.hostName = DEFAULT_WIFI_HOSTNAME;
 
-  commandQueue = xQueueCreateStatic(8, sizeof(SystemCommand), commandQueueStorage, &commandQueueStruct);
+  commandQueue =
+      xQueueCreateStatic(8, sizeof(SystemCommand), commandQueueStorage, &commandQueueStruct);
+
+  WiFi.persistent(true);
+  WiFi.setAutoReconnect(true);
+
+  if (connectUsingStoredNvsCredentials())
+  {
+    ESP_LOGI(logTag, "System manager initialized with WiFi connection");
+    return;
+  }
 
   wifiManagerExt.setSettings(wifiSettings);
+  wifiManagerExt.setDisabled(true);
   wifiManagerExt.begin(true);
 
-  ESP_LOGI(logTag,
-           "Stored WiFi info: SSID='%s' IP='%s'",
-           cachedConnectedSsid.isEmpty() ? "-" : cachedConnectedSsid.c_str(),
-           cachedConnectedIp.isEmpty() ? "-" : cachedConnectedIp.c_str());
-
-  ESP_LOGW(logTag, "WiFi auto-connect is disabled at boot. System continues without WiFi.");
+  ESP_LOGI(logTag, "Stored WiFi info: SSID='-' IP='-'");
+  ESP_LOGW(logTag, "Warning: WiFi not connected at boot. System continues without WiFi.");
   ESP_LOGI(logTag, "Use [System Settings] -> Start WiFi Manager to open the portal.");
-
   ESP_LOGI(logTag, "System manager initialized");
 
 } //   systemManagerInit()
@@ -174,35 +101,22 @@ void systemManagerUpdate()
 
   if (wifiManagerExt.consumeNewStaCredentials(newSettings))
   {
-    String connectedSsid = WiFi.SSID();
-    String connectedIp = WiFi.localIP().toString();
+    WiFi.persistent(true);
+    WiFi.setAutoReconnect(true);
 
-    if (connectedSsid.isEmpty())
+    cachedConnectedSsid = WiFi.SSID();
+    cachedConnectedIp = WiFi.localIP().toString();
+
+    if (cachedConnectedSsid.isEmpty())
     {
-      connectedSsid = newSettings.staSsid;
+      cachedConnectedSsid = newSettings.staSsid;
     }
 
-    if (connectedIp == "0.0.0.0")
-    {
-      connectedIp = "";
-    }
-
-    cachedConnectedSsid = connectedSsid;
-    cachedConnectedIp = connectedIp;
-
-    ESP_LOGI(logTag,
-             "Connected WiFi: SSID='%s' IP='%s'",
+    ESP_LOGI(logTag, "Connected WiFi: SSID='%s' IP='%s'",
              cachedConnectedSsid.isEmpty() ? "-" : cachedConnectedSsid.c_str(),
              cachedConnectedIp.isEmpty() ? "-" : cachedConnectedIp.c_str());
 
-    if (saveWifiCredentials(newSettings.staSsid, newSettings.staPassword, cachedConnectedSsid, cachedConnectedIp))
-    {
-      ESP_LOGI(logTag, "WiFi credentials saved. Restarting...");
-    }
-    else
-    {
-      ESP_LOGW(logTag, "WiFi credentials received, but save failed. Restarting anyway...");
-    }
+    ESP_LOGI(logTag, "WiFi credentials stored in ESP32 NVS. Restarting...");
 
     delay(150);
     esp_restart();
@@ -217,14 +131,17 @@ void systemManagerUpdate()
   {
     if (pendingCommand == SystemCommand::startWifiManager)
     {
+      WiFi.persistent(true);
+      WiFi.setAutoReconnect(true);
+
       wifiManagerExt.setDisabled(false);
       wifiManagerExt.startPortal();
+
       ESP_LOGI(logTag, "WiFi manager portal requested from settings menu");
     }
     else if (pendingCommand == SystemCommand::eraseWifiCredentials)
     {
-      ESP_LOGW(logTag, "Erasing WiFi credentials and rebooting");
-
+      ESP_LOGW(logTag, "Erasing WiFi credentials from ESP32 NVS and rebooting");
       WiFi.disconnect(true, true);
       delay(50);
       esp_restart();

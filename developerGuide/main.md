@@ -9,7 +9,7 @@
 ## Responsibilities
 
 ```
-1. Define PROG_VERSION (e.g., "v1.3.7")
+1. Define PROG_VERSION (currently "v1.3.9")
 2. Initialize Serial for debugging (115200 baud)
 3. Log pin mapping and check for GPIO conflicts
 4. Load runtime settings from NVS/LittleFS
@@ -20,8 +20,9 @@
 9. Initialize input (EC11 + KEY0)
 10. Initialize sequencer (load first pattern into memory)
 11. Initialize audio engine (I2S, voice pool)
-12. Initialize system manager (WiFi, NVS sync)
-13. Initialize UI manager (screen state machine)
+12. Initialize system manager (WiFi/NVS reconnect and commands)
+13. Initialize web server manager
+14. Initialize UI manager (screen state machine)
 14. Start FreeRTOS tasks: AudioTask, InputTask, UiTask, SystemTask
 15. Provide fallback loop() if task creation fails
 ```
@@ -33,7 +34,7 @@
 **Version definition:**
 
 ```cpp
-const char* PROG_VERSION = "v1.3.7";
+const char* PROG_VERSION = "v1.3.9";
 ```
 
 Located at the top of the file. Update this before each firmware release.
@@ -124,11 +125,8 @@ WiFi and system command loop on core 1:
 
 ```cpp
 while (1) {
-  if (WiFi portal open) {
-    wifiManager.update();
-  }
-  process system command queue
-  poll WiFi connection status
+  systemManagerUpdate();
+  webServerManagerUpdate(systemManagerIsWifiPortalActive());
   vTaskDelay(100 ms);
 }
 ```
@@ -154,8 +152,9 @@ while (1) {
 9. Initialize sequencer
 10. Initialize audio engine
 11. Initialize system manager
-12. Initialize UI manager
-13. Create FreeRTOS tasks (AudioTask, InputTask, UiTask, SystemTask)
+12. Initialize web server manager
+13. Initialize UI manager
+14. Create FreeRTOS tasks (AudioTask, InputTask, UiTask, SystemTask)
 
 **Do not:**
 
@@ -192,6 +191,7 @@ When tasks are running successfully (normal case), `loop()` should rarely execut
 - `sequencer.h` — pattern sequencing core
 - `settingsStore.h` — NVS/LittleFS settings
 - `systemManager.h` — WiFi and system management
+- `webServerManager.h` — HTTP server manager for future SPA/API access
 - `uiManager.h` — UI state machine
 - `appConfig.h` — GPIO pin definitions
 - FreeRTOS (tasks, queues)

@@ -26,7 +26,7 @@
 **Header** (1 row)
 
 ```
-[V1.3.7] [G: DEMO] [♪ 120] [⛓ 1/8]
+[v1.3.9] [G: DEMO] [♪ 120] [⛓ 1/8]
 ```
 
 - Version, group name, BPM, chain info
@@ -187,7 +187,7 @@ Fixed strings: KICK, SNARE, CH, OH, TONE, METAL.
 
 3. **Partial update for footer.** During playback, avoid full redraws; update only footer row if BPM or pattern name changes.
 
-4. **Parameter page context.** The displayed value depends on the active parameter page. Same track row shows different data depending on `TRIG` vs `VEL` vs `DECAY`.
+4. **Parameter page context.** The displayed value depends on the active parameter page. Same track row shows different data depending on `TRIG` vs `VELOCITY` vs `DECAY`.
 
 5. **Chain target display.** If chaining is active, the track row or footer shows the next pattern name or index instead of normal values.
 

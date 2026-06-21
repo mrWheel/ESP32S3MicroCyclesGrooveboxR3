@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 10:30 ***/
+/*** Last Changed: 2026-06-21 - 12:46 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -15,11 +15,12 @@
 #include "settingsStore.h"
 #include "systemManager.h"
 #include "uiManager.h"
+#include "webServerManager.h"
 #include "appConfig.h"
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v1.3.8";
+const char* PROG_VERSION = "v1.3.9";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -319,7 +320,7 @@ static void uiTask(void* parameter)
 
 } //   uiTask()
 
-//-- System task: WiFi manager and command execution on core 1.
+//-- System task: WiFi manager, web server and command execution on core 1.
 static void systemTask(void* parameter)
 {
   (void)parameter;
@@ -327,6 +328,8 @@ static void systemTask(void* parameter)
   for (;;)
   {
     systemManagerUpdate();
+    webServerManagerUpdate(systemManagerIsWifiPortalActive());
+
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 
@@ -422,13 +425,20 @@ void setup()
     displayBootLogInfo("WiFi no");
   }
 
+  displayBootLogInfo("Init webserver");
+  webServerManagerInit();
+
   displayBootLogInfo("Read patterns");
   uiManagerInit();
 
   displayBootLogInfo("Open UI");
 
+  webServerManagerUpdate(false);
+
   //-- Draw first full UI frame directly from setup.
   uiManagerUpdate();
+
+  webServerManagerSetBootLogEnabled(false);
 
   audioTaskStarted =
       (xTaskCreatePinnedToCore(audioTask, "AudioTask", 8192, nullptr, 3, nullptr, 0) == pdPASS);
