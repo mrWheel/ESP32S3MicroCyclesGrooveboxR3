@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 12:53 ***/
+/*** Last Changed: 2026-06-21 - 14:26 ***/
 #include "sampleManager.h"
 #include "appConfig.h"
 #include "settingsStore.h"
@@ -298,6 +298,20 @@ uint16_t sampleManagerGetSampleGainPercent(SampleId sampleId)
   return sampleGainPercent[sampleId];
 
 } //   sampleManagerGetSampleGainPercent()
+
+//
+// Set per-sample gain percent for a given SampleId.
+//
+bool sampleManagerSetSampleGainPercent(SampleId sampleId, uint16_t gainPercent)
+{
+  if (sampleId >= sampleCount)
+  {
+    return false;
+  }
+
+  sampleGainPercent[sampleId] = gainPercent;
+  return true;
+} //   sampleManagerSetSampleGainPercent()
 
 //-- Read little-endian 16-bit value.
 static uint16_t readLe16(const uint8_t* data)

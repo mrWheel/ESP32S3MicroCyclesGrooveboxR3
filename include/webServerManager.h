@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 12:46 ***/
+/*** Last Changed: 2026-06-21 - 14:26 ***/
 #ifndef WEB_SERVER_MANAGER_H
 #define WEB_SERVER_MANAGER_H
 
@@ -18,5 +18,9 @@ bool webServerManagerIsRunning();
 
 //-- Return active web server URL or an empty string.
 String webServerManagerGetUrl();
+
+//-- Provide extern access to the webServer instance for API route registration.
+//-- (WebApi handlers need this to send responses)
+extern class WebServer webServer;
 
 #endif //   WEB_SERVER_MANAGER_H

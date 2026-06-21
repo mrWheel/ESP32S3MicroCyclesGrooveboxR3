@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Groovebox WebUI</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>Groovebox</h1>
+        <span class="version" id="version">...</span>
+      </div>
+      <div class="header-center">
+        <span class="wifi-status" id="wifiStatus">--</span>
+        <span class="ip-address" id="ipAddress">--</span>
+      </div>
+      <div class="header-right">
+        <span class="active-group" id="activeGroup">--</span>
+        <span class="active-samples" id="activeSamples">--</span>
+        <span class="dirty-indicator" id="dirtyIndicator" style="display: none;">*</span>
+      </div>
+    </header>
+
+    <!-- Transport Controls -->
+    <div class="transport-section">
+      <div class="transport-buttons">
+        <button class="btn btn-play" id="btnPlay" title="Play">PLAY</button>
+        <button class="btn btn-stop" id="btnStop" title="Stop">STOP</button>
+        <button class="btn btn-toggle" id="btnToggle" title="Toggle">TOGGLE</button>
+      </div>
+      <div class="transport-sliders">
+        <div class="slider-group">
+          <label>BPM</label>
+          <input type="range" id="sliderBpm" min="40" max="260" value="120" class="slider">
+          <input type="number" id="inputBpm" min="40" max="260" value="120" class="number-input">
+        </div>
+        <div class="slider-group">
+          <label>Swing</label>
+          <input type="range" id="sliderSwing" min="0" max="45" value="8" class="slider">
+          <input type="number" id="inputSwing" min="0" max="45" value="8" class="number-input">
+        </div>
+      </div>
+    </div>
+
+    <!-- Group Management Section -->
+    <div class="group-section">
+      <button class="btn btn-small" id="btnSaveGroup">SAVE GROUP</button>
+      <button class="btn btn-small" id="btnLoadGroup">LOAD GROUP</button>
+      <button class="btn btn-small" id="btnNewGroup">NEW GROUP</button>
+      <button class="btn btn-small" id="btnRenameGroup">RENAME</button>
+      <button class="btn btn-small" id="btnCopyGroup">COPY</button>
+      <button class="btn btn-small" id="btnDeleteGroup">DELETE</button>
+    </div>
+
+    <!-- Sample Set Section -->
+    <div class="samples-section">
+      <label>Sample Set:</label>
+      <select id="selectSampleSet">
+        <option value="">Loading...</option>
+      </select>
+      <button class="btn btn-small" id="btnLoadSampleSet">LOAD</button>
+    </div>
+
+    <!-- Pattern Grid -->
+    <div class="pattern-grid-container">
+      <table class="pattern-grid" id="patternGrid">
+        <tbody id="gridBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Step Editor Panel -->
+    <div class="step-editor" id="stepEditor" style="display: none;">
+      <div class="step-editor-header">
+        <h3 id="stepEditorTitle">Step Editor</h3>
+        <button class="btn-close" id="btnCloseStepEditor">&times;</button>
+      </div>
+      <div class="step-editor-content">
+        <div class="editor-row">
+          <label>Step ON/OFF:</label>
+          <input type="checkbox" id="stepTrigger" class="checkbox">
+        </div>
+        <div class="editor-row">
+          <label>Velocity:</label>
+          <input type="range" id="stepVelocity" min="1" max="255" value="128" class="slider">
+          <input type="number" id="stepVelocityNum" min="1" max="255" value="128" class="number-input">
+        </div>
+        <div class="editor-row">
+          <label>Probability:</label>
+          <input type="range" id="stepProbability" min="0" max="100" value="100" class="slider">
+          <input type="number" id="stepProbabilityNum" min="0" max="100" value="100" class="number-input">%
+        </div>
+        <div class="editor-row">
+          <label>Lock Enabled:</label>
+          <input type="checkbox" id="stepLockEnabled" class="checkbox">
+        </div>
+        <div class="editor-row">
+          <label>Lock Pitch:</label>
+          <input type="range" id="stepLockPitch" min="-24" max="24" value="0" class="slider">
+          <input type="number" id="stepLockPitchNum" min="-24" max="24" value="0" class="number-input">
+        </div>
+        <div class="editor-row">
+          <label>Lock Decay:</label>
+          <input type="range" id="stepLockDecay" min="10" max="200" value="100" class="slider">
+          <input type="number" id="stepLockDecayNum" min="10" max="200" value="100" class="number-input">%
+        </div>
+        <div class="editor-row">
+          <button class="btn btn-small" id="btnCloseStepEditorFooter">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- container -->
+
+  <script src="/app.js"></script>
+</body>
+</html>

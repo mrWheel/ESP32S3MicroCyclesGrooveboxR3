@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 12:53 ***/
+/*** Last Changed: 2026-06-21 - 14:26 ***/
 #ifndef SAMPLE_MANAGER_H
 #define SAMPLE_MANAGER_H
 
@@ -49,6 +49,9 @@ const char* sampleManagerGetActiveSampleSet();
 
 //-- Get per-sample gain percent for a given SampleId (loaded from setGain.json)
 uint16_t sampleManagerGetSampleGainPercent(SampleId sampleId);
+
+//-- Set per-sample gain percent for a given SampleId.
+bool sampleManagerSetSampleGainPercent(SampleId sampleId, uint16_t gainPercent);
 
 //-- Get sample slot by identifier.
 const SampleSlot& sampleManagerGetSample(SampleId sampleId);

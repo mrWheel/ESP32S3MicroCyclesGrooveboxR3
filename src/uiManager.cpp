@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 10:30 ***/
+/*** Last Changed: 2026-06-21 - 14:26 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -3488,3 +3488,79 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
   uiState.dirty = true;
 
 } //   uiManagerHandleAuxButtonEvent()
+
+//
+// Query whether pattern group has unsaved changes.
+//
+bool uiManagerIsPatternGroupDirty()
+{
+  return uiState.patternGroupDirty;
+} //   uiManagerIsPatternGroupDirty()
+
+//
+// Set the pattern group dirty flag explicitly.
+//
+void uiManagerSetPatternGroupDirty(bool dirty)
+{
+  uiState.patternGroupDirty = dirty;
+} //   uiManagerSetPatternGroupDirty()
+
+//
+// Get count of currently loaded patterns in active group.
+//
+uint8_t uiManagerGetLoadedPatternCount()
+{
+  return getLoadedPatternSlotCount();
+} //   uiManagerGetLoadedPatternCount()
+
+//
+// Get pattern name string for a given slot index.
+//
+String uiManagerGetPatternNameForSlot(uint8_t slotIndex)
+{
+  if (slotIndex < sequencerPatternCount)
+  {
+    return uiState.chainSlotPatternNames[slotIndex];
+  }
+  return "";
+} //   uiManagerGetPatternNameForSlot()
+
+//
+// Get pattern chain target for a given slot index.
+//
+String uiManagerGetPatternChainTargetForSlot(uint8_t slotIndex)
+{
+  if (slotIndex < sequencerPatternCount)
+  {
+    return uiState.chainSlotTargetPatternNames[slotIndex];
+  }
+  return "";
+} //   uiManagerGetPatternChainTargetForSlot()
+
+//
+// Query whether chain is enabled for a given slot index.
+//
+bool uiManagerGetPatternChainEnabledForSlot(uint8_t slotIndex)
+{
+  if (slotIndex < sequencerPatternCount)
+  {
+    return uiState.chainSlotChainEnabled[slotIndex];
+  }
+  return false;
+} //   uiManagerGetPatternChainEnabledForSlot()
+
+//
+// Load a pattern group from SD card into memory.
+//
+bool uiManagerLoadPatternGroup(const String& groupName)
+{
+  return loadCardPatternGroupIntoMemory(groupName, false);
+} //   uiManagerLoadPatternGroup()
+
+//
+// Save the active pattern group to SD card.
+//
+bool uiManagerSavePatternGroup()
+{
+  return saveLoadedPatternGroupToCard();
+} //   uiManagerSavePatternGroup()

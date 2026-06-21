@@ -1,0 +1,398 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-color: #1a1a1a;
+  --fg-color: #ffffff;
+  --grid-bg: #2a2a2a;
+  --grid-border: #444;
+  --step-empty: #333;
+  --step-active: #0a0;
+  --step-mute: #aa0;
+  --playhead: #f0a;
+  --cursor-color: #0af;
+  --btn-bg: #333;
+  --btn-hover: #444;
+  --btn-active: #0a0;
+  --header-bg: #0a0a0a;
+}
+
+html, body {
+  background-color: var(--bg-color);
+  color: var(--fg-color);
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  width: 100%;
+  height: 100%;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: auto;
+  padding: 8px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--header-bg);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grid-border);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.header-left, .header-center, .header-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.version, .wifi-status, .active-group, .active-samples {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.ip-address {
+  font-size: 11px;
+  color: #0a0;
+  font-weight: bold;
+}
+
+.dirty-indicator {
+  color: #f0a;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Buttons */
+.btn {
+  background-color: var(--btn-bg);
+  color: var(--fg-color);
+  border: 1px solid var(--grid-border);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 11px;
+  border-radius: 2px;
+  transition: all 0.1s;
+}
+
+.btn:hover {
+  background-color: var(--btn-hover);
+}
+
+.btn:active {
+  background-color: var(--btn-active);
+  color: #000;
+}
+
+.btn-play {
+  color: #0a0;
+}
+
+.btn-stop {
+  color: #f00;
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 10px;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.btn-close:hover {
+  color: var(--fg-color);
+}
+
+/* Transport Section */
+.transport-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  padding: 8px;
+  background-color: var(--grid-bg);
+  border-radius: 2px;
+}
+
+.transport-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.transport-sliders {
+  display: flex;
+  gap: 16px;
+}
+
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.slider-group label {
+  font-size: 10px;
+  color: #aaa;
+}
+
+.slider-group input {
+  font-family: monospace;
+}
+
+.slider {
+  width: 100px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.number-input {
+  width: 50px;
+  padding: 2px 4px;
+  background-color: var(--step-empty);
+  color: var(--fg-color);
+  border: 1px solid var(--grid-border);
+  font-family: monospace;
+  font-size: 10px;
+}
+
+/* Group Section */
+.group-section {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  padding: 4px;
+  background-color: var(--grid-bg);
+  border-radius: 2px;
+}
+
+/* Samples Section */
+.samples-section {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 4px;
+  background-color: var(--grid-bg);
+  border-radius: 2px;
+  align-items: center;
+}
+
+.samples-section label {
+  font-size: 10px;
+  color: #aaa;
+}
+
+.samples-section select {
+  padding: 4px;
+  background-color: var(--step-empty);
+  color: var(--fg-color);
+  border: 1px solid var(--grid-border);
+  font-family: monospace;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+/* Pattern Grid */
+.pattern-grid-container {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--grid-border);
+  background-color: var(--grid-bg);
+  padding: 4px;
+  margin-bottom: 8px;
+  min-height: 200px;
+}
+
+.pattern-grid {
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 12px;
+  background-color: var(--grid-bg);
+}
+
+.pattern-grid td {
+  border: 1px solid var(--grid-border);
+  padding: 4px 6px;
+  text-align: center;
+  min-width: 24px;
+  height: 20px;
+  cursor: pointer;
+  user-select: none;
+  background-color: var(--step-empty);
+}
+
+.pattern-grid tr:first-child td {
+  background-color: var(--header-bg);
+  font-weight: bold;
+  color: #aaa;
+  cursor: default;
+}
+
+/* Track name column */
+.track-name-cell {
+  text-align: left;
+  background-color: var(--header-bg);
+  min-width: 50px !important;
+  font-weight: bold;
+  cursor: default;
+}
+
+.track-muted::after {
+  content: " *";
+  color: #f0a;
+  font-weight: bold;
+}
+
+/* Step states */
+.step-empty {
+  color: #555;
+}
+
+.step-active {
+  background-color: var(--step-active);
+  color: #000;
+  font-weight: bold;
+}
+
+.step-muted {
+  background-color: var(--step-mute);
+  color: #000;
+  font-weight: bold;
+}
+
+/* Playhead */
+.step-playhead {
+  background-color: var(--playhead);
+  color: #000;
+  font-weight: bold;
+}
+
+/* Cursor */
+.step-cursor {
+  outline: 2px solid var(--cursor-color);
+}
+
+/* Pattern separators */
+.pattern-separator {
+  border-right: 2px solid var(--cursor-color);
+}
+
+/* Step Editor Panel */
+.step-editor {
+  background-color: var(--grid-bg);
+  border: 1px solid var(--grid-border);
+  border-radius: 2px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.step-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--grid-border);
+  padding-bottom: 4px;
+}
+
+.step-editor-header h3 {
+  font-size: 12px;
+  margin: 0;
+}
+
+.step-editor-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.editor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editor-row label {
+  font-size: 10px;
+  color: #aaa;
+}
+
+.editor-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.editor-row input[type="range"] {
+  width: 100%;
+  max-width: 120px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .step-editor-content {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .header {
+    justify-content: center;
+  }
+
+  .header-left, .header-center, .header-right {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .transport-section {
+    flex-direction: column;
+  }
+
+  .transport-sliders {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .slider-group {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .step-editor-content {
+    grid-template-columns: 1fr;
+  }
+
+  .pattern-grid td {
+    min-width: 18px;
+    padding: 2px 3px;
+    font-size: 10px;
+  }
+}

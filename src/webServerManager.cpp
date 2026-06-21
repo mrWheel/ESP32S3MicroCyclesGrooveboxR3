@@ -1,37 +1,86 @@
-/*** Last Changed: 2026-06-21 - 12:46 ***/
+/*** Last Changed: 2026-06-21 - 14:26 ***/
 #include "webServerManager.h"
+#include "webApi.h"
 
 #include "DisplayDriverClass.h"
 #include "progVersion.h"
 
 #include <WebServer.h>
 #include <WiFi.h>
+#include <LittleFS.h>
 #include <esp_log.h>
 
 //-- Logging tag.
 static const char* logTag = "WebServerManager";
 
-//-- HTTP server instance.
-static WebServer webServer(80);
+//-- HTTP server instance (exposed to webApi.cpp via extern declaration in header).
+WebServer webServer(80);
 
 //-- Runtime state.
 static bool webServerRunning = false;
 static bool bootLogEnabled = true;
 static String webServerUrl = "";
 
-//-- Send a minimal text response for the root endpoint.
+//
+// Serve index.html from LittleFS, or fall back to plain text status.
+//
 static void handleRootRequest()
 {
-  String response = "ESP32-S3 MicroCycles Groovebox\n";
+  if (LittleFS.exists("/index.html"))
+  {
+    File file = LittleFS.open("/index.html", "r");
+    if (file)
+    {
+      webServer.streamFile(file, "text/html");
+      file.close();
+      return;
+    }
+  }
 
+  String response = "ESP32-S3 MicroCycles Groovebox\n";
   response += "Version: ";
   response += PROG_VERSION;
   response += "\n";
   response += "Status: web server ready\n";
 
   webServer.send(200, "text/plain", response);
-
 } //   handleRootRequest()
+
+//
+// Serve app.js from LittleFS.
+//
+static void handleAppJsRequest()
+{
+  if (LittleFS.exists("/app.js"))
+  {
+    File file = LittleFS.open("/app.js", "r");
+    if (file)
+    {
+      webServer.streamFile(file, "application/javascript");
+      file.close();
+      return;
+    }
+  }
+  webServer.send(404, "text/plain", "not found");
+} //   handleAppJsRequest()
+
+//
+// Serve style.css from LittleFS.
+//
+static void handleStyleCssRequest()
+{
+  if (LittleFS.exists("/style.css"))
+  {
+    File file = LittleFS.open("/style.css", "r");
+    if (file)
+    {
+      webServer.streamFile(file, "text/css");
+      file.close();
+      return;
+    }
+  }
+  webServer.send(404, "text/plain", "not found");
+} //   handleStyleCssRequest()
 
 //-- Send a minimal JSON status response for future SPA use.
 static void handleStatusRequest()
@@ -81,7 +130,13 @@ static void startWebServer()
   }
 
   webServer.on("/", HTTP_GET, handleRootRequest);
+  webServer.on("/app.js", HTTP_GET, handleAppJsRequest);
+  webServer.on("/style.css", HTTP_GET, handleStyleCssRequest);
   webServer.on("/api/status", HTTP_GET, handleStatusRequest);
+
+  // Register all REST API routes
+  webApiRegisterRoutes(webServer);
+
   webServer.onNotFound(handleNotFoundRequest);
 
   webServer.begin();
