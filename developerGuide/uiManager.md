@@ -313,3 +313,12 @@ Names are stored in the current pattern JSON and synchronized on load/save.
 ---
 
 [⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)
+
+
+## v1.3.8 Control Changes
+
+- KEY0 medium press in Groovebox PLAY/STOP opens the same Step popup as encoder medium press.
+- KEY0 long press in Groovebox PLAY/STOP toggles Track Mute for the selected track. Track Mute affects the entire voice and is displayed with `*` after the track name.
+- In track edit mode, encoder medium press opens the Step popup. The popup title should be `Step`, not `Edit`.
+- The former `MUTE` popup item is now `STEP` / STEP ON/OFF. STEP OFF calls the step-level mute path, not the track mute path.
+- Pattern dirty state must be set whenever STEP ON/OFF, Track Mute, velocity, pitch, decay, probability, trigger, or chain settings are changed.

@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>6 - Velocity (VEL) — ESP32 MicroCycles Groovebox</title>
+  <title>6 - Velocity — ESP32 MicroCycles Groovebox</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="site-header">
     <div class="header-inner">
       <span class="header-logo">⚡ MicroCycles</span>
-      <span class="header-title">6 - Velocity (VEL)</span>
+      <span class="header-title">6 - VELOCITY</span>
       <a href="index.html" class="header-home">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Index
@@ -22,7 +22,7 @@
     <div class="chapter-header">
       <p class="chapter-eyebrow">Chapter 6</p>
       <span class="chapter-num-badge">Chapter 6</span>
-      <h1 class="chapter-title">Velocity (VEL)</h1>
+      <h1 class="chapter-title">VELOCITY</h1>
     </div>
 
     <div class="content">
@@ -107,28 +107,28 @@ Velocity: 100 100 100 100</code></pre>
         <li>Short press KEY0 to exit step edit mode and return to track-edit mode</li>
       </ol>
 
-      <h2>Using the Edit Popup</h2>
+      <h2>Using the Step Popup</h2>
 
       <p>When you press medium press, a popup appears showing all editable parameters for the selected step:</p>
 
-      <pre><code>Edit Step 5
-    VELOCITY     100
+      <pre><code>Step 5
+   >VELOCITY<    100
     PITCH        +00
-   >DECAY<        50%
+    DECAY         50%
     PROBABILITY  100%
-    MUTE   OFF
+    STEP   ON
     CHAIN   NO</code></pre>
 
       <ol>
-        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Mute, and Chain. The highlighted parameter is between `>..<`.</li>
+        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Step On/Off, and Chain. The highlighted parameter is between `>..<`.</li>
         <li><strong>Edit a parameter:</strong> When a parameter is highlighted, press the encoder (short press) to enter edit mode</li>
         <li><strong>Change the value:</strong> Rotate the encoder to increase or decrease the value:
-          <pre><code>Edit Step 5
+          <pre><code>Step 5
     VELOCITY     >100<
     PITCH        +00
     DECAY        50%
     PROBABILITY  100%
-    MUTE   OFF
+    STEP   ON
     CHAIN   NO</code></pre>
         </li>
         <li><strong>Confirm the value:</strong> Press the encoder (short press) to lock in the new value and return to parameter selection</li>
@@ -148,7 +148,7 @@ Velocity: 100 100 100 100</code></pre>
         </thead>
         <tbody>
           <tr>
-            <td><strong>VEL (Velocity)</strong></td>
+            <td><strong>VELOCITY</strong></td>
             <td>0–255</td>
             <td>How hard the step plays (0=silent, 255=maximum)</td>
           </tr>
@@ -163,14 +163,14 @@ Velocity: 100 100 100 100</code></pre>
             <td>How long the sound rings out</td>
           </tr>
           <tr>
-            <td><strong>PROB</strong></td>
+            <td><strong>PROBABILITY</strong></td>
             <td>0–100%</td>
             <td>Probability (chance) the step plays</td>
           </tr>
           <tr>
-            <td><strong>MUTE</strong></td>
+            <td><strong>STEP</strong></td>
             <td>ON / OFF</td>
-            <td>Silence this step</td>
+            <td>STEP ON plays the selected trigger; STEP OFF mutes only this selected step and shows it as m</td>
           </tr>
           <tr>
             <td><strong>CHAIN</strong></td>
@@ -195,7 +195,7 @@ Velocity: 90 70 90 70</code></pre>
       <hr>
     </div>
 
-    <div class="chapter-nav"><a href="chapter-05.html" class="nav-btn prev">← Trigger Page (TRIG)</a><a href="chapter-07.html" class="nav-btn next">Pitch (PITCH) →</a></div>
+    <div class="chapter-nav"><a href="chapter-05.html" class="nav-btn prev">← Trigger Page</a><a href="chapter-07.html" class="nav-btn next">Pitch →</a></div>
   </div>
 
   <footer class="site-footer">

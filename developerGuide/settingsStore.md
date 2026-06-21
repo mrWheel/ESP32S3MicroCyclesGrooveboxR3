@@ -84,7 +84,7 @@ struct PatternData {
   uint8_t chainLength;
   uint8_t chainTarget;
   uint8_t masterLevel;
-  // Array of 6 tracks with trigger/velocity/probability/lock data
+  // Array of 6 tracks with trigger/mute/velocity/probability/lock data
 };
 ```
 
@@ -413,3 +413,8 @@ Not minified. This uses slightly more SD space but aids manual editing and debug
 ---
 
 [⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)
+
+
+## v1.3.8 Step Mute Storage
+
+Each step stores its own `mute` boolean. This field is independent from the track-level `mute` flag. Existing pattern files that do not contain the per-step `mute` field should load with `mute=false` for every step. New pattern files should save the field so STEP OFF states survive reloads.

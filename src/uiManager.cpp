@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-18 - 12:08 ***/
+/*** Last Changed: 2026-06-21 - 10:30 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -633,7 +633,7 @@ static void applyEditPopupValueDelta(int delta)
   }
   else if (pageIndex == parameterPageMute)
   {
-    sequencerToggleMuteForSelectedTrack();
+    sequencerToggleCurrentStepMute();
     uiState.editPopupValueChanged = true;
   }
   else
@@ -1003,6 +1003,7 @@ static void buildEmptyPatternData(PatternData& patternData)
     for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
     {
       patternData.pattern.tracks[trackIndex].steps[stepIndex].trigger = false;
+      patternData.pattern.tracks[trackIndex].steps[stepIndex].mute = false;
       patternData.pattern.tracks[trackIndex].steps[stepIndex].velocity = 128;
       patternData.pattern.tracks[trackIndex].steps[stepIndex].probability = 100;
       patternData.pattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
@@ -2911,7 +2912,7 @@ static void handleGrooveboxEncoderEvent(EncoderEvent encoderEvent, const Sequenc
       }
       else if (uiState.parameterPageIndex == parameterPageMute)
       {
-        sequencerToggleMuteForSelectedTrack();
+        sequencerToggleCurrentStepMute();
         patternWasModified = true;
       }
       else if (uiState.parameterPageIndex == parameterPagePitch ||
@@ -3350,29 +3351,14 @@ void uiManagerHandleEncoderEvent(EncoderEvent encoderEvent)
 
 } //   uiManagerHandleEncoderEvent()
 
-//-- Route KEY0 events into UI state machine.
+//-- Handle auxiliary KEY0 button events.
 void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
 {
   if (buttonEvent == BUTTON_EVENT_NONE)
   {
     return;
   }
-  /******
-    if (uiPatternGroupInputIsOpen())
-    {
-      if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
-      {
-        uiPatternGroupInputBackspaceOrCancel();
-      }
-      else if (buttonEvent == BUTTON_EVENT_MEDIUM_PRESS || buttonEvent == BUTTON_EVENT_LONG_PRESS)
-      {
-        uiPatternGroupInputClose();
-        uiState.dirty = true;
-      }
 
-      return;
-    }
-  *****/
   if (uiPatternGroupInputIsOpen())
   {
     if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
@@ -3389,7 +3375,6 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
     {
       if (uiState.cardStorageMenuOpen)
       {
-        // KEY0 short-press in Card Storage = Exit
         uiState.cardStorageMenuOpen = false;
         uiState.cardStorageMenuSelection = 0;
         uiState.cardStorageMenuFirstVisibleIndex = 0;
@@ -3459,12 +3444,12 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
     return;
   }
 
+  SequencerView view;
+
+  sequencerGetView(view);
+
   if (buttonEvent == BUTTON_EVENT_SHORT_PRESS)
   {
-    SequencerView view;
-
-    sequencerGetView(view);
-
     if (view.editMode)
     {
       flushPendingChainSettings();
@@ -3483,13 +3468,21 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
   }
   else if (buttonEvent == BUTTON_EVENT_MEDIUM_PRESS)
   {
-    uiState.tempoEditOpen = true;
-    uiState.tempoEditSelection = 0;
+    if (view.editMode)
+    {
+      openEditPopupForCurrentStep();
+    }
+    else
+    {
+      uiState.tempoEditOpen = true;
+      uiState.tempoEditSelection = 0;
+      uiState.tempoEditValueEdit = false;
+    }
   }
   else if (buttonEvent == BUTTON_EVENT_LONG_PRESS)
   {
-    uiState.tempoEditOpen = true;
-    uiState.tempoEditSelection = 1;
+    sequencerToggleMuteForSelectedTrack();
+    uiState.patternGroupDirty = true;
   }
 
   uiState.dirty = true;

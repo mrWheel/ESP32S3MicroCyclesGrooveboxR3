@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-18 - 11:21 ***/
+/*** Last Changed: 2026-06-21 - 10:30 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -13,6 +13,7 @@ static const uint8_t sequencerPatternCount = 48;
 struct Step
 {
   bool trigger;
+  bool mute;
   uint8_t velocity;
   uint8_t probability;
   bool lockEnabled;
@@ -85,6 +86,7 @@ void sequencerMoveTrackAndPattern(int delta, uint8_t loadedPatternCount);
 void sequencerAdjustActivePatternIndex(int delta);
 void sequencerSetActivePatternIndex(uint8_t slotIndex);
 void sequencerToggleCurrentStep();
+void sequencerToggleCurrentStepMute();
 void sequencerAdjustCurrentStepVelocity(int delta);
 void sequencerAdjustCurrentStepProbability(int delta);
 void sequencerAdjustCurrentStepLockPitch(int delta);

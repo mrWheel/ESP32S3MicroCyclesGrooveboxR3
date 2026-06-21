@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-18 - 11:21 ***/
+/*** Last Changed: 2026-06-21 - 10:30 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -85,6 +85,7 @@ static void loadDefaultPattern(Pattern& pattern)
     for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
     {
       pattern.tracks[trackIndex].steps[stepIndex].trigger = false;
+      pattern.tracks[trackIndex].steps[stepIndex].mute = false;
       pattern.tracks[trackIndex].steps[stepIndex].velocity = 128;
       pattern.tracks[trackIndex].steps[stepIndex].probability = 100;
       pattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
@@ -116,7 +117,7 @@ static void loadDefaultPattern(Pattern& pattern)
 
 } //   loadDefaultPattern()
 
-//-- Clear one pattern to a deterministic empty state.
+//-- Clear one pattern to empty default values.
 static void clearPattern(Pattern& pattern)
 {
   for (uint8_t trackIndex = 0; trackIndex < sequencerTrackCount; trackIndex++)
@@ -126,6 +127,7 @@ static void clearPattern(Pattern& pattern)
     for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
     {
       pattern.tracks[trackIndex].steps[stepIndex].trigger = false;
+      pattern.tracks[trackIndex].steps[stepIndex].mute = false;
       pattern.tracks[trackIndex].steps[stepIndex].velocity = 128;
       pattern.tracks[trackIndex].steps[stepIndex].probability = 100;
       pattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;
@@ -260,7 +262,7 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
           continue;
         }
 
-        if (track.steps[state.currentStep].trigger)
+        if (track.steps[state.currentStep].trigger && !track.steps[state.currentStep].mute)
         {
           const Step& step = track.steps[state.currentStep];
 
@@ -327,6 +329,22 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
   return stepDue;
 
 } //   sequencerConsumeDueStep()
+
+//-- Toggle mute for the currently selected step only.
+void sequencerToggleCurrentStepMute()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  Step& selectedStep = getSelectedStep();
+
+  if (selectedStep.trigger)
+  {
+    selectedStep.mute = !selectedStep.mute;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerToggleCurrentStepMute()
 
 //-- Toggle sequencer transport state.
 void sequencerTogglePlay()
@@ -1067,6 +1085,7 @@ void sequencerClearActivePattern()
     for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
     {
       activePattern.tracks[trackIndex].steps[stepIndex].trigger = false;
+      activePattern.tracks[trackIndex].steps[stepIndex].mute = false;
       activePattern.tracks[trackIndex].steps[stepIndex].velocity = 128;
       activePattern.tracks[trackIndex].steps[stepIndex].probability = 100;
       activePattern.tracks[trackIndex].steps[stepIndex].lockEnabled = false;

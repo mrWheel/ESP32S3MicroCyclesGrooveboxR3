@@ -1,6 +1,6 @@
 # `src/uiGrooveboxScreen.cpp` — Main Sequencer Screen Rendering
 
-**Purpose:** Build and render the main `[Groovebox]` sequencer screen layout, track rows, parameter pages, edit popups, and footer status. Pure view layer; state comes from sequencer.
+**Purpose:** Build and render the main `[Groovebox]` sequencer screen layout, track rows, parameter pages, Step popups, and footer status. Pure view layer; state comes from sequencer.
 
 ---
 
@@ -12,9 +12,9 @@
 3. Format velocity/probability/decay/pitch per step
 4. Format footer status (pattern name, BPM, chain info)
 5. Format chain target names
-6. Format edit popup title and values
+6. Format Step popup title and values
 7. Render full Groovebox screen
-8. Render edit popup overlay (partial update)
+8. Render Step popup overlay (partial update)
 9. Update footer during playback (minimal redraw)
 10. Handle text clipping/wrapping for 320×240 display
 ```
@@ -63,7 +63,7 @@ Builds one track row display string based on the active parameter page:
 - `pageLabel` = "PITCH" → show pitch offset per step
 - `pageLabel` = "DECAY" → show decay per step
 - `pageLabel` = "PROB" → show probability per step
-- `pageLabel` = "MUTE" → show "MUTE" or "ON"
+- `pageLabel` = "STEP" → show STEP ON/OFF for the selected step
 - `pageLabel` = "CHAIN" → show chain target
 - `pageLabel` = "MASTER" → show master level
 
@@ -73,7 +73,7 @@ Builds the footer line from pattern name, chain status, and edit mode.
 
 **buildEditPopupRows(const SequencerView& view, uint8_t pageIndex, String lines[], uint8_t maxLines) → uint8_t:**
 
-Builds text for tempo/master-level edit popup. Returns number of visible lines.
+Builds text for tempo/master-level Step popup. Returns number of visible lines.
 
 **fitTextToWidth(const String& text, uint16_t maxPixels) → String:**
 
@@ -102,7 +102,7 @@ Clips or abbreviates text to fit within pixel width (typically 40 chars at text 
 
 ### `uiGrooveboxScreenDrawEditPopupOverlayOnly(const SequencerView& view, uint8_t editMode)`
 
-**Purpose:** Render the edit popup overlay only (tempo, master level).
+**Purpose:** Render the Step popup overlay only (tempo, master level).
 
 **Actions:**
 
@@ -135,8 +135,9 @@ Clips or abbreviates text to fit within pixel width (typically 40 chars at text 
 
 **Step trigger pattern:**
 
-- `●` (filled circle) = trigger (step is on)
-- `○` (empty circle) = no trigger (step is off)
+- `x` = active trigger
+- `m` = muted step trigger (STEP OFF)
+- `-` = no trigger
 - 16 symbols total per track
 
 **Velocity/Probability per step:**
@@ -154,7 +155,7 @@ Fixed strings: KICK, SNARE, CH, OH, TONE, METAL.
 - PITCH — pitch transposition
 - DECAY — decay time
 - PROB — filter/probability
-- MUTE — track mute
+- STEP — per-step ON/OFF; STEP OFF is displayed as lowercase `m`
 - CHAIN — chain settings
 - MASTER — master output gain
 

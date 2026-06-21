@@ -412,6 +412,7 @@ A pattern JSON file (`pNN.json`) stores:
 - `decayLocked` — Whether decay is fixed for this track
 - `decayValue` — Decay time in percent (0–100)
 - `mute` — Track mute flag (boolean)
+- Per-step `mute` — Step mute flag (boolean); saved per step, independent of track mute
 
 **Pattern filenames** must be strict `pNN.json` format where `NN` is a two-digit number (01–64). Do not use legacy pattern filenames or extensionless files.
 
@@ -564,7 +565,7 @@ Version | Status | Group Name | BPM | Swing
 - `PITCH` — pitch transposition
 - `DECAY` — decay/release time
 - `PROB` — probability per step
-- `MUTE` — track mute state
+- `STEP` — per-step on/off state; STEP OFF mutes only the selected step and displays it as `m`
 - `CHAIN` — chain settings
 - `MASTER` — master output level
 
@@ -585,10 +586,14 @@ Pattern Name | Chain Status | Mode Indicator
 |-------------------------|---------------------------------------------------|
 | Rotate CW/CCW           | Move track cursor up/down; wrap at edges          |
 | Short press (<300 ms)   | Enter/exit edit mode for current parameter page   |
-| Medium press (300–1s)   | Tempo edit popup                                  |
+| Medium press (300–1s)   | Open the Step popup from Groovebox PLAY/STOP, same as encoder medium press |
 | Long press (>1s)        | Open System Settings menu                         |
 
 ### KEY0 Button
+
+- Medium press in Groovebox PLAY/STOP opens the same Step popup as encoder medium press.
+- Long press in Groovebox PLAY/STOP toggles Track Mute for the selected track. Track Mute affects the complete voice and is shown with `*` after the track name.
+- Step mute is separate: STEP OFF affects only the current step and is shown as `m`.
 
 | Action                  | Behavior                                          |
 |-------------------------|---------------------------------------------------|

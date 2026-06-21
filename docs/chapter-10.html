@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>10 - Mute — ESP32 MicroCycles Groovebox</title>
+  <title>10 - Step On/Off and Track Mute — ESP32 MicroCycles Groovebox</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="site-header">
     <div class="header-inner">
       <span class="header-logo">⚡ MicroCycles</span>
-      <span class="header-title">10 - Mute</span>
+      <span class="header-title">10 - Step On/Off and Track Mute</span>
       <a href="index.html" class="header-home">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Index
@@ -22,17 +22,17 @@
     <div class="chapter-header">
       <p class="chapter-eyebrow">Chapter 10</p>
       <span class="chapter-num-badge">Chapter 10</span>
-      <h1 class="chapter-title">Mute</h1>
+      <h1 class="chapter-title">Step On/Off and Track Mute</h1>
     </div>
 
     <div class="content">
-      <h2>What is Mute?</h2>
+      <h2>What is STEP ON/OFF?</h2>
 
-      <p>Mute allows you to <strong>silence a specific step</strong> without deleting it or losing its settings. When a step is muted, it will not play, but all its parameters (Velocity, Pitch, Decay, Probability) are preserved.</p>
+      <p>STEP ON/OFF allows you to <strong>silence a specific step</strong> without deleting it or losing its settings. When a step is set to STEP OFF, it will not play, but all its parameters (Velocity, Pitch, Decay, Probability) are preserved.</p>
 
       <p>This is useful for creating variations on patterns, turning sounds on and off during performance, or temporarily disabling a step while keeping its configuration.</p>
 
-      <h2>Mute Values</h2>
+      <h2>STEP Values</h2>
 
       <table>
         <thead>
@@ -63,7 +63,7 @@
         <li>Short Press the encoder to enter track-edit mode</li>
         <li>Rotate the encoder until you are on the step you want to edit</li>
         <li>Medium Press the encoder to enter Step Edit mode</li>
-        <li>Rotate the encoder to cycle through the popup items until you see "MUTE"</li>
+        <li>Rotate the encoder to cycle through the popup items until you see "STEP"</li>
         <li>Short Press encoder (cursor moves to the value field)</li>
         <li>Rotate the encoder to toggle between OFF and ON</li>
         <li>OFF = step plays, ON = step is silenced</li>
@@ -71,28 +71,28 @@
         <li>Short press KEY0 to exit step edit mode and return to track-edit mode</li>
       </ol>
 
-      <h2>Using the Edit Popup</h2>
+      <h2>Using the Step Popup</h2>
 
       <p>When you press medium press, a popup appears showing all editable parameters for the selected step:</p>
 
-      <pre><code>Edit Step 5
+      <pre><code>Step 5
     VELOCITY     100
     PITCH        +00
     DECAY        50%
     PROBABILITY  100%
-   >MUTE<        OFF
+   >STEP<        ON
     CHAIN   NO</code></pre>
 
       <ol>
-        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Mute, and Chain. The highlighted parameter is between `>..<`.</li>
+        <li><strong>Navigate between parameters:</strong> Rotate the encoder to scroll through Velocity, Pitch, Decay, Probability, Step On/Off, and Chain. The highlighted parameter is between `>..<`.</li>
         <li><strong>Edit a parameter:</strong> When a parameter is highlighted, press the encoder (short press) to enter edit mode</li>
         <li><strong>Change the value:</strong> Rotate the encoder to toggle OFF/ON:
-          <pre><code>Edit Step 5
+          <pre><code>Step 5
     VELOCITY     100
     PITCH        +00
     DECAY        50%
     PROBABILITY  100%
-    MUTE         >ON<
+    STEP         >OFF<
     CHAIN   NO</code></pre>
         </li>
         <li><strong>Confirm the value:</strong> Press the encoder (short press) to lock in the new value and return to parameter selection</li>
@@ -108,12 +108,20 @@
 
       <p><strong>Troubleshooting Mix Clarity:</strong> If multiple sounds are playing and the mix sounds muddy, try muting some background sounds to see if that clears things up.</p>
 
-      <p><strong>Quick Off/On:</strong> Faster than deleting and re-creating a step—just toggle mute OFF or ON.</p>
+      <p><strong>Quick Off/On:</strong> Faster than deleting and re-creating a step—just toggle STEP OFF or ON.</p>
 
       <hr>
     </div>
 
-    <div class="chapter-nav"><a href="chapter-09.html" class="nav-btn prev">← Probability (PROB)</a><a href="chapter-11.html" class="nav-btn next">Chain → </a></div>
+
+      <h2>Track Mute vs STEP OFF</h2>
+      <p><strong>STEP OFF</strong> affects only the selected step. The step remains visible as a lowercase <code>m</code> in the track row.</p>
+      <p><strong>Track Mute</strong> affects the whole voice/track. It is toggled with a long press on KEY0 from the Groovebox screen and is shown with an asterisk (*) after the track name.</p>
+      <pre><code>x = active trigger
+m = muted step trigger
+- = no trigger
+* = whole track muted</code></pre>
+    <div class="chapter-nav"><a href="chapter-09.html" class="nav-btn prev">← Probability</a><a href="chapter-11.html" class="nav-btn next">Chain → </a></div>
   </div>
 
   <footer class="site-footer">

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-18 - 12:08 ***/
+/*** Last Changed: 2026-06-21 - 10:30 ***/
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 

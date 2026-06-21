@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-11 - 13:53 ***/
+/*** Last Changed: 2026-06-21 - 10:30 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -499,6 +499,7 @@ static void buildPatternJsonDocument(const String& normalizedName, const Pattern
       const Step& step = patternData.pattern.tracks[trackIndex].steps[stepIndex];
 
       stepObject["trig"] = step.trigger;
+      stepObject["mute"] = step.mute;
       stepObject["velocity"] = step.velocity;
       stepObject["probability"] = step.probability;
 
@@ -566,6 +567,7 @@ static bool parsePatternJsonDocument(const JsonDocument& jsonDocument, PatternDa
       Step& step = patternData.pattern.tracks[trackIndex].steps[stepIndex];
 
       step.trigger = static_cast<bool>(stepObject["trig"] | false);
+      step.mute = static_cast<bool>(stepObject["mute"] | false);
       step.velocity = static_cast<uint8_t>(stepObject["velocity"] | 128);
       step.probability = static_cast<uint8_t>(stepObject["probability"] | 100);
 

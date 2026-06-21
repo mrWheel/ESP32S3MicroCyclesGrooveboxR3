@@ -47,6 +47,7 @@ struct Track {
   bool     decayLocked;      // fixed decay for all steps
   uint8_t  decayValue;       // 0–100 percent
   bool     mute;             // track mute flag
+  bool     stepMute[16];      // per-step mute, stored on each Step in firmware
 };
 ```
 
@@ -144,7 +145,7 @@ Called from AudioTask at ~5.8 ms intervals (44.1 kHz / 256 samples per block):
       - Accumulate velocity, pitch-lock, decay-lock per track
    c. Return trigger mask to audio engine
 4. Handle chain transitions (if final step of pattern)
-5. Respect mute flags
+5. Respect track mute and per-step mute flags
 ```
 
 **loadDefaultPattern():**
@@ -248,9 +249,15 @@ Used after loading a pattern group from SD; marks slots 1..count as valid.
 
 **Purpose:** Change visible pattern ±1 (wrap at pattern count).
 
+### `sequencerToggleCurrentStepMute()`
+
+**Purpose:** Toggle mute for the selected step only. This preserves the trigger and step parameters, skips the step during playback, and displays the step as lowercase `m`.
+
+This is separate from Track Mute, which mutes the whole voice and is displayed with `*` after the track name.
+
 ### `sequencerToggleCurrentStep()`
 
-**Purpose:** Toggle trigger on selected step (0 → 1 or 1 → 0).
+**Purpose:** Toggle trigger on selected step (0 → 1 or 1 → 0). A newly created trigger should initialize its step mute flag to false.
 
 ### `sequencerAdjustCurrentStepVelocity(int delta)`
 

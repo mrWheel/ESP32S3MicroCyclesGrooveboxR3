@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-03 - 12:35 ***/
+/*** Last Changed: 2026-06-21 - 10:30 ***/
 #include "uiGrooveboxScreen.h"
 
 #include "progVersion.h"
@@ -27,7 +27,7 @@ static const int editPopupEntryCount =
     static_cast<int>(sizeof(editPopupPageMap) / sizeof(editPopupPageMap[0]));
 
 static const char* editPopupEntries[editPopupEntryCount] = {"VELOCITY",    "PITCH", "DECAY",
-                                                            "PROBABILITY", "MUTE",  "CHAIN"};
+                                                            "PROBABILITY", "STEP",  "CHAIN"};
 
 //-- CHAIN value-edit focus fields.
 static const uint8_t chainPopupFocusEnable = 0;
@@ -131,14 +131,25 @@ static String formatChainTargetLabel(bool chainTargetValid, const String& chainT
 
 } //   formatChainTargetLabel()
 
-//-- Build 16-step trigger string for one track.
+//-- Build the compact 16-step text for one track.
 static String buildTrackStepText(const Track& track)
 {
   char stepText[17];
 
   for (uint8_t stepIndex = 0; stepIndex < sequencerStepCount; stepIndex++)
   {
-    stepText[stepIndex] = track.steps[stepIndex].trigger ? 'x' : '-';
+    if (!track.steps[stepIndex].trigger)
+    {
+      stepText[stepIndex] = '-';
+    }
+    else if (track.steps[stepIndex].mute)
+    {
+      stepText[stepIndex] = 'm';
+    }
+    else
+    {
+      stepText[stepIndex] = 'x';
+    }
   }
 
   stepText[16] = '\0';
@@ -211,7 +222,7 @@ static String buildEditPopupValueText(uint8_t pageIndex, const SequencerView& vi
   }
   else if (pageIndex == parameterPageMute)
   {
-    snprintf(valueBuffer, sizeof(valueBuffer), "%s", selectedTrack.mute ? "ON" : "OFF");
+    snprintf(valueBuffer, sizeof(valueBuffer), "%s", selectedStep.mute ? "OFF" : "ON");
   }
   else
   {
@@ -392,7 +403,7 @@ static String buildParameterOverlayLine(const SequencerView& view, uint8_t param
   }
   else if (parameterPageIndex == parameterPageMute)
   {
-    snprintf(lineBuffer, sizeof(lineBuffer), "MUTE  %s", selectedTrack.mute ? "ON" : "OFF");
+    snprintf(lineBuffer, sizeof(lineBuffer), "STEP  %s", selectedStep.mute ? "OFF" : "ON");
   }
   else
   {
@@ -405,7 +416,7 @@ static String buildParameterOverlayLine(const SequencerView& view, uint8_t param
 
 } //   buildParameterOverlayLine()
 
-//-- Build dynamic title for the Edit popup.
+//-- Build title for Step popup.
 static String buildEditPopupTitle(const SequencerView& view, const char* const trackNames[])
 {
   const char* trackName = "Track";
@@ -416,7 +427,7 @@ static String buildEditPopupTitle(const SequencerView& view, const char* const t
     trackName = trackNames[view.selectedTrack];
   }
 
-  snprintf(titleBuffer, sizeof(titleBuffer), "Edit %s S:%02u", trackName,
+  snprintf(titleBuffer, sizeof(titleBuffer), "Step %s S:%02u", trackName,
            static_cast<unsigned>(view.cursorStep + 1U));
 
   return String(titleBuffer);
