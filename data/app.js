@@ -14,6 +14,8 @@ const state = {
   stepEditorOpen: false,
   stepEditorDraft: {},
   dirty: false,
+  actionPopupMode: "",
+  actionPopupValue: "",
 };
 
 // Track names
@@ -24,15 +26,65 @@ let statusInterval = null;
 let playheadInterval = null;
 
 // Initialize on page load
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", async function() {
   initializeEventHandlers();
-  updateStatus();
-  updateGroups();
-  updateSampleSets();
 
-  // Start polling
+  await loadInitialFirmwareState();
+
   statusInterval = setInterval(updateStatus, 1000);
 });
+
+async function loadInitialFirmwareState() {
+  await updateStatus();
+  await updateGroups();
+  await updateSampleSets();
+  await updateActiveGroupFromFirmware();
+
+  if (state.activeGroup && state.activeGroup !== "-") {
+    await ensureActiveGroupIsLoaded();
+    await updatePatterns();
+  }
+
+  renderGrid();
+
+} // loadInitialFirmwareState()
+
+async function updateActiveGroupFromFirmware() {
+  try {
+    const res = await fetch("/api/groups/active");
+    const data = await res.json();
+    if (data.ok && data.name) {
+      state.activeGroup = data.name;
+      document.getElementById("activeGroup").textContent = "Group: " + data.name;
+    }
+  } catch (e) {
+    console.error("Active group update failed:", e);
+  }
+
+} // updateActiveGroupFromFirmware()
+
+async function ensureActiveGroupIsLoaded() {
+  try {
+    const patternRes = await fetch("/api/patterns");
+    const patternData = await patternRes.json();
+    if (patternData.ok && patternData.patterns && patternData.patterns.length > 0) {
+      return;
+    }
+
+    const loadRes = await fetch("/api/groups/load", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupName: state.activeGroup })
+    });
+    const loadData = await loadRes.json();
+    if (!loadData.ok) {
+      console.error("Initial active group load failed:", loadData.error);
+    }
+  } catch (e) {
+    console.error("Initial active group load failed:", e);
+  }
+
+} // ensureActiveGroupIsLoaded()
 
 // ========== EVENT HANDLERS ==========
 
@@ -80,6 +132,8 @@ function initializeEventHandlers() {
   document.getElementById("btnCopyGroup").addEventListener("click", copyGroup);
   document.getElementById("btnDeleteGroup").addEventListener("click", deleteGroup);
   document.getElementById("btnCloseGroupList").addEventListener("click", hideGroupListWindow);
+  document.getElementById("btnActionCancel").addEventListener("click", hideActionPopup);
+  document.getElementById("btnActionAccept").addEventListener("click", acceptActionPopup); 
 
   // Sample set
   const selectSampleSet = document.getElementById("selectSampleSet");
@@ -94,10 +148,15 @@ function initializeEventHandlers() {
   // Step editor
   document.getElementById("btnCloseStepEditor").addEventListener("click", closeStepEditor);
   document.getElementById("btnCloseStepEditorFooter").addEventListener("click", closeStepEditor);
+  document.getElementById("stepEditor").addEventListener("mouseleave", closeStepEditor);
 
   // Step editor value changes
   document.getElementById("stepTrigger").addEventListener("change", function() {
     state.stepEditorDraft.trigger = this.checked;
+  });
+
+  document.getElementById("stepMute").addEventListener("change", function() {
+    state.stepEditorDraft.mute = this.checked;
   });
 
   linkSliderAndInput("stepVelocity", "stepVelocityNum", (v) => {
@@ -117,7 +176,8 @@ function initializeEventHandlers() {
   linkSliderAndInput("stepLockDecay", "stepLockDecayNum", (v) => {
     state.stepEditorDraft.lockDecay = parseInt(v);
   });
-}
+
+} // initializeEventHandlers()
 
 function linkSliderAndInput(sliderId, inputId, onChangeCallback) {
   const slider = document.getElementById(sliderId);
@@ -131,7 +191,8 @@ function linkSliderAndInput(sliderId, inputId, onChangeCallback) {
     slider.value = this.value;
     onChangeCallback(this.value);
   });
-}
+
+} // linkSliderAndInput()
 
 // ========== API CALLS ==========
 
@@ -168,22 +229,25 @@ async function updateStatus() {
       }
 
       // Load patterns if group changed
-      if (data.activeGroup !== state.activeGroup) {
+      if (data.activeGroup && data.activeGroup !== state.activeGroup) {
         state.activeGroup = data.activeGroup;
+        state.visiblePatternStartIndex = 0;
         await updatePatterns();
       }
     }
   } catch (e) {
     console.error("Status update failed:", e);
   }
-}
+
+} //  updateStatus()
 
 function updateTransportUI(data) {
   document.getElementById("sliderBpm").value = data.bpm;
   document.getElementById("inputBpm").value = data.bpm;
   document.getElementById("sliderSwing").value = data.swing;
   document.getElementById("inputSwing").value = data.swing;
-}
+
+} // updateTransportUI()
 
 async function updatePlayhead() {
   try {
@@ -201,7 +265,7 @@ async function updatePlayhead() {
   } catch (e) {
     console.error("Playhead update failed:", e);
   }
-}
+} // updatePlayhead()
 
 async function updateGroups() {
   try {
@@ -210,6 +274,12 @@ async function updateGroups() {
 
     if (data.ok) {
       state.groups = data.groups || [];
+
+      if (data.activeGroup && (!state.activeGroup || state.activeGroup === "-")) {
+        state.activeGroup = data.activeGroup;
+        document.getElementById("activeGroup").textContent = "Group: " + data.activeGroup;
+      }
+
       return state.groups;
     }
 
@@ -219,7 +289,8 @@ async function updateGroups() {
     console.error("Groups update failed:", e);
     return [];
   }
-}
+
+} // updateGroups()
 
 async function updatePatterns() {
   try {
@@ -244,7 +315,7 @@ async function updatePatterns() {
   } catch (e) {
     console.error("Patterns update failed:", e);
   }
-}
+} // updatePatterns()
 
 async function updateSampleSets() {
   try {
@@ -264,7 +335,8 @@ async function updateSampleSets() {
   } catch (e) {
     console.error("Sample sets update failed:", e);
   }
-}
+
+} // updateSampleSets()
 
 // ========== TRANSPORT CONTROL ==========
 
@@ -278,7 +350,7 @@ async function setBpm(bpm) {
   } catch (e) {
     console.error("Failed to set BPM:", e);
   }
-}
+} // setBpm()
 
 async function setSwing(swing) {
   try {
@@ -290,7 +362,7 @@ async function setSwing(swing) {
   } catch (e) {
     console.error("Failed to set swing:", e);
   }
-}
+} // setSwing()
 
 // ========== GROUP MANAGEMENT ==========
 
@@ -307,7 +379,7 @@ async function saveGroup() {
   } catch (e) {
     alert("Save failed: " + e);
   }
-}
+} // saveGroup()
 
 async function loadGroup() {
   const groups = await updateGroups();
@@ -318,12 +390,16 @@ async function loadGroup() {
   }
 
   showGroupListWindow(groups);
-}
+
+} // loadGroup()
 
 
 function showGroupListWindow(groups) {
   const panel = document.getElementById("groupListPanel");
   const list = document.getElementById("groupListItems");
+  const loadButton = document.getElementById("btnLoadGroup");
+  const buttonRect = loadButton.getBoundingClientRect();
+  const activeGroupName = state.activeGroup || (state.status ? state.status.activeGroup : "");
 
   list.innerHTML = "";
 
@@ -331,7 +407,13 @@ function showGroupListWindow(groups) {
     const button = document.createElement("button");
 
     button.className = "btn btn-small group-list-button";
-    button.textContent = groupName;
+
+    if (groupName === activeGroupName) {
+      button.textContent = "* " + groupName;
+      button.classList.add("active-group-button");
+    } else {
+      button.textContent = "  " + groupName;
+    }
 
     button.addEventListener("click", async function() {
       await selectGroupToLoad(groupName);
@@ -340,12 +422,15 @@ function showGroupListWindow(groups) {
     list.appendChild(button);
   }
 
+  panel.style.left = buttonRect.left + "px";
+  panel.style.top = (buttonRect.bottom + 6) + "px";
   panel.style.display = "block";
-}
+
+} // showGroupListWindow()
 
 function hideGroupListWindow() {
   document.getElementById("groupListPanel").style.display = "none";
-}
+} // hideGroupListWindow()
 
 async function selectGroupToLoad(groupName) {
   try {
@@ -372,11 +457,208 @@ async function selectGroupToLoad(groupName) {
   } catch (e) {
     alert("Load failed: " + e);
   }
-}
+} // selectGroupToLoad()
 
 async function newGroup() {
-  const groupName = prompt("Enter name for new group:");
-  if (!groupName) return;
+  showGroupNameActionPopup("new", "New Group", "", "New group name:");
+
+} // newGroup()
+
+async function renameGroup() {
+  const activeName = state.activeGroup || (state.status ? state.status.activeGroup : "");
+
+  if (!activeName || activeName === "-") {
+    showActionMessage("Rename Group", "No active group");
+    return;
+  }
+
+  showGroupNameActionPopup("rename", "Rename Group", activeName, "New name for " + activeName + ":");
+
+} // renameGroup()
+
+async function copyGroup() {
+  const activeName = state.activeGroup || (state.status ? state.status.activeGroup : "");
+
+  if (!activeName || activeName === "-") {
+    showActionMessage("Copy Group", "No active group");
+    return;
+  }
+
+  showGroupNameActionPopup("copy", "Copy Group", activeName, "Copy " + activeName + " as:");
+
+} // copyGroup()
+
+async function deleteGroup() {
+  const groups = await updateGroups();
+
+  if (!groups || groups.length === 0) {
+    showActionMessage("Delete Group", "No pattern groups found");
+    return;
+  }
+
+  showDeleteGroupActionPopup(groups);
+
+} // deleteGroup()
+
+function normalizeGroupName(name) {
+  return String(name || "").trim().toUpperCase();
+
+} // normalizeGroupName()
+
+function showActionPopup(title) {
+  const popup = document.getElementById("actionPopup");
+  const loadButton = document.getElementById("btnLoadGroup");
+  const buttonRect = loadButton.getBoundingClientRect();
+
+  document.getElementById("actionPopupTitle").textContent = title;
+
+  popup.style.left = buttonRect.left + "px";
+  popup.style.top = (buttonRect.bottom + 6) + "px";
+  popup.style.display = "block";
+
+} // showActionPopup()
+
+function hideActionPopup() {
+  document.getElementById("actionPopup").style.display = "none";
+  document.getElementById("actionPopupContent").innerHTML = "";
+  state.actionPopupMode = "";
+  state.actionPopupValue = "";
+
+} // hideActionPopup()
+
+function showActionMessage(title, message) {
+  const content = document.getElementById("actionPopupContent");
+
+  state.actionPopupMode = "message";
+  state.actionPopupValue = "";
+
+  content.innerHTML = "";
+
+  const row = document.createElement("div");
+  row.className = "action-popup-row";
+  row.textContent = message;
+  content.appendChild(row);
+
+  document.getElementById("btnActionAccept").style.display = "none";
+
+  showActionPopup(title);
+
+} // showActionMessage()
+
+function showGroupNameActionPopup(mode, title, sourceName, labelText) {
+  const content = document.getElementById("actionPopupContent");
+
+  state.actionPopupMode = mode;
+  state.actionPopupValue = sourceName || "";
+
+  content.innerHTML = "";
+
+  if (sourceName) {
+    const sourceRow = document.createElement("div");
+    sourceRow.className = "action-popup-row";
+    sourceRow.textContent = "Current group: " + sourceName;
+    content.appendChild(sourceRow);
+  }
+
+  const inputRow = document.createElement("div");
+  inputRow.className = "action-popup-row";
+
+  const label = document.createElement("label");
+  label.textContent = labelText;
+
+  const input = document.createElement("input");
+  input.id = "actionGroupNameInput";
+  input.type = "text";
+  input.value = "";
+  input.autocomplete = "off";
+
+  input.addEventListener("input", function() {
+    this.value = normalizeGroupName(this.value);
+  });
+
+  inputRow.appendChild(label);
+  inputRow.appendChild(input);
+  content.appendChild(inputRow);
+
+  document.getElementById("btnActionAccept").style.display = "inline-block";
+
+  showActionPopup(title);
+
+  input.focus();
+
+} // showGroupNameActionPopup()
+
+function showDeleteGroupActionPopup(groups) {
+  const content = document.getElementById("actionPopupContent");
+  const activeName = state.activeGroup || (state.status ? state.status.activeGroup : "");
+
+  state.actionPopupMode = "delete";
+  state.actionPopupValue = "";
+
+  content.innerHTML = "";
+
+  const list = document.createElement("div");
+  list.className = "delete-group-list";
+
+  for (const groupName of groups) {
+    const button = document.createElement("button");
+
+    button.className = "btn btn-small delete-group-button";
+
+    if (groupName === activeName) {
+      button.textContent = "* " + groupName + " (active, cannot delete)";
+      button.disabled = true;
+      button.classList.add("delete-group-button-disabled");
+    } else {
+      button.textContent = "  " + groupName;
+      button.addEventListener("click", function() {
+        state.actionPopupValue = groupName;
+
+        const allButtons = list.querySelectorAll("button");
+        allButtons.forEach(function(item) {
+          item.classList.remove("active-group-button");
+        });
+
+        button.classList.add("active-group-button");
+      });
+    }
+
+    list.appendChild(button);
+  }
+
+  content.appendChild(list);
+
+  document.getElementById("btnActionAccept").style.display = "inline-block";
+
+  showActionPopup("Delete Group");
+
+} // showDeleteGroupActionPopup()
+
+async function acceptActionPopup() {
+  if (state.actionPopupMode === "message") {
+    hideActionPopup();
+    return;
+  }
+
+  if (state.actionPopupMode === "new") {
+    await acceptNewGroupAction();
+  } else if (state.actionPopupMode === "rename") {
+    await acceptRenameGroupAction();
+  } else if (state.actionPopupMode === "copy") {
+    await acceptCopyGroupAction();
+  } else if (state.actionPopupMode === "delete") {
+    await acceptDeleteGroupAction();
+  }
+
+} // acceptActionPopup()
+
+async function acceptNewGroupAction() {
+  const groupName = normalizeGroupName(document.getElementById("actionGroupNameInput").value);
+
+  if (!groupName) {
+    showActionMessage("New Group", "Enter a group name");
+    return;
+  }
 
   try {
     const res = await fetch("/api/groups/new", {
@@ -384,24 +666,36 @@ async function newGroup() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: groupName })
     });
-    const data = await res.json();
-    if (data.ok) {
-      await updateGroups();
-      await updatePatterns();
-      await updateStatus();
-    } else {
-      alert("Error: " + data.error);
-    }
-  } catch (e) {
-    alert("New group failed: " + e);
-  }
-}
 
-async function renameGroup() {
-  const fromName = prompt("Current group name:");
-  if (!fromName) return;
-  const toName = prompt("New group name:");
-  if (!toName) return;
+    const data = await res.json();
+
+    if (!data.ok) {
+      showActionMessage("New Group", "Error: " + data.error);
+      return;
+    }
+
+    hideActionPopup();
+
+    state.activeGroup = groupName;
+    state.visiblePatternStartIndex = 0;
+
+    await updateGroups();
+    await updatePatterns();
+    await updateStatus();
+  } catch (e) {
+    showActionMessage("New Group", "Failed: " + e);
+  }
+
+} // acceptNewGroupAction()
+
+async function acceptRenameGroupAction() {
+  const fromName = state.actionPopupValue;
+  const toName = normalizeGroupName(document.getElementById("actionGroupNameInput").value);
+
+  if (!toName) {
+    showActionMessage("Rename Group", "Enter a new group name");
+    return;
+  }
 
   try {
     const res = await fetch("/api/groups/rename", {
@@ -409,25 +703,37 @@ async function renameGroup() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ from: fromName, to: toName })
     });
-    const data = await res.json();
-    if (data.ok) {
-      await updateGroups();
-      if (state.activeGroup === fromName) {
-        state.activeGroup = toName;
-      }
-    } else {
-      alert("Error: " + data.error);
-    }
-  } catch (e) {
-    alert("Rename failed: " + e);
-  }
-}
 
-async function copyGroup() {
-  const fromName = prompt("Group to copy:");
-  if (!fromName) return;
-  const toName = prompt("Copy as:");
-  if (!toName) return;
+    const data = await res.json();
+
+    if (!data.ok) {
+      showActionMessage("Rename Group", "Error: " + data.error);
+      return;
+    }
+
+    hideActionPopup();
+
+    if (state.activeGroup === fromName) {
+      state.activeGroup = toName;
+    }
+
+    await updateGroups();
+    await updatePatterns();
+    await updateStatus();
+  } catch (e) {
+    showActionMessage("Rename Group", "Failed: " + e);
+  }
+
+} // acceptRenameGroupAction()
+
+async function acceptCopyGroupAction() {
+  const fromName = state.actionPopupValue;
+  const toName = normalizeGroupName(document.getElementById("actionGroupNameInput").value);
+
+  if (!toName) {
+    showActionMessage("Copy Group", "Enter a new group name");
+    return;
+  }
 
   try {
     const res = await fetch("/api/groups/copy", {
@@ -435,21 +741,30 @@ async function copyGroup() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ from: fromName, to: toName })
     });
-    const data = await res.json();
-    if (data.ok) {
-      await updateGroups();
-    } else {
-      alert("Error: " + data.error);
-    }
-  } catch (e) {
-    alert("Copy failed: " + e);
-  }
-}
 
-async function deleteGroup() {
-  const groupName = prompt("Group to delete:");
-  if (!groupName) return;
-  if (!confirm("Delete group '" + groupName + "'?")) return;
+    const data = await res.json();
+
+    if (!data.ok) {
+      showActionMessage("Copy Group", "Error: " + data.error);
+      return;
+    }
+
+    hideActionPopup();
+
+    await updateGroups();
+  } catch (e) {
+    showActionMessage("Copy Group", "Failed: " + e);
+  }
+
+} // acceptCopyGroupAction()
+
+async function acceptDeleteGroupAction() {
+  const groupName = state.actionPopupValue;
+
+  if (!groupName) {
+    showActionMessage("Delete Group", "Select a group to delete");
+    return;
+  }
 
   try {
     const res = await fetch("/api/groups/delete", {
@@ -457,16 +772,22 @@ async function deleteGroup() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: groupName })
     });
+
     const data = await res.json();
-    if (data.ok) {
-      await updateGroups();
-    } else {
-      alert("Error: " + data.error);
+
+    if (!data.ok) {
+      showActionMessage("Delete Group", "Error: " + data.error);
+      return;
     }
+
+    hideActionPopup();
+
+    await updateGroups();
   } catch (e) {
-    alert("Delete failed: " + e);
+    showActionMessage("Delete Group", "Failed: " + e);
   }
-}
+
+} // acceptDeleteGroupAction()
 
 // ========== SAMPLE SET MANAGEMENT ==========
 
@@ -487,7 +808,8 @@ async function loadSampleSet(setName) {
   } catch (e) {
     alert("Load failed: " + e);
   }
-}
+
+} // loadSampleSet()
 
 // ========== PATTERN GRID RENDERING ==========
 
@@ -504,7 +826,7 @@ function updateVisiblePatternWindow() {
   if (playingPatternIndex === middlePatternIndex && currentStep === 15) {
     state.visiblePatternStartIndex = (state.visiblePatternStartIndex + 1) % totalPatterns;
   }
-}
+} // updateVisiblePatternWindow()
 
 function renderGrid() {
   const tbody = document.getElementById("gridBody");
@@ -524,7 +846,7 @@ function renderGrid() {
     if (patIdx < state.patterns.length) {
       visiblePatterns.push({ index: patIdx, data: state.patterns[patIdx] });
     }
-  }
+  } 
 
   // Header row with pattern names
   const headerRow = document.createElement("tr");
@@ -594,7 +916,7 @@ function renderGrid() {
 
         // Open Step editor when hovering over a step.
         cell.addEventListener("mouseenter", function() {
-          selectStep(patIdx, trackIdx, stepIdx);
+          selectStep(patIdx, trackIdx, stepIdx, cell);
         });
 
         row.appendChild(cell);
@@ -603,29 +925,33 @@ function renderGrid() {
 
     tbody.appendChild(row);
   }
-}
 
-function selectStep(patternIndex, trackIndex, stepIndex) {
+} // renderGrid()
+
+function selectStep(patternIndex, trackIndex, stepIndex, anchorCell) {
   state.selectedPatternIndex = patternIndex;
   state.selectedTrackIndex = trackIndex;
   state.selectedStepLocalIndex = stepIndex;
-  openStepEditor();
+
+  openStepEditor(anchorCell);
   renderGrid();
-}
+
+} // selectStep()
 
 // ========== STEP EDITOR ==========
 
-function openStepEditor() {
+function openStepEditor(anchorCell) {
   const patIdx = state.selectedPatternIndex;
   const trackIdx = state.selectedTrackIndex;
   const stepIdx = state.selectedStepLocalIndex;
 
-  if (patIdx >= state.patterns.length) return;
+  if (patIdx >= state.patterns.length) {
+    return;
+  }
 
   const pattern = state.patterns[patIdx];
   const step = pattern.tracks[trackIdx].steps[stepIdx];
 
-  // Initialize draft
   state.stepEditorDraft = {
     trigger: step.trigger,
     mute: step.mute,
@@ -636,8 +962,8 @@ function openStepEditor() {
     lockDecay: step.lockDecay
   };
 
-  // Update UI
   document.getElementById("stepTrigger").checked = step.trigger;
+  document.getElementById("stepMute").checked = step.mute;
   document.getElementById("stepVelocity").value = step.velocity;
   document.getElementById("stepVelocityNum").value = step.velocity;
   document.getElementById("stepProbability").value = step.probability;
@@ -652,8 +978,17 @@ function openStepEditor() {
   document.getElementById("stepEditorTitle").textContent = title;
 
   state.stepEditorOpen = true;
-  document.getElementById("stepEditor").style.display = "block";
-}
+
+  const editor = document.getElementById("stepEditor");
+  editor.style.display = "block";
+
+  if (anchorCell) {
+    const rect = anchorCell.getBoundingClientRect();
+
+    editor.style.left = rect.left + "px";
+    editor.style.top = rect.top + "px";
+  }
+} // openStepEditor()
 
 async function closeStepEditor() {
   if (!state.stepEditorOpen) return;
