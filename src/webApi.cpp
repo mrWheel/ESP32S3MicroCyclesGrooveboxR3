@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 14:26 ***/
+/*** Last Changed: 2026-06-22 - 12:49 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -11,12 +11,11 @@
 #include <ArduinoJson.h>
 #include <esp_heap_caps.h>
 #include <WebServer.h>
+#include <uri/UriRegex.h>
 
 extern WebServer webServer;
 
-//
-// Helper: send JSON response with optional HTTP status code
-//
+//-- Helper: send JSON response with optional HTTP status code
 static void sendJson(WebServer& server, JsonDocument& doc, int code = 200)
 {
   String jsonStr;
@@ -24,9 +23,7 @@ static void sendJson(WebServer& server, JsonDocument& doc, int code = 200)
   webServer.send(code, "application/json", jsonStr);
 } //   sendJson()
 
-//
-// Helper: send simple ok response
-//
+//-- Helper: send simple ok response
 static void sendOk(WebServer& server)
 {
   JsonDocument doc;
@@ -34,9 +31,7 @@ static void sendOk(WebServer& server)
   sendJson(server, doc);
 } //   sendOk()
 
-//
-// Helper: send error response
-//
+//-- Helper: send error response
 static void sendError(WebServer& server, const char* message, int code = 400)
 {
   JsonDocument doc;
@@ -45,9 +40,7 @@ static void sendError(WebServer& server, const char* message, int code = 400)
   sendJson(server, doc, code);
 } //   sendError()
 
-//
-// Helper: convert slot index (0-47) to pattern name (p01-p48)
-//
+//-- Helper: convert slot index (0-47) to pattern name (p01-p48)
 static String slotIndexToPatternName(uint8_t slotIndex)
 {
   char buf[4];
@@ -55,9 +48,7 @@ static String slotIndexToPatternName(uint8_t slotIndex)
   return String(buf);
 } //   slotIndexToPatternName()
 
-//
-// Helper: parse pattern name (p01-p48) to slot index; returns -1 if invalid
-//
+//-- Helper: parse pattern name (p01-p48) to slot index; returns -1 if invalid
 static int16_t patternNameToSlotIndex(const String& name)
 {
   if (name.length() != 3 || name[0] != 'p')
@@ -72,9 +63,7 @@ static int16_t patternNameToSlotIndex(const String& name)
   return num - 1;
 } //   patternNameToSlotIndex()
 
-//
-// Helper: build complete pattern JSON document for a given slot index
-//
+//-- Helper: build complete pattern JSON document for a given slot index
 static void buildPatternJson(JsonDocument& doc, uint8_t slotIndex)
 {
   PatternData patternData;
@@ -114,9 +103,7 @@ static void buildPatternJson(JsonDocument& doc, uint8_t slotIndex)
   }
 } //   buildPatternJson()
 
-//
-// Helper: parse pattern JSON from request body and convert to PatternData
-//
+//-- Helper: parse pattern JSON from request body and convert to PatternData
 static bool parsePatternFromJson(const JsonDocument& doc, PatternData& patternData)
 {
   patternData.bpm = static_cast<uint16_t>(doc["bpm"] | 120);
@@ -165,9 +152,7 @@ static bool parsePatternFromJson(const JsonDocument& doc, PatternData& patternDa
   return true;
 } //   parsePatternFromJson()
 
-//
-// GET /api/status — comprehensive system status
-//
+//-- GET /api/status — comprehensive system status
 static void handleStatusRequest()
 {
   SequencerView view;
@@ -208,9 +193,7 @@ static void handleStatusRequest()
   webServer.send(200, "application/json", jsonStr);
 } //   handleStatusRequest()
 
-//
-// GET /api/transport — transport state snapshot
-//
+//-- GET /api/transport — transport state snapshot
 static void handleTransportRequest()
 {
   SequencerView view;
@@ -233,9 +216,7 @@ static void handleTransportRequest()
   webServer.send(200, "application/json", jsonStr);
 } //   handleTransportRequest()
 
-//
-// POST /api/transport/play — start transport
-//
+//-- POST /api/transport/play — start transport
 static void handleTransportPlayRequest()
 {
   SequencerView view;
@@ -249,27 +230,21 @@ static void handleTransportPlayRequest()
   sendOk(*((WebServer*)nullptr)); // Placeholder for actual server reference
 } //   handleTransportPlayRequest()
 
-//
-// POST /api/transport/stop — hard stop
-//
+//-- POST /api/transport/stop — hard stop
 static void handleTransportStopRequest()
 {
   sequencerStopImmediately();
   sendOk(*((WebServer*)nullptr));
 } //   handleTransportStopRequest()
 
-//
-// POST /api/transport/toggle — toggle play/stop
-//
+//-- POST /api/transport/toggle — toggle play/stop
 static void handleTransportToggleRequest()
 {
   sequencerTogglePlay();
   sendOk(*((WebServer*)nullptr));
 } //   handleTransportToggleRequest()
 
-//
-// POST /api/transport/bpm — set BPM
-//
+//-- POST /api/transport/bpm — set BPM
 static void handleTransportBpmRequest()
 {
   if (!webServer.hasArg("plain"))
@@ -297,11 +272,10 @@ static void handleTransportBpmRequest()
   }
 
   sendOk(*((WebServer*)nullptr));
+
 } //   handleTransportBpmRequest()
 
-//
-// POST /api/transport/swing — set swing
-//
+//-- POST /api/transport/swing — set swing
 static void handleTransportSwingRequest()
 {
 
@@ -330,11 +304,10 @@ static void handleTransportSwingRequest()
   }
 
   sendOk(webServer);
+
 } //   handleTransportSwingRequest()
 
-//
-// GET /api/groups — list all pattern groups
-//
+//-- GET /api/groups — list all pattern groups
 static void handleGroupsListRequest()
 {
 
@@ -357,11 +330,10 @@ static void handleGroupsListRequest()
   }
 
   sendJson(webServer, doc);
+
 } //   handleGroupsListRequest()
 
-//
-// GET /api/groups/active — get active group info
-//
+//-- GET /api/groups/active — get active group info
 static void handleGroupsActiveRequest()
 {
 
@@ -371,14 +343,12 @@ static void handleGroupsActiveRequest()
   doc["patternCount"] = uiManagerGetLoadedPatternCount();
 
   sendJson(webServer, doc);
+
 } //   handleGroupsActiveRequest()
 
-//
-// POST /api/groups/load — load a pattern group
-//
+//-- POST /api/groups/load — load a pattern group.
 static void handleGroupsLoadRequest()
 {
-
   if (!webServer.hasArg("plain"))
   {
     sendError(webServer, "Missing body");
@@ -387,13 +357,31 @@ static void handleGroupsLoadRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("name"))
+
+  if (error)
   {
-    sendError(webServer, "Invalid JSON or missing name");
+    sendError(webServer, "Invalid JSON");
     return;
   }
 
-  String groupName = doc["name"].as<String>();
+  String groupName = doc["groupName"] | "";
+
+  if (groupName.isEmpty())
+  {
+    groupName = doc["name"] | "";
+  }
+
+  if (groupName.isEmpty())
+  {
+    sendError(webServer, "Missing groupName");
+    return;
+  }
+
+  if (!sampleManagerIsSdCardInserted())
+  {
+    sendError(webServer, "No SD card", 409);
+    return;
+  }
 
   if (!sampleManagerIsSdCardReady())
   {
@@ -407,12 +395,16 @@ static void handleGroupsLoadRequest()
     return;
   }
 
-  sendOk(webServer);
+  JsonDocument response;
+  response["ok"] = true;
+  response["groupName"] = groupName;
+  response["patternCount"] = uiManagerGetLoadedPatternCount();
+
+  sendJson(webServer, response);
+
 } //   handleGroupsLoadRequest()
 
-//
-// POST /api/groups/save — save active pattern group to SD
-//
+//-- POST /api/groups/save — save active pattern group to SD
 static void handleGroupsSaveRequest()
 {
 
@@ -431,11 +423,10 @@ static void handleGroupsSaveRequest()
   }
 
   sendOk(webServer);
+
 } //   handleGroupsSaveRequest()
 
-//
-// POST /api/groups/new — create new pattern group with default p01
-//
+//-- POST /api/groups/new — create new pattern group with default p01
 static void handleGroupsNewRequest()
 {
 
@@ -475,11 +466,10 @@ static void handleGroupsNewRequest()
   }
 
   sendOk(webServer);
+
 } //   handleGroupsNewRequest()
 
-//
-// POST /api/groups/rename — rename pattern group
-//
+//-- POST /api/groups/rename — rename pattern group
 static void handleGroupsRenameRequest()
 {
 
@@ -519,11 +509,10 @@ static void handleGroupsRenameRequest()
   }
 
   sendOk(webServer);
+
 } //   handleGroupsRenameRequest()
 
-//
-// POST /api/groups/copy — copy pattern group
-//
+//-- POST /api/groups/copy — copy pattern group
 static void handleGroupsCopyRequest()
 {
 
@@ -557,11 +546,10 @@ static void handleGroupsCopyRequest()
   }
 
   sendOk(webServer);
+
 } //   handleGroupsCopyRequest()
 
-//
-// POST /api/groups/delete — delete pattern group
-//
+//-- POST /api/groups/delete — delete pattern group
 static void handleGroupsDeleteRequest()
 {
 
@@ -601,11 +589,10 @@ static void handleGroupsDeleteRequest()
   }
 
   sendOk(webServer);
+
 } //   handleGroupsDeleteRequest()
 
-//
-// GET /api/patterns — list all loaded patterns
-//
+//-- GET /api/patterns — list all loaded patterns
 static void handlePatternsListRequest()
 {
 
@@ -628,11 +615,10 @@ static void handlePatternsListRequest()
   }
 
   sendJson(webServer, doc);
+
 } //   handlePatternsListRequest()
 
-//
-// GET /api/patterns/active — get active pattern full data
-//
+//-- GET /api/patterns/active — get active pattern full data
 static void handlePatternsActiveGetRequest()
 {
 
@@ -643,11 +629,10 @@ static void handlePatternsActiveGetRequest()
   buildPatternJson(doc, view.activePatternIndex);
 
   sendJson(webServer, doc);
+
 } //   handlePatternsActiveGetRequest()
 
-//
-// POST /api/patterns/active — set active pattern
-//
+//-- POST /api/patterns/active — set active pattern
 static void handlePatternsActiveSetRequest()
 {
 
@@ -687,11 +672,10 @@ static void handlePatternsActiveSetRequest()
   }
 
   sendOk(webServer);
+
 } //   handlePatternsActiveSetRequest()
 
-//
-// GET /api/patterns/{patternName} — get full pattern data
-//
+//-- GET /api/patterns/{patternName} — get full pattern data
 static void handlePatternsGetRequest()
 {
 
@@ -707,11 +691,10 @@ static void handlePatternsGetRequest()
   JsonDocument doc;
   buildPatternJson(doc, (uint8_t)slotIndex);
   sendJson(webServer, doc);
+
 } //   handlePatternsGetRequest()
 
-//
-// PUT /api/patterns/{patternName} — replace entire pattern
-//
+//-- PUT /api/patterns/{patternName} — replace entire pattern
 static void handlePatternsPutRequest()
 {
 
@@ -749,11 +732,10 @@ static void handlePatternsPutRequest()
   uiManagerSetPatternGroupDirty(true);
 
   sendOk(webServer);
+
 } //   handlePatternsPutRequest()
 
-//
-// POST /api/patterns/{patternName}/clear — clear all steps in pattern
-//
+//-- POST /api/patterns/{patternName}/clear — clear all steps in pattern
 static void handlePatternsClearRequest()
 {
 
@@ -773,9 +755,7 @@ static void handlePatternsClearRequest()
   sendOk(webServer);
 } //   handlePatternsClearRequest()
 
-//
-// POST /api/patterns/{patternName}/copy — copy pattern to another slot
-//
+//-- POST /api/patterns/{patternName}/copy — copy pattern to another slot
 static void handlePatternsCopyRequest()
 {
 
@@ -817,11 +797,10 @@ static void handlePatternsCopyRequest()
 
   uiManagerSetPatternGroupDirty(true);
   sendOk(webServer);
+
 } //   handlePatternsCopyRequest()
 
-//
-// PUT /api/patterns/{patternName}/tracks/{trackIndex}/steps/{stepIndex}
-//
+//-- PUT /api/patterns/{patternName}/tracks/{trackIndex}/steps/{stepIndex}
 static void handleStepEditRequest()
 {
 
@@ -879,11 +858,10 @@ static void handleStepEditRequest()
   uiManagerSetPatternGroupDirty(true);
 
   sendOk(webServer);
+
 } //   handleStepEditRequest()
 
-//
-// PUT /api/patterns/{patternName}/tracks/{trackIndex} — update track
-//
+//-- PUT /api/patterns/{patternName}/tracks/{trackIndex} — update track
 static void handleTrackEditRequest()
 {
 
@@ -929,11 +907,10 @@ static void handleTrackEditRequest()
   uiManagerSetPatternGroupDirty(true);
 
   sendOk(webServer);
+
 } //   handleTrackEditRequest()
 
-//
-// POST /api/tracks/{trackIndex}/mute-toggle — toggle track mute
-//
+//-- POST /api/tracks/{trackIndex}/mute-toggle — toggle track mute
 static void handleTrackMuteToggleRequest()
 {
 
@@ -967,11 +944,10 @@ static void handleTrackMuteToggleRequest()
   }
 
   sendOk(webServer);
+
 } //   handleTrackMuteToggleRequest()
 
-//
-// GET /api/sample-sets — list sample sets
-//
+//-- GET /api/sample-sets — list sample sets
 static void handleSampleSetsListRequest()
 {
 
@@ -994,11 +970,10 @@ static void handleSampleSetsListRequest()
   }
 
   sendJson(webServer, doc);
+
 } //   handleSampleSetsListRequest()
 
-//
-// GET /api/sample-sets/active — get active sample set info
-//
+//-- GET /api/sample-sets/active — get active sample set info
 static void handleSampleSetsActiveRequest()
 {
 
@@ -1007,11 +982,10 @@ static void handleSampleSetsActiveRequest()
   doc["name"] = sampleManagerGetActiveSampleSet();
 
   sendJson(webServer, doc);
+
 } //   handleSampleSetsActiveRequest()
 
-//
-// POST /api/sample-sets/load — load sample set
-//
+//-- POST /api/sample-sets/load — load sample set
 static void handleSampleSetsLoadRequest()
 {
 
@@ -1044,11 +1018,10 @@ static void handleSampleSetsLoadRequest()
   }
 
   sendOk(webServer);
+
 } //   handleSampleSetsLoadRequest()
 
-//
-// GET /api/samples — get all sample info
-//
+//-- GET /api/samples — get all sample info
 static void handleSamplesListRequest()
 {
 
@@ -1073,11 +1046,10 @@ static void handleSamplesListRequest()
   }
 
   sendJson(webServer, doc);
+
 } //   handleSamplesListRequest()
 
-//
-// PUT /api/samples/gain — set sample gain
-//
+//-- PUT /api/samples/gain — set sample gain
 static void handleSamplesGainRequest()
 {
 
@@ -1111,11 +1083,10 @@ static void handleSamplesGainRequest()
   }
 
   sendOk(webServer);
+
 } //   handleSamplesGainRequest()
 
-//
-// GET /api/sequencer/view — sequencer state snapshot
-//
+//-- GET /api/sequencer/view — sequencer state snapshot
 static void handleSequencerViewRequest()
 {
 
@@ -1137,11 +1108,10 @@ static void handleSequencerViewRequest()
   doc["chainEnabled"] = view.chainEnabled;
 
   sendJson(webServer, doc);
+
 } //   handleSequencerViewRequest()
 
-//
-// GET /api/sequencer/playhead — lightweight playhead info for frequent polling
-//
+//-- GET /api/sequencer/playhead — lightweight playhead info for frequent polling
 static void handleSequencerPlayheadRequest()
 {
 
@@ -1159,11 +1129,10 @@ static void handleSequencerPlayheadRequest()
   doc["chainLength"] = view.chainLength;
 
   sendJson(webServer, doc);
+
 } //   handleSequencerPlayheadRequest()
 
-//
-// POST /api/sequencer/cursor — set cursor position
-//
+//-- POST /api/sequencer/cursor — set cursor position
 static void handleSequencerCursorRequest()
 {
 
@@ -1202,11 +1171,10 @@ static void handleSequencerCursorRequest()
     sequencerMoveTrack(trackDelta);
 
   sendOk(webServer);
+
 } //   handleSequencerCursorRequest()
 
-//
-// POST /api/sequencer/edit-mode — set edit mode
-//
+//-- POST /api/sequencer/edit-mode — set edit mode
 static void handleSequencerEditModeRequest()
 {
 
@@ -1235,25 +1203,23 @@ static void handleSequencerEditModeRequest()
   }
 
   sendOk(webServer);
+
 } //   handleSequencerEditModeRequest()
 
-//
-// Register all API routes on the given webServer instance
-//
+//-- Register all REST API routes onto the web server.
 void webApiRegisterRoutes(WebServer& server)
 {
-  // Status endpoints
+  (void)server;
+
   webServer.on("/api/status", HTTP_GET, handleStatusRequest);
   webServer.on("/api/transport", HTTP_GET, handleTransportRequest);
 
-  // Transport control
   webServer.on("/api/transport/play", HTTP_POST, handleTransportPlayRequest);
   webServer.on("/api/transport/stop", HTTP_POST, handleTransportStopRequest);
   webServer.on("/api/transport/toggle", HTTP_POST, handleTransportToggleRequest);
   webServer.on("/api/transport/bpm", HTTP_POST, handleTransportBpmRequest);
   webServer.on("/api/transport/swing", HTTP_POST, handleTransportSwingRequest);
 
-  // Pattern groups
   webServer.on("/api/groups", HTTP_GET, handleGroupsListRequest);
   webServer.on("/api/groups/active", HTTP_GET, handleGroupsActiveRequest);
   webServer.on("/api/groups/load", HTTP_POST, handleGroupsLoadRequest);
@@ -1263,33 +1229,37 @@ void webApiRegisterRoutes(WebServer& server)
   webServer.on("/api/groups/copy", HTTP_POST, handleGroupsCopyRequest);
   webServer.on("/api/groups/delete", HTTP_POST, handleGroupsDeleteRequest);
 
-  // Patterns
   webServer.on("/api/patterns", HTTP_GET, handlePatternsListRequest);
   webServer.on("/api/patterns/active", HTTP_GET, handlePatternsActiveGetRequest);
   webServer.on("/api/patterns/active", HTTP_POST, handlePatternsActiveSetRequest);
-  webServer.on("/api/patterns/([p\\d]+)$", HTTP_GET, handlePatternsGetRequest);
-  webServer.on("/api/patterns/([p\\d]+)$", HTTP_PUT, handlePatternsPutRequest);
-  webServer.on("/api/patterns/([p\\d]+)/clear$", HTTP_POST, handlePatternsClearRequest);
-  webServer.on("/api/patterns/([p\\d]+)/copy$", HTTP_POST, handlePatternsCopyRequest);
-  webServer.on("/api/patterns/([p\\d]+)/tracks/(\\d+)/steps/(\\d+)$", HTTP_PUT,
-               handleStepEditRequest);
-  webServer.on("/api/patterns/([p\\d]+)/tracks/(\\d+)$", HTTP_PUT, handleTrackEditRequest);
 
-  // Track mute
-  webServer.on("/api/tracks/(\\d+)/mute-toggle$", HTTP_POST, handleTrackMuteToggleRequest);
+  webServer.on(UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])$"), HTTP_GET,
+               handlePatternsGetRequest);
+  webServer.on(UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])$"), HTTP_PUT,
+               handlePatternsPutRequest);
+  webServer.on(UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])\\/clear$"), HTTP_POST,
+               handlePatternsClearRequest);
+  webServer.on(UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])\\/copy$"), HTTP_POST,
+               handlePatternsCopyRequest);
+  webServer.on(
+      UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])\\/tracks\\/([0-9]+)\\/steps\\/([0-9]+)$"),
+      HTTP_PUT, handleStepEditRequest);
+  webServer.on(UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])\\/tracks\\/([0-9]+)$"), HTTP_PUT,
+               handleTrackEditRequest);
 
-  // Sample sets
+  webServer.on(UriRegex("^\\/api\\/tracks\\/([0-9]+)\\/mute-toggle$"), HTTP_POST,
+               handleTrackMuteToggleRequest);
+
   webServer.on("/api/sample-sets", HTTP_GET, handleSampleSetsListRequest);
   webServer.on("/api/sample-sets/active", HTTP_GET, handleSampleSetsActiveRequest);
   webServer.on("/api/sample-sets/load", HTTP_POST, handleSampleSetsLoadRequest);
 
-  // Samples
   webServer.on("/api/samples", HTTP_GET, handleSamplesListRequest);
   webServer.on("/api/samples/gain", HTTP_PUT, handleSamplesGainRequest);
 
-  // Sequencer
   webServer.on("/api/sequencer/view", HTTP_GET, handleSequencerViewRequest);
   webServer.on("/api/sequencer/playhead", HTTP_GET, handleSequencerPlayheadRequest);
   webServer.on("/api/sequencer/cursor", HTTP_POST, handleSequencerCursorRequest);
   webServer.on("/api/sequencer/edit-mode", HTTP_POST, handleSequencerEditModeRequest);
+
 } //   webApiRegisterRoutes()

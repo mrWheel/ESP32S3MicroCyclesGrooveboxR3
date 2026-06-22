@@ -396,3 +396,21 @@ html, body {
     font-size: 10px;
   }
 }
+
+.group-list-panel {
+  background-color: var(--grid-bg);
+  border: 1px solid var(--grid-border);
+  border-radius: 2px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.group-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.group-list-button {
+  min-width: 80px;
+}

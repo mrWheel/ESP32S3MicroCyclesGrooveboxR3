@@ -79,6 +79,7 @@ function initializeEventHandlers() {
   document.getElementById("btnRenameGroup").addEventListener("click", renameGroup);
   document.getElementById("btnCopyGroup").addEventListener("click", copyGroup);
   document.getElementById("btnDeleteGroup").addEventListener("click", deleteGroup);
+  document.getElementById("btnCloseGroupList").addEventListener("click", hideGroupListWindow);
 
   // Sample set
   const selectSampleSet = document.getElementById("selectSampleSet");
@@ -206,11 +207,17 @@ async function updateGroups() {
   try {
     const res = await fetch("/api/groups");
     const data = await res.json();
+
     if (data.ok) {
       state.groups = data.groups || [];
+      return state.groups;
     }
+
+    console.error("Groups update failed:", data.error);
+    return [];
   } catch (e) {
     console.error("Groups update failed:", e);
+    return [];
   }
 }
 
@@ -303,22 +310,65 @@ async function saveGroup() {
 }
 
 async function loadGroup() {
-  const groupName = prompt("Enter group name to load:");
-  if (!groupName) return;
+  const groups = await updateGroups();
 
+  if (!groups || groups.length === 0) {
+    alert("No pattern groups found on SD card");
+    return;
+  }
+
+  showGroupListWindow(groups);
+}
+
+
+function showGroupListWindow(groups) {
+  const panel = document.getElementById("groupListPanel");
+  const list = document.getElementById("groupListItems");
+
+  list.innerHTML = "";
+
+  for (const groupName of groups) {
+    const button = document.createElement("button");
+
+    button.className = "btn btn-small group-list-button";
+    button.textContent = groupName;
+
+    button.addEventListener("click", async function() {
+      await selectGroupToLoad(groupName);
+    });
+
+    list.appendChild(button);
+  }
+
+  panel.style.display = "block";
+}
+
+function hideGroupListWindow() {
+  document.getElementById("groupListPanel").style.display = "none";
+}
+
+async function selectGroupToLoad(groupName) {
   try {
     const res = await fetch("/api/groups/load", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: groupName })
+      body: JSON.stringify({ groupName: groupName })
     });
+
     const data = await res.json();
-    if (data.ok) {
-      await updatePatterns();
-      await updateStatus();
-    } else {
+
+    if (!data.ok) {
       alert("Error: " + data.error);
+      return;
     }
+
+    hideGroupListWindow();
+
+    state.activeGroup = groupName;
+    state.visiblePatternStartIndex = 0;
+
+    await updatePatterns();
+    await updateStatus();
   } catch (e) {
     alert("Load failed: " + e);
   }
@@ -442,20 +492,17 @@ async function loadSampleSet(setName) {
 // ========== PATTERN GRID RENDERING ==========
 
 function updateVisiblePatternWindow() {
-  // If playhead is at step 32 or beyond (end of 2nd pattern in window),
-  // scroll left by 1 pattern
-  if (state.patterns.length > 3) {
-    const totalPatterns = state.patterns.length;
-    const currentStep = state.status.currentStep || 0;
-    const playingPatternRelativeIndex = (state.status.playingPatternIndex - state.visiblePatternStartIndex + totalPatterns) % totalPatterns;
+  if (state.patterns.length <= 1 || !state.status) {
+    return;
+  }
 
-    // Step 32 (0-indexed) = end of pattern 1 in the 3-pattern window
-    if (currentStep >= 0 && playingPatternRelativeIndex === 1) {
-      if (currentStep > 12 && currentStep < 16) {
-        // About to leave pattern 1, scroll
-        state.visiblePatternStartIndex = (state.visiblePatternStartIndex + 1) % totalPatterns;
-      }
-    }
+  const totalPatterns = state.patterns.length;
+  const playingPatternIndex = state.status.playingPatternIndex || 0;
+  const currentStep = state.status.currentStep || 0;
+  const middlePatternIndex = (state.visiblePatternStartIndex + 1) % totalPatterns;
+
+  if (playingPatternIndex === middlePatternIndex && currentStep === 15) {
+    state.visiblePatternStartIndex = (state.visiblePatternStartIndex + 1) % totalPatterns;
   }
 }
 
@@ -545,8 +592,8 @@ function renderGrid() {
           cell.className += " pattern-separator";
         }
 
-        // Click handler to select step
-        cell.addEventListener("click", function() {
+        // Open Step editor when hovering over a step.
+        cell.addEventListener("mouseenter", function() {
           selectStep(patIdx, trackIdx, stepIdx);
         });
 
