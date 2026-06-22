@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 13:42 ***/
+/*** Last Changed: 2026-06-22 - 16:55 ***/
 #include "InputClass.h"
 #include "appConfig.h"
 
@@ -34,34 +34,22 @@ InputConfig inputCreateConfigFromBuildFlags()
 } //   inputCreateConfigFromBuildFlags()
 
 //--- Constructor with build-flag configuration
-InputClass::InputClass() : config(inputCreateConfigFromBuildFlags()),
-                           initialized(false),
-                           encoderDelta(0),
-                           lastEncoderState(0),
-                           pendingEncoderEvent(ENCODER_EVENT_NONE),
-                           encoderButtonPressed(false),
-                           encoderLongPressReported(false),
-                           encoderPressStartMs(0),
-                           pendingAuxButtonEvent(BUTTON_EVENT_NONE),
-                           auxButtonPressed(false),
-                           auxButtonLongPressReported(false),
-                           auxButtonPressStartMs(0)
+InputClass::InputClass()
+    : config(inputCreateConfigFromBuildFlags()), initialized(false), encoderDelta(0),
+      lastEncoderState(0), pendingEncoderEvent(ENCODER_EVENT_NONE), encoderButtonPressed(false),
+      encoderLongPressReported(false), encoderPressStartMs(0),
+      pendingAuxButtonEvent(BUTTON_EVENT_NONE), auxButtonPressed(false),
+      auxButtonLongPressReported(false), auxButtonPressStartMs(0)
 {
 } //   InputClass()
 
 //--- Constructor with custom configuration
-InputClass::InputClass(const InputConfig& inputConfig) : config(inputConfig),
-                                                         initialized(false),
-                                                         encoderDelta(0),
-                                                         lastEncoderState(0),
-                                                         pendingEncoderEvent(ENCODER_EVENT_NONE),
-                                                         encoderButtonPressed(false),
-                                                         encoderLongPressReported(false),
-                                                         encoderPressStartMs(0),
-                                                         pendingAuxButtonEvent(BUTTON_EVENT_NONE),
-                                                         auxButtonPressed(false),
-                                                         auxButtonLongPressReported(false),
-                                                         auxButtonPressStartMs(0)
+InputClass::InputClass(const InputConfig& inputConfig)
+    : config(inputConfig), initialized(false), encoderDelta(0), lastEncoderState(0),
+      pendingEncoderEvent(ENCODER_EVENT_NONE), encoderButtonPressed(false),
+      encoderLongPressReported(false), encoderPressStartMs(0),
+      pendingAuxButtonEvent(BUTTON_EVENT_NONE), auxButtonPressed(false),
+      auxButtonLongPressReported(false), auxButtonPressStartMs(0)
 {
 } //   InputClass()
 
@@ -124,7 +112,8 @@ void InputClass::updateEncoder()
     {
       if (pendingEncoderEvent == ENCODER_EVENT_NONE)
       {
-        pendingEncoderEvent = config.encoderDirectionReversed ? ENCODER_EVENT_LEFT : ENCODER_EVENT_RIGHT;
+        pendingEncoderEvent =
+            config.encoderDirectionReversed ? ENCODER_EVENT_LEFT : ENCODER_EVENT_RIGHT;
       }
       encoderDelta = 0;
     }
@@ -132,7 +121,8 @@ void InputClass::updateEncoder()
     {
       if (pendingEncoderEvent == ENCODER_EVENT_NONE)
       {
-        pendingEncoderEvent = config.encoderDirectionReversed ? ENCODER_EVENT_RIGHT : ENCODER_EVENT_LEFT;
+        pendingEncoderEvent =
+            config.encoderDirectionReversed ? ENCODER_EVENT_RIGHT : ENCODER_EVENT_LEFT;
       }
       encoderDelta = 0;
     }

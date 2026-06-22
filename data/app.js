@@ -1,25 +1,25 @@
 // SPA State Model
 const state = {
-  status: {},
-  groups: [],
-  activeGroup: "",
-  patterns: [],
-  activePatternIndex: 0,
-  playingPatternIndex: 0,
-  visiblePatternStartIndex: 0,
-  selectedTrackIndex: 0,
-  selectedStepGlobalIndex: 0,
-  selectedStepLocalIndex: 0,
-  selectedPatternIndex: 0,
-  stepEditorOpen: false,
-  stepEditorDraft: {},
-  dirty: false,
-  actionPopupMode: "",
-  actionPopupValue: "",
+  status : {},
+  groups : [],
+  activeGroup : "",
+  patterns : [],
+  activePatternIndex : 0,
+  playingPatternIndex : 0,
+  visiblePatternStartIndex : 0,
+  selectedTrackIndex : 0,
+  selectedStepGlobalIndex : 0,
+  selectedStepLocalIndex : 0,
+  selectedPatternIndex : 0,
+  stepEditorOpen : false,
+  stepEditorDraft : {},
+  dirty : false,
+  actionPopupMode : "",
+  actionPopupValue : "",
 };
 
 // Track names
-const trackNames = ["KICK", "SNARE", "CH", "OH", "TONE", "METAL"];
+const trackNames = [ "KICK", "SNARE", "CH", "OH", "TONE", "METAL" ];
 
 // Polling intervals
 let statusInterval = null;
@@ -34,13 +34,15 @@ document.addEventListener("DOMContentLoaded", async function() {
   statusInterval = setInterval(updateStatus, 1000);
 });
 
-async function loadInitialFirmwareState() {
+async function loadInitialFirmwareState()
+{
   await updateStatus();
   await updateGroups();
   await updateSampleSets();
   await updateActiveGroupFromFirmware();
 
-  if (state.activeGroup && state.activeGroup !== "-") {
+  if (state.activeGroup && state.activeGroup !== "-")
+  {
     await ensureActiveGroupIsLoaded();
     await updatePatterns();
   }
@@ -49,38 +51,49 @@ async function loadInitialFirmwareState() {
 
 } // loadInitialFirmwareState()
 
-async function updateActiveGroupFromFirmware() {
-  try {
+async function updateActiveGroupFromFirmware()
+{
+  try
+  {
     const res = await fetch("/api/groups/active");
     const data = await res.json();
-    if (data.ok && data.name) {
+    if (data.ok && data.name)
+    {
       state.activeGroup = data.name;
       document.getElementById("activeGroup").textContent = "Group: " + data.name;
     }
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Active group update failed:", e);
   }
 
 } // updateActiveGroupFromFirmware()
 
-async function ensureActiveGroupIsLoaded() {
-  try {
+async function ensureActiveGroupIsLoaded()
+{
+  try
+  {
     const patternRes = await fetch("/api/patterns");
     const patternData = await patternRes.json();
-    if (patternData.ok && patternData.patterns && patternData.patterns.length > 0) {
+    if (patternData.ok && patternData.patterns && patternData.patterns.length > 0)
+    {
       return;
     }
 
     const loadRes = await fetch("/api/groups/load", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ groupName: state.activeGroup })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({groupName : state.activeGroup})
     });
     const loadData = await loadRes.json();
-    if (!loadData.ok) {
+    if (!loadData.ok)
+    {
       console.error("Initial active group load failed:", loadData.error);
     }
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Initial active group load failed:", e);
   }
 
@@ -88,17 +101,15 @@ async function ensureActiveGroupIsLoaded() {
 
 // ========== EVENT HANDLERS ==========
 
-function initializeEventHandlers() {
+function initializeEventHandlers()
+{
   // Transport buttons
-  document.getElementById("btnPlay").addEventListener("click", () => {
-    fetch("/api/transport/play", { method: "POST" });
-  });
-  document.getElementById("btnStop").addEventListener("click", () => {
-    fetch("/api/transport/stop", { method: "POST" });
-  });
-  document.getElementById("btnToggle").addEventListener("click", () => {
-    fetch("/api/transport/toggle", { method: "POST" });
-  });
+  document.getElementById("btnPlay").addEventListener(
+      "click", () => { fetch("/api/transport/play", {method : "POST"}); });
+  document.getElementById("btnStop").addEventListener(
+      "click", () => { fetch("/api/transport/stop", {method : "POST"}); });
+  document.getElementById("btnToggle")
+      .addEventListener("click", () => { fetch("/api/transport/toggle", {method : "POST"}); });
 
   // BPM and Swing controls
   const sliderBpm = document.getElementById("sliderBpm");
@@ -133,7 +144,7 @@ function initializeEventHandlers() {
   document.getElementById("btnDeleteGroup").addEventListener("click", deleteGroup);
   document.getElementById("btnCloseGroupList").addEventListener("click", hideGroupListWindow);
   document.getElementById("btnActionCancel").addEventListener("click", hideActionPopup);
-  document.getElementById("btnActionAccept").addEventListener("click", acceptActionPopup); 
+  document.getElementById("btnActionAccept").addEventListener("click", acceptActionPopup);
 
   // Sample set
   const selectSampleSet = document.getElementById("selectSampleSet");
@@ -142,7 +153,8 @@ function initializeEventHandlers() {
   });
   document.getElementById("btnLoadSampleSet").addEventListener("click", () => {
     const setName = document.getElementById("selectSampleSet").value;
-    if (setName) loadSampleSet(setName);
+    if (setName)
+      loadSampleSet(setName);
   });
 
   // Step editor
@@ -159,27 +171,24 @@ function initializeEventHandlers() {
     state.stepEditorDraft.mute = this.checked;
   });
 
-  linkSliderAndInput("stepVelocity", "stepVelocityNum", (v) => {
-    state.stepEditorDraft.velocity = parseInt(v);
-  });
-  linkSliderAndInput("stepProbability", "stepProbabilityNum", (v) => {
-    state.stepEditorDraft.probability = parseInt(v);
-  });
+  linkSliderAndInput("stepVelocity", "stepVelocityNum",
+                     (v) => { state.stepEditorDraft.velocity = parseInt(v); });
+  linkSliderAndInput("stepProbability", "stepProbabilityNum",
+                     (v) => { state.stepEditorDraft.probability = parseInt(v); });
 
   document.getElementById("stepLockEnabled").addEventListener("change", function() {
     state.stepEditorDraft.lockEnabled = this.checked;
   });
 
-  linkSliderAndInput("stepLockPitch", "stepLockPitchNum", (v) => {
-    state.stepEditorDraft.lockPitch = parseInt(v);
-  });
-  linkSliderAndInput("stepLockDecay", "stepLockDecayNum", (v) => {
-    state.stepEditorDraft.lockDecay = parseInt(v);
-  });
+  linkSliderAndInput("stepLockPitch", "stepLockPitchNum",
+                     (v) => { state.stepEditorDraft.lockPitch = parseInt(v); });
+  linkSliderAndInput("stepLockDecay", "stepLockDecayNum",
+                     (v) => { state.stepEditorDraft.lockDecay = parseInt(v); });
 
 } // initializeEventHandlers()
 
-function linkSliderAndInput(sliderId, inputId, onChangeCallback) {
+function linkSliderAndInput(sliderId, inputId, onChangeCallback)
+{
   const slider = document.getElementById(sliderId);
   const input = document.getElementById(inputId);
 
@@ -196,24 +205,31 @@ function linkSliderAndInput(sliderId, inputId, onChangeCallback) {
 
 // ========== API CALLS ==========
 
-async function updateStatus() {
-  try {
+async function updateStatus()
+{
+  try
+  {
     const res = await fetch("/api/status");
     const data = await res.json();
-    if (data.ok) {
+    if (data.ok)
+    {
       state.status = data;
 
       // Update header
       document.getElementById("version").textContent = data.version;
-      document.getElementById("wifiStatus").textContent = data.wifiConnected ? "WiFi OK" : "WiFi --";
+      document.getElementById("wifiStatus").textContent =
+          data.wifiConnected ? "WiFi OK" : "WiFi --";
       document.getElementById("ipAddress").textContent = data.ip;
       document.getElementById("activeGroup").textContent = "Group: " + data.activeGroup;
       document.getElementById("activeSamples").textContent = "Samples: " + data.activeSampleSet;
 
       // Update dirty indicator
-      if (data.patternGroupDirty) {
+      if (data.patternGroupDirty)
+      {
         document.getElementById("dirtyIndicator").style.display = "inline";
-      } else {
+      }
+      else
+      {
         document.getElementById("dirtyIndicator").style.display = "none";
       }
 
@@ -221,27 +237,34 @@ async function updateStatus() {
       updateTransportUI(data);
 
       // Start playhead polling if playing
-      if (data.playing && !playheadInterval) {
+      if (data.playing && !playheadInterval)
+      {
         playheadInterval = setInterval(updatePlayhead, 250);
-      } else if (!data.playing && playheadInterval) {
+      }
+      else if (!data.playing && playheadInterval)
+      {
         clearInterval(playheadInterval);
         playheadInterval = null;
       }
 
       // Load patterns if group changed
-      if (data.activeGroup && data.activeGroup !== state.activeGroup) {
+      if (data.activeGroup && data.activeGroup !== state.activeGroup)
+      {
         state.activeGroup = data.activeGroup;
         state.visiblePatternStartIndex = 0;
         await updatePatterns();
       }
     }
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Status update failed:", e);
   }
 
 } //  updateStatus()
 
-function updateTransportUI(data) {
+function updateTransportUI(data)
+{
   document.getElementById("sliderBpm").value = data.bpm;
   document.getElementById("inputBpm").value = data.bpm;
   document.getElementById("sliderSwing").value = data.swing;
@@ -249,11 +272,14 @@ function updateTransportUI(data) {
 
 } // updateTransportUI()
 
-async function updatePlayhead() {
-  try {
+async function updatePlayhead()
+{
+  try
+  {
     const res = await fetch("/api/sequencer/playhead");
     const data = await res.json();
-    if (data.ok) {
+    if (data.ok)
+    {
       state.status.currentStep = data.currentStep;
       state.status.activePatternIndex = data.activePatternIndex;
       state.status.playingPatternIndex = data.playingPatternIndex;
@@ -262,20 +288,26 @@ async function updatePlayhead() {
       updateVisiblePatternWindow();
       renderGrid();
     }
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Playhead update failed:", e);
   }
 } // updatePlayhead()
 
-async function updateGroups() {
-  try {
+async function updateGroups()
+{
+  try
+  {
     const res = await fetch("/api/groups");
     const data = await res.json();
 
-    if (data.ok) {
+    if (data.ok)
+    {
       state.groups = data.groups || [];
 
-      if (data.activeGroup && (!state.activeGroup || state.activeGroup === "-")) {
+      if (data.activeGroup && (!state.activeGroup || state.activeGroup === "-"))
+      {
         state.activeGroup = data.activeGroup;
         document.getElementById("activeGroup").textContent = "Group: " + data.activeGroup;
       }
@@ -285,25 +317,32 @@ async function updateGroups() {
 
     console.error("Groups update failed:", data.error);
     return [];
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Groups update failed:", e);
     return [];
   }
 
 } // updateGroups()
 
-async function updatePatterns() {
-  try {
+async function updatePatterns()
+{
+  try
+  {
     const res = await fetch("/api/patterns");
     const data = await res.json();
-    if (data.ok) {
+    if (data.ok)
+    {
       state.patterns = [];
       const patternNames = data.patterns || [];
 
-      for (const patternInfo of patternNames) {
+      for (const patternInfo of patternNames)
+      {
         const patRes = await fetch("/api/patterns/" + patternInfo.name);
         const patData = await patRes.json();
-        if (patData.ok) {
+        if (patData.ok)
+        {
           state.patterns.push(patData);
         }
       }
@@ -312,27 +351,36 @@ async function updatePatterns() {
       state.visiblePatternStartIndex = 0;
       renderGrid();
     }
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Patterns update failed:", e);
   }
 } // updatePatterns()
 
-async function updateSampleSets() {
-  try {
+async function updateSampleSets()
+{
+  try
+  {
     const res = await fetch("/api/sample-sets");
     const data = await res.json();
-    if (data.ok) {
+    if (data.ok)
+    {
       const select = document.getElementById("selectSampleSet");
       select.innerHTML = "";
-      for (const setName of (data.sampleSets || [])) {
+      for (const setName of (data.sampleSets || []))
+      {
         const opt = document.createElement("option");
         opt.value = setName;
         opt.textContent = setName;
-        if (setName === data.activeSampleSet) opt.selected = true;
+        if (setName === data.activeSampleSet)
+          opt.selected = true;
         select.appendChild(opt);
       }
     }
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Sample sets update failed:", e);
   }
 
@@ -340,51 +388,68 @@ async function updateSampleSets() {
 
 // ========== TRANSPORT CONTROL ==========
 
-async function setBpm(bpm) {
-  try {
+async function setBpm(bpm)
+{
+  try
+  {
     await fetch("/api/transport/bpm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bpm: bpm })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({bpm : bpm})
     });
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Failed to set BPM:", e);
   }
 } // setBpm()
 
-async function setSwing(swing) {
-  try {
+async function setSwing(swing)
+{
+  try
+  {
     await fetch("/api/transport/swing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ swing: swing })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({swing : swing})
     });
-  } catch (e) {
+  }
+  catch (e)
+  {
     console.error("Failed to set swing:", e);
   }
 } // setSwing()
 
 // ========== GROUP MANAGEMENT ==========
 
-async function saveGroup() {
-  try {
-    const res = await fetch("/api/groups/save", { method: "POST" });
+async function saveGroup()
+{
+  try
+  {
+    const res = await fetch("/api/groups/save", {method : "POST"});
     const data = await res.json();
-    if (data.ok) {
+    if (data.ok)
+    {
       alert("Group saved!");
       await updateStatus();
-    } else {
+    }
+    else
+    {
       alert("Error: " + data.error);
     }
-  } catch (e) {
+  }
+  catch (e)
+  {
     alert("Save failed: " + e);
   }
 } // saveGroup()
 
-async function loadGroup() {
+async function loadGroup()
+{
   const groups = await updateGroups();
 
-  if (!groups || groups.length === 0) {
+  if (!groups || groups.length === 0)
+  {
     alert("No pattern groups found on SD card");
     return;
   }
@@ -393,8 +458,8 @@ async function loadGroup() {
 
 } // loadGroup()
 
-
-function showGroupListWindow(groups) {
+function showGroupListWindow(groups)
+{
   const panel = document.getElementById("groupListPanel");
   const list = document.getElementById("groupListItems");
   const loadButton = document.getElementById("btnLoadGroup");
@@ -403,15 +468,19 @@ function showGroupListWindow(groups) {
 
   list.innerHTML = "";
 
-  for (const groupName of groups) {
+  for (const groupName of groups)
+  {
     const button = document.createElement("button");
 
     button.className = "btn btn-small group-list-button";
 
-    if (groupName === activeGroupName) {
+    if (groupName === activeGroupName)
+    {
       button.textContent = "* " + groupName;
       button.classList.add("active-group-button");
-    } else {
+    }
+    else
+    {
       button.textContent = "  " + groupName;
     }
 
@@ -428,21 +497,25 @@ function showGroupListWindow(groups) {
 
 } // showGroupListWindow()
 
-function hideGroupListWindow() {
+function hideGroupListWindow()
+{
   document.getElementById("groupListPanel").style.display = "none";
 } // hideGroupListWindow()
 
-async function selectGroupToLoad(groupName) {
-  try {
+async function selectGroupToLoad(groupName)
+{
+  try
+  {
     const res = await fetch("/api/groups/load", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ groupName: groupName })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({groupName : groupName})
     });
 
     const data = await res.json();
 
-    if (!data.ok) {
+    if (!data.ok)
+    {
       alert("Error: " + data.error);
       return;
     }
@@ -454,32 +527,40 @@ async function selectGroupToLoad(groupName) {
 
     await updatePatterns();
     await updateStatus();
-  } catch (e) {
+  }
+  catch (e)
+  {
     alert("Load failed: " + e);
   }
 } // selectGroupToLoad()
 
-async function newGroup() {
+async function newGroup()
+{
   showGroupNameActionPopup("new", "New Group", "", "New group name:");
 
 } // newGroup()
 
-async function renameGroup() {
+async function renameGroup()
+{
   const activeName = state.activeGroup || (state.status ? state.status.activeGroup : "");
 
-  if (!activeName || activeName === "-") {
+  if (!activeName || activeName === "-")
+  {
     showActionMessage("Rename Group", "No active group");
     return;
   }
 
-  showGroupNameActionPopup("rename", "Rename Group", activeName, "New name for " + activeName + ":");
+  showGroupNameActionPopup("rename", "Rename Group", activeName,
+                           "New name for " + activeName + ":");
 
 } // renameGroup()
 
-async function copyGroup() {
+async function copyGroup()
+{
   const activeName = state.activeGroup || (state.status ? state.status.activeGroup : "");
 
-  if (!activeName || activeName === "-") {
+  if (!activeName || activeName === "-")
+  {
     showActionMessage("Copy Group", "No active group");
     return;
   }
@@ -488,10 +569,12 @@ async function copyGroup() {
 
 } // copyGroup()
 
-async function deleteGroup() {
+async function deleteGroup()
+{
   const groups = await updateGroups();
 
-  if (!groups || groups.length === 0) {
+  if (!groups || groups.length === 0)
+  {
     showActionMessage("Delete Group", "No pattern groups found");
     return;
   }
@@ -500,12 +583,14 @@ async function deleteGroup() {
 
 } // deleteGroup()
 
-function normalizeGroupName(name) {
+function normalizeGroupName(name)
+{
   return String(name || "").trim().toUpperCase();
 
 } // normalizeGroupName()
 
-function showActionPopup(title) {
+function showActionPopup(title)
+{
   const popup = document.getElementById("actionPopup");
   const loadButton = document.getElementById("btnLoadGroup");
   const buttonRect = loadButton.getBoundingClientRect();
@@ -518,7 +603,8 @@ function showActionPopup(title) {
 
 } // showActionPopup()
 
-function hideActionPopup() {
+function hideActionPopup()
+{
   document.getElementById("actionPopup").style.display = "none";
   document.getElementById("actionPopupContent").innerHTML = "";
   state.actionPopupMode = "";
@@ -526,7 +612,8 @@ function hideActionPopup() {
 
 } // hideActionPopup()
 
-function showActionMessage(title, message) {
+function showActionMessage(title, message)
+{
   const content = document.getElementById("actionPopupContent");
 
   state.actionPopupMode = "message";
@@ -545,7 +632,8 @@ function showActionMessage(title, message) {
 
 } // showActionMessage()
 
-function showGroupNameActionPopup(mode, title, sourceName, labelText) {
+function showGroupNameActionPopup(mode, title, sourceName, labelText)
+{
   const content = document.getElementById("actionPopupContent");
 
   state.actionPopupMode = mode;
@@ -553,7 +641,8 @@ function showGroupNameActionPopup(mode, title, sourceName, labelText) {
 
   content.innerHTML = "";
 
-  if (sourceName) {
+  if (sourceName)
+  {
     const sourceRow = document.createElement("div");
     sourceRow.className = "action-popup-row";
     sourceRow.textContent = "Current group: " + sourceName;
@@ -588,7 +677,8 @@ function showGroupNameActionPopup(mode, title, sourceName, labelText) {
 
 } // showGroupNameActionPopup()
 
-function showDeleteGroupActionPopup(groups) {
+function showDeleteGroupActionPopup(groups)
+{
   const content = document.getElementById("actionPopupContent");
   const activeName = state.activeGroup || (state.status ? state.status.activeGroup : "");
 
@@ -600,16 +690,20 @@ function showDeleteGroupActionPopup(groups) {
   const list = document.createElement("div");
   list.className = "delete-group-list";
 
-  for (const groupName of groups) {
+  for (const groupName of groups)
+  {
     const button = document.createElement("button");
 
     button.className = "btn btn-small delete-group-button";
 
-    if (groupName === activeName) {
+    if (groupName === activeName)
+    {
       button.textContent = "* " + groupName + " (active, cannot delete)";
       button.disabled = true;
       button.classList.add("delete-group-button-disabled");
-    } else {
+    }
+    else
+    {
       button.textContent = "  " + groupName;
       button.addEventListener("click", function() {
         state.actionPopupValue = groupName;
@@ -634,42 +728,55 @@ function showDeleteGroupActionPopup(groups) {
 
 } // showDeleteGroupActionPopup()
 
-async function acceptActionPopup() {
-  if (state.actionPopupMode === "message") {
+async function acceptActionPopup()
+{
+  if (state.actionPopupMode === "message")
+  {
     hideActionPopup();
     return;
   }
 
-  if (state.actionPopupMode === "new") {
+  if (state.actionPopupMode === "new")
+  {
     await acceptNewGroupAction();
-  } else if (state.actionPopupMode === "rename") {
+  }
+  else if (state.actionPopupMode === "rename")
+  {
     await acceptRenameGroupAction();
-  } else if (state.actionPopupMode === "copy") {
+  }
+  else if (state.actionPopupMode === "copy")
+  {
     await acceptCopyGroupAction();
-  } else if (state.actionPopupMode === "delete") {
+  }
+  else if (state.actionPopupMode === "delete")
+  {
     await acceptDeleteGroupAction();
   }
 
 } // acceptActionPopup()
 
-async function acceptNewGroupAction() {
+async function acceptNewGroupAction()
+{
   const groupName = normalizeGroupName(document.getElementById("actionGroupNameInput").value);
 
-  if (!groupName) {
+  if (!groupName)
+  {
     showActionMessage("New Group", "Enter a group name");
     return;
   }
 
-  try {
+  try
+  {
     const res = await fetch("/api/groups/new", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: groupName })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({name : groupName})
     });
 
     const data = await res.json();
 
-    if (!data.ok) {
+    if (!data.ok)
+    {
       showActionMessage("New Group", "Error: " + data.error);
       return;
     }
@@ -682,69 +789,82 @@ async function acceptNewGroupAction() {
     await updateGroups();
     await updatePatterns();
     await updateStatus();
-  } catch (e) {
+  }
+  catch (e)
+  {
     showActionMessage("New Group", "Failed: " + e);
   }
 
 } // acceptNewGroupAction()
 
-async function acceptRenameGroupAction() {
+async function acceptRenameGroupAction()
+{
   const fromName = state.actionPopupValue;
   const toName = normalizeGroupName(document.getElementById("actionGroupNameInput").value);
 
-  if (!toName) {
+  if (!toName)
+  {
     showActionMessage("Rename Group", "Enter a new group name");
     return;
   }
 
-  try {
+  try
+  {
     const res = await fetch("/api/groups/rename", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: fromName, to: toName })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({from : fromName, to : toName})
     });
 
     const data = await res.json();
 
-    if (!data.ok) {
+    if (!data.ok)
+    {
       showActionMessage("Rename Group", "Error: " + data.error);
       return;
     }
 
     hideActionPopup();
 
-    if (state.activeGroup === fromName) {
+    if (state.activeGroup === fromName)
+    {
       state.activeGroup = toName;
     }
 
     await updateGroups();
     await updatePatterns();
     await updateStatus();
-  } catch (e) {
+  }
+  catch (e)
+  {
     showActionMessage("Rename Group", "Failed: " + e);
   }
 
 } // acceptRenameGroupAction()
 
-async function acceptCopyGroupAction() {
+async function acceptCopyGroupAction()
+{
   const fromName = state.actionPopupValue;
   const toName = normalizeGroupName(document.getElementById("actionGroupNameInput").value);
 
-  if (!toName) {
+  if (!toName)
+  {
     showActionMessage("Copy Group", "Enter a new group name");
     return;
   }
 
-  try {
+  try
+  {
     const res = await fetch("/api/groups/copy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: fromName, to: toName })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({from : fromName, to : toName})
     });
 
     const data = await res.json();
 
-    if (!data.ok) {
+    if (!data.ok)
+    {
       showActionMessage("Copy Group", "Error: " + data.error);
       return;
     }
@@ -752,30 +872,36 @@ async function acceptCopyGroupAction() {
     hideActionPopup();
 
     await updateGroups();
-  } catch (e) {
+  }
+  catch (e)
+  {
     showActionMessage("Copy Group", "Failed: " + e);
   }
 
 } // acceptCopyGroupAction()
 
-async function acceptDeleteGroupAction() {
+async function acceptDeleteGroupAction()
+{
   const groupName = state.actionPopupValue;
 
-  if (!groupName) {
+  if (!groupName)
+  {
     showActionMessage("Delete Group", "Select a group to delete");
     return;
   }
 
-  try {
+  try
+  {
     const res = await fetch("/api/groups/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: groupName })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({name : groupName})
     });
 
     const data = await res.json();
 
-    if (!data.ok) {
+    if (!data.ok)
+    {
       showActionMessage("Delete Group", "Error: " + data.error);
       return;
     }
@@ -783,7 +909,9 @@ async function acceptDeleteGroupAction() {
     hideActionPopup();
 
     await updateGroups();
-  } catch (e) {
+  }
+  catch (e)
+  {
     showActionMessage("Delete Group", "Failed: " + e);
   }
 
@@ -791,21 +919,28 @@ async function acceptDeleteGroupAction() {
 
 // ========== SAMPLE SET MANAGEMENT ==========
 
-async function loadSampleSet(setName) {
-  try {
+async function loadSampleSet(setName)
+{
+  try
+  {
     const res = await fetch("/api/sample-sets/load", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: setName })
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({name : setName})
     });
     const data = await res.json();
-    if (data.ok) {
+    if (data.ok)
+    {
       alert("Sample set loaded!");
       await updateStatus();
-    } else {
+    }
+    else
+    {
       alert("Error: " + data.error);
     }
-  } catch (e) {
+  }
+  catch (e)
+  {
     alert("Load failed: " + e);
   }
 
@@ -813,8 +948,10 @@ async function loadSampleSet(setName) {
 
 // ========== PATTERN GRID RENDERING ==========
 
-function updateVisiblePatternWindow() {
-  if (state.patterns.length <= 1 || !state.status) {
+function updateVisiblePatternWindow()
+{
+  if (state.patterns.length <= 1 || !state.status)
+  {
     return;
   }
 
@@ -823,16 +960,19 @@ function updateVisiblePatternWindow() {
   const currentStep = state.status.currentStep || 0;
   const middlePatternIndex = (state.visiblePatternStartIndex + 1) % totalPatterns;
 
-  if (playingPatternIndex === middlePatternIndex && currentStep === 15) {
+  if (playingPatternIndex === middlePatternIndex && currentStep === 15)
+  {
     state.visiblePatternStartIndex = (state.visiblePatternStartIndex + 1) % totalPatterns;
   }
 } // updateVisiblePatternWindow()
 
-function renderGrid() {
+function renderGrid()
+{
   const tbody = document.getElementById("gridBody");
   tbody.innerHTML = "";
 
-  if (state.patterns.length === 0) {
+  if (state.patterns.length === 0)
+  {
     tbody.innerHTML = '<tr><td colspan="50" style="text-align:center">No patterns loaded</td></tr>';
     return;
   }
@@ -841,12 +981,14 @@ function renderGrid() {
   const visiblePatterns = [];
 
   // Collect 3 visible patterns
-  for (let p = 0; p < 3; p++) {
+  for (let p = 0; p < 3; p++)
+  {
     const patIdx = (state.visiblePatternStartIndex + p) % totalPatterns;
-    if (patIdx < state.patterns.length) {
-      visiblePatterns.push({ index: patIdx, data: state.patterns[patIdx] });
+    if (patIdx < state.patterns.length)
+    {
+      visiblePatterns.push({index : patIdx, data : state.patterns[patIdx]});
     }
-  } 
+  }
 
   // Header row with pattern names
   const headerRow = document.createElement("tr");
@@ -855,18 +997,22 @@ function renderGrid() {
   headerCell.className = "track-name-cell";
   headerRow.appendChild(headerCell);
 
-  for (let p = 0; p < visiblePatterns.length; p++) {
-    for (let s = 0; s < 16; s++) {
+  for (let p = 0; p < visiblePatterns.length; p++)
+  {
+    for (let s = 0; s < 16; s++)
+    {
       const cell = document.createElement("td");
       cell.textContent = visiblePatterns[p].data ? visiblePatterns[p].data.name.substring(1) : "?";
-      if (s === 0 && p > 0) cell.className = "pattern-separator";
+      if (s === 0 && p > 0)
+        cell.className = "pattern-separator";
       headerRow.appendChild(cell);
     }
   }
   tbody.appendChild(headerRow);
 
   // Data rows (one per track)
-  for (let trackIdx = 0; trackIdx < 6; trackIdx++) {
+  for (let trackIdx = 0; trackIdx < 6; trackIdx++)
+  {
     const row = document.createElement("tr");
 
     // Track name cell
@@ -876,20 +1022,24 @@ function renderGrid() {
     row.appendChild(trackCell);
 
     // Steps for each visible pattern
-    for (let p = 0; p < visiblePatterns.length; p++) {
+    for (let p = 0; p < visiblePatterns.length; p++)
+    {
       const patIdx = visiblePatterns[p].index;
       const pattern = visiblePatterns[p].data;
 
-      for (let stepIdx = 0; stepIdx < 16; stepIdx++) {
+      for (let stepIdx = 0; stepIdx < 16; stepIdx++)
+      {
         const cell = document.createElement("td");
 
         // Determine step state
         let stepText = "-";
         let classNames = [];
 
-        if (pattern && pattern.tracks && pattern.tracks[trackIdx] && pattern.tracks[trackIdx].steps) {
+        if (pattern && pattern.tracks && pattern.tracks[trackIdx] && pattern.tracks[trackIdx].steps)
+        {
           const step = pattern.tracks[trackIdx].steps[stepIdx];
-          if (step.trigger) {
+          if (step.trigger)
+          {
             stepText = step.mute ? "m" : "x";
             classNames.push(step.mute ? "step-muted" : "step-active");
           }
@@ -897,20 +1047,23 @@ function renderGrid() {
 
         // Check if this is playhead
         const globalStepInWindow = p * 16 + stepIdx;
-        if (state.status.playingPatternIndex === patIdx && state.status.currentStep === stepIdx) {
+        if (state.status.playingPatternIndex === patIdx && state.status.currentStep === stepIdx)
+        {
           classNames.push("step-playhead");
         }
 
         // Check if this is cursor
         if (state.selectedPatternIndex === patIdx && state.selectedStepLocalIndex === stepIdx &&
-            state.selectedTrackIndex === trackIdx) {
+            state.selectedTrackIndex === trackIdx)
+        {
           classNames.push("step-cursor");
         }
 
         cell.textContent = stepText;
         cell.className = classNames.join(" ");
 
-        if (stepIdx === 0 && p > 0) {
+        if (stepIdx === 0 && p > 0)
+        {
           cell.className += " pattern-separator";
         }
 
@@ -928,7 +1081,8 @@ function renderGrid() {
 
 } // renderGrid()
 
-function selectStep(patternIndex, trackIndex, stepIndex, anchorCell) {
+function selectStep(patternIndex, trackIndex, stepIndex, anchorCell)
+{
   state.selectedPatternIndex = patternIndex;
   state.selectedTrackIndex = trackIndex;
   state.selectedStepLocalIndex = stepIndex;
@@ -940,12 +1094,14 @@ function selectStep(patternIndex, trackIndex, stepIndex, anchorCell) {
 
 // ========== STEP EDITOR ==========
 
-function openStepEditor(anchorCell) {
+function openStepEditor(anchorCell)
+{
   const patIdx = state.selectedPatternIndex;
   const trackIdx = state.selectedTrackIndex;
   const stepIdx = state.selectedStepLocalIndex;
 
-  if (patIdx >= state.patterns.length) {
+  if (patIdx >= state.patterns.length)
+  {
     return;
   }
 
@@ -953,13 +1109,13 @@ function openStepEditor(anchorCell) {
   const step = pattern.tracks[trackIdx].steps[stepIdx];
 
   state.stepEditorDraft = {
-    trigger: step.trigger,
-    mute: step.mute,
-    velocity: step.velocity,
-    probability: step.probability,
-    lockEnabled: step.lockEnabled,
-    lockPitch: step.lockPitch,
-    lockDecay: step.lockDecay
+    trigger : step.trigger,
+    mute : step.mute,
+    velocity : step.velocity,
+    probability : step.probability,
+    lockEnabled : step.lockEnabled,
+    lockPitch : step.lockPitch,
+    lockDecay : step.lockDecay
   };
 
   document.getElementById("stepTrigger").checked = step.trigger;
@@ -982,7 +1138,8 @@ function openStepEditor(anchorCell) {
   const editor = document.getElementById("stepEditor");
   editor.style.display = "block";
 
-  if (anchorCell) {
+  if (anchorCell)
+  {
     const rect = anchorCell.getBoundingClientRect();
 
     editor.style.left = rect.left + "px";
@@ -990,40 +1147,45 @@ function openStepEditor(anchorCell) {
   }
 } // openStepEditor()
 
-async function closeStepEditor() {
-  if (!state.stepEditorOpen) return;
+async function closeStepEditor()
+{
+  if (!state.stepEditorOpen)
+    return;
 
   // Send changes if any
   const patIdx = state.selectedPatternIndex;
   const trackIdx = state.selectedTrackIndex;
   const stepIdx = state.selectedStepLocalIndex;
 
-  if (patIdx < state.patterns.length) {
+  if (patIdx < state.patterns.length)
+  {
     const pattern = state.patterns[patIdx];
     const step = pattern.tracks[trackIdx].steps[stepIdx];
 
     // Check if draft differs from original
-    const changed = (
-      state.stepEditorDraft.trigger !== step.trigger ||
-      state.stepEditorDraft.mute !== step.mute ||
-      state.stepEditorDraft.velocity !== step.velocity ||
-      state.stepEditorDraft.probability !== step.probability ||
-      state.stepEditorDraft.lockEnabled !== step.lockEnabled ||
-      state.stepEditorDraft.lockPitch !== step.lockPitch ||
-      state.stepEditorDraft.lockDecay !== step.lockDecay
-    );
+    const changed = (state.stepEditorDraft.trigger !== step.trigger ||
+                     state.stepEditorDraft.mute !== step.mute ||
+                     state.stepEditorDraft.velocity !== step.velocity ||
+                     state.stepEditorDraft.probability !== step.probability ||
+                     state.stepEditorDraft.lockEnabled !== step.lockEnabled ||
+                     state.stepEditorDraft.lockPitch !== step.lockPitch ||
+                     state.stepEditorDraft.lockDecay !== step.lockDecay);
 
-    if (changed) {
+    if (changed)
+    {
       // Send update
       const patternName = pattern.name;
-      try {
-        const res = await fetch("/api/patterns/" + patternName + "/tracks/" + trackIdx + "/steps/" + stepIdx, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(state.stepEditorDraft)
-        });
+      try
+      {
+        const res = await fetch(
+            "/api/patterns/" + patternName + "/tracks/" + trackIdx + "/steps/" + stepIdx, {
+              method : "PUT",
+              headers : {"Content-Type" : "application/json"},
+              body : JSON.stringify(state.stepEditorDraft)
+            });
         const data = await res.json();
-        if (data.ok) {
+        if (data.ok)
+        {
           // Update local state
           step.trigger = state.stepEditorDraft.trigger;
           step.mute = state.stepEditorDraft.mute;
@@ -1033,10 +1195,14 @@ async function closeStepEditor() {
           step.lockPitch = state.stepEditorDraft.lockPitch;
           step.lockDecay = state.stepEditorDraft.lockDecay;
           renderGrid();
-        } else {
+        }
+        else
+        {
           alert("Error: " + data.error);
         }
-      } catch (e) {
+      }
+      catch (e)
+      {
         alert("Update failed: " + e);
       }
     }

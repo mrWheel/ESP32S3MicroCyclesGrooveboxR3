@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 13:42 ***/
+/*** Last Changed: 2026-06-22 - 16:55 ***/
 #ifndef INPUT_CLASS_H
 #define INPUT_CLASS_H
 

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-05-23 - 16:00 ***/
+/*** Last Changed: 2026-06-22 - 16:55 ***/
 #include "WiFiManagerExtClass.h"
 
 #include "appConfig.h"
@@ -15,15 +15,10 @@ static const char* logTag = "WiFiManagerExt";
 WiFiManagerExt wifiManagerExt;
 
 //--- Constructor
-WiFiManagerExt::WiFiManagerExt() : portalActive(false),
-                                   newCredentialsPending(false),
-                                   lastRetryMs(0),
-                                   retryCount(0),
-                                   portalStartedPending(false),
-                                   lastPortalApSsid(""),
-                                   wifiManagerDisabled(false),
-                                   portalSuspendCallback(nullptr),
-                                   portalResumeCallback(nullptr)
+WiFiManagerExt::WiFiManagerExt()
+    : portalActive(false), newCredentialsPending(false), lastRetryMs(0), retryCount(0),
+      portalStartedPending(false), lastPortalApSsid(""), wifiManagerDisabled(false),
+      portalSuspendCallback(nullptr), portalResumeCallback(nullptr)
 {
   currentSettings.apPassword = "";
 
@@ -73,7 +68,8 @@ void WiFiManagerExt::begin(bool disabled)
 } //   begin()
 
 //--- Set portal suspend/resume callbacks
-void WiFiManagerExt::setPortalCallbacks(PortalCallback suspendCallback, PortalCallback resumeCallback)
+void WiFiManagerExt::setPortalCallbacks(PortalCallback suspendCallback,
+                                        PortalCallback resumeCallback)
 {
   portalSuspendCallback = suspendCallback;
   portalResumeCallback = resumeCallback;
@@ -118,7 +114,8 @@ void WiFiManagerExt::update()
 
   if (retryCount >= maxRetriesBeforePortal)
   {
-    ESP_LOGW(logTag, "STA connection failed after %u retries. Continuing without WiFi.", static_cast<unsigned>(maxRetriesBeforePortal));
+    ESP_LOGW(logTag, "STA connection failed after %u retries. Continuing without WiFi.",
+             static_cast<unsigned>(maxRetriesBeforePortal));
     setDisabled(true);
 
     return;
@@ -410,7 +407,8 @@ String WiFiManagerExt::buildMacSuffix() const
     return "000000";
   }
 
-  snprintf(suffixBuffer, sizeof(suffixBuffer), "%02x%02x%02x", macAddress[3], macAddress[4], macAddress[5]);
+  snprintf(suffixBuffer, sizeof(suffixBuffer), "%02x%02x%02x", macAddress[3], macAddress[4],
+           macAddress[5]);
 
   return String(suffixBuffer);
 
@@ -477,8 +475,7 @@ String WiFiManagerExt::stripMacSuffixIfPresent(const String& value) const
 
   int suffixStart = static_cast<int>(value.length()) - 9;
 
-  if (value.charAt(suffixStart) != '-' ||
-      value.charAt(suffixStart + 3) != '-' ||
+  if (value.charAt(suffixStart) != '-' || value.charAt(suffixStart + 3) != '-' ||
       value.charAt(suffixStart + 6) != '-')
   {
     return value;
@@ -506,7 +503,8 @@ String WiFiManagerExt::stripMacSuffixIfPresent(const String& value) const
 } //   stripMacSuffixIfPresent()
 
 //--- Build identity text: base + "-" + MAC suffix
-String WiFiManagerExt::buildIdentityWithMacSuffix(const String& baseValue, const String& fallbackValue) const
+String WiFiManagerExt::buildIdentityWithMacSuffix(const String& baseValue,
+                                                  const String& fallbackValue) const
 {
   String base = stripMacSuffixIfPresent(baseValue);
 
@@ -523,6 +521,7 @@ String WiFiManagerExt::buildIdentityWithMacSuffix(const String& baseValue, const
 void WiFiManagerExt::normalizePortalIdentity()
 {
   currentSettings.apSsid = buildIdentityWithMacSuffix(currentSettings.apSsid, DEFAULT_AP_SSID);
-  currentSettings.hostName = buildIdentityWithMacSuffix(currentSettings.hostName, DEFAULT_WIFI_HOSTNAME);
+  currentSettings.hostName =
+      buildIdentityWithMacSuffix(currentSettings.hostName, DEFAULT_WIFI_HOSTNAME);
 
 } //   normalizePortalIdentity()
