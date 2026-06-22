@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 10:30 ***/
+/*** Last Changed: 2026-06-22 - 16:42 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 #ifndef SETTINGS_STORE_H
 #define SETTINGS_STORE_H
@@ -40,7 +40,7 @@ bool settingsStoreSetWifiCredentials(const String& ssid, const String& password)
 
 static const size_t patternStoreMaxEntries = 64;
 
-//-- Runtime settings persisted in LittleFS settings file.
+//-- Runtime settings persisted in NVS.
 struct RuntimeSettings
 {
   uint8_t displayRotation;

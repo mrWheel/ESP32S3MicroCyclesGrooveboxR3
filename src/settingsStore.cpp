@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 10:30 ***/
+/*** Last Changed: 2026-06-22 - 16:42 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -240,8 +240,8 @@ bool settingsStoreSetMasterGainPercent(uint8_t gainPercent)
 //-- Logging tag.
 static const char* logTag = "SettingsStore";
 
-//-- Settings and pattern paths.
-static const char* settingsPath = "/settings.json";
+//-- Pattern paths.
+//-weg?-static const char* settingsPath = "/settings.json";
 static const char* patternTempFileSuffix = ".tmp";
 static const size_t patternSaveReserveBytes = 512;
 static const char* trackJsonNames[sequencerTrackCount] = {"KICK", "SNARE", "CH",
@@ -660,96 +660,69 @@ bool settingsStoreGetSdUsage(size_t& outTotalBytes, size_t& outUsedBytes, size_t
 
 } //   settingsStoreGetSdUsage()
 
-//-- Return default display rotation until persistent settings are added.
+//-- Load persisted display rotation from NVS.
 uint8_t settingsStoreLoadDisplayRotation()
 {
-  RuntimeSettings settings;
+  uint8_t rotation = settingsStoreGetDisplayRotation();
 
-  settingsStoreLoadRuntimeSettings(settings);
-  return settings.displayRotation;
+  if (rotation != 1 && rotation != 3)
+  {
+    rotation = static_cast<uint8_t>(DEFAULT_DISPLAY_ROTATION);
+  }
+
+  return rotation;
 
 } //   settingsStoreLoadDisplayRotation()
 
-//-- Load runtime settings from settings.json.
+//-- Load runtime settings from NVS.
 void settingsStoreLoadRuntimeSettings(RuntimeSettings& settings)
 {
   RuntimeSettings defaults = defaultRuntimeSettings();
 
   settings = defaults;
 
-  if (!ensureSettingsFsMounted())
+  settings.displayRotation = settingsStoreGetDisplayRotation();
+
+  if (settings.displayRotation != 1 && settings.displayRotation != 3)
   {
-    return;
+    settings.displayRotation = defaults.displayRotation;
   }
 
-  if (!LittleFS.exists(settingsPath))
+  settings.themeColorIndex = settingsStoreGetThemeColorIndex();
+
+  if (settings.themeColorIndex < 0)
   {
-    return;
+    settings.themeColorIndex = defaults.themeColorIndex;
   }
 
-  File file = LittleFS.open(settingsPath, "r");
-
-  if (!file)
-  {
-    ESP_LOGW(logTag, "Failed to open %s for read", settingsPath);
-    return;
-  }
-
-  JsonDocument jsonDocument;
-  DeserializationError error = deserializeJson(jsonDocument, file);
-
-  file.close();
-
-  if (error)
-  {
-    ESP_LOGW(logTag, "Invalid %s (%s); using defaults", settingsPath, error.c_str());
-    return;
-  }
-
-  settings.displayRotation =
-      static_cast<uint8_t>(jsonDocument["displayRotation"] | defaults.displayRotation);
-  settings.themeColorIndex =
-      static_cast<int>(jsonDocument["themeColorIndex"] | defaults.themeColorIndex);
-  settings.encoderDirectionReversed = static_cast<bool>(jsonDocument["encoderDirectionReversed"] |
-                                                        defaults.encoderDirectionReversed);
-  settings.activePatternName = static_cast<const char*>(jsonDocument["activePatternName"] |
-                                                        defaults.activePatternName.c_str());
+  settings.encoderDirectionReversed = settingsStoreGetEncoderOrder();
+  settings.activePatternName = defaults.activePatternName;
 
 } //   settingsStoreLoadRuntimeSettings()
 
-//-- Save runtime settings to settings.json.
+//-- Save runtime settings to NVS.
 bool settingsStoreSaveRuntimeSettings(const RuntimeSettings& settings)
 {
-  if (!ensureSettingsFsMounted())
+  bool rotationSaved = settingsStoreSetDisplayRotation(settings.displayRotation);
+  bool themeSaved = settingsStoreSetThemeColorIndex(settings.themeColorIndex);
+  bool encoderSaved = settingsStoreSetEncoderOrder(settings.encoderDirectionReversed);
+
+  if (!rotationSaved)
   {
-    return false;
+    ESP_LOGW(logTag, "Failed to persist display rotation in NVS");
   }
 
-  File file = LittleFS.open(settingsPath, "w");
-
-  if (!file)
+  if (!themeSaved)
   {
-    ESP_LOGW(logTag, "Failed to open %s for write", settingsPath);
-    return false;
+    ESP_LOGW(logTag, "Failed to persist theme color index in NVS");
   }
 
-  JsonDocument jsonDocument;
-
-  jsonDocument["displayRotation"] = settings.displayRotation;
-  jsonDocument["themeColorIndex"] = settings.themeColorIndex;
-  jsonDocument["encoderDirectionReversed"] = settings.encoderDirectionReversed;
-  jsonDocument["activePatternName"] = settings.activePatternName;
-
-  bool success = (serializeJson(jsonDocument, file) > 0);
-
-  file.close();
-
-  if (!success)
+  if (!encoderSaved)
   {
-    ESP_LOGW(logTag, "Failed to serialize %s", settingsPath);
+    ESP_LOGW(logTag, "Failed to persist encoder order in NVS");
   }
 
-  return success;
+  return rotationSaved && themeSaved && encoderSaved;
 
 } //   settingsStoreSaveRuntimeSettings()
 

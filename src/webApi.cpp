@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-22 - 12:49 ***/
+/*** Last Changed: 2026-06-22 - 16:42 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -43,7 +43,7 @@ static void sendError(WebServer& server, const char* message, int code = 400)
 //-- Helper: convert slot index (0-47) to pattern name (p01-p48)
 static String slotIndexToPatternName(uint8_t slotIndex)
 {
-  char buf[4];
+  char buf[5];
   snprintf(buf, sizeof(buf), "p%02u", slotIndex + 1);
   return String(buf);
 } //   slotIndexToPatternName()
@@ -255,7 +255,7 @@ static void handleTransportBpmRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("bpm"))
+  if (error || !doc["bpm"].is<uint16_t>())
   {
     sendError(*((WebServer*)nullptr), "Invalid JSON or missing bpm");
     return;
@@ -287,7 +287,7 @@ static void handleTransportSwingRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("swing"))
+  if (error || !doc["swing"].is<uint8_t>())
   {
     sendError(webServer, "Invalid JSON or missing swing");
     return;
@@ -438,7 +438,7 @@ static void handleGroupsNewRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("name"))
+  if (error || !doc["name"].is<const char*>())
   {
     sendError(webServer, "Invalid JSON or missing name");
     return;
@@ -481,7 +481,7 @@ static void handleGroupsRenameRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("from") || !doc.containsKey("to"))
+  if (error || !doc["from"].is<const char*>() || !doc["to"].is<const char*>())
   {
     sendError(webServer, "Missing 'from' or 'to'");
     return;
@@ -524,7 +524,7 @@ static void handleGroupsCopyRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("from") || !doc.containsKey("to"))
+  if (error || !doc["from"].is<const char*>() || !doc["to"].is<const char*>())
   {
     sendError(webServer, "Missing 'from' or 'to'");
     return;
@@ -561,7 +561,7 @@ static void handleGroupsDeleteRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("name"))
+  if (error || !doc["name"].is<const char*>())
   {
     sendError(webServer, "Missing name");
     return;
@@ -644,7 +644,7 @@ static void handlePatternsActiveSetRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("name"))
+  if (error || !doc["name"].is<const char*>())
   {
     sendError(webServer, "Missing name");
     return;
@@ -776,7 +776,7 @@ static void handlePatternsCopyRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("to"))
+  if (error || !doc["to"].is<const char*>())
   {
     sendError(webServer, "Missing 'to' in body");
     return;
@@ -839,19 +839,19 @@ static void handleStepEditRequest()
   sequencerExportPatternFromSlot((uint8_t)slotIndex, patternData);
 
   Step& step = patternData.pattern.tracks[trackIndex].steps[stepIndex];
-  if (doc.containsKey("trigger"))
+  if (doc["trigger"].is<bool>())
     step.trigger = doc["trigger"];
-  if (doc.containsKey("mute"))
+  if (doc["mute"].is<bool>())
     step.mute = doc["mute"];
-  if (doc.containsKey("velocity"))
+  if (doc["velocity"].is<uint8_t>())
     step.velocity = doc["velocity"];
-  if (doc.containsKey("probability"))
+  if (doc["probability"].is<uint8_t>())
     step.probability = doc["probability"];
-  if (doc.containsKey("lockEnabled"))
+  if (doc["lockEnabled"].is<bool>())
     step.lockEnabled = doc["lockEnabled"];
-  if (doc.containsKey("lockPitch"))
+  if (doc["lockPitch"].is<int8_t>())
     step.lockPitch = doc["lockPitch"];
-  if (doc.containsKey("lockDecay"))
+  if (doc["lockDecay"].is<uint8_t>())
     step.lockDecay = doc["lockDecay"];
 
   sequencerImportPatternToSlot((uint8_t)slotIndex, patternData);
@@ -898,7 +898,7 @@ static void handleTrackEditRequest()
   PatternData patternData;
   sequencerExportPatternFromSlot((uint8_t)slotIndex, patternData);
 
-  if (doc.containsKey("mute"))
+  if (doc["mute"].is<bool>())
   {
     patternData.pattern.tracks[trackIndex].mute = doc["mute"];
   }
@@ -997,7 +997,7 @@ static void handleSampleSetsLoadRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("name"))
+  if (error || !doc["name"].is<const char*>())
   {
     sendError(webServer, "Missing name");
     return;
@@ -1061,7 +1061,7 @@ static void handleSamplesGainRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("sampleIndex") || !doc.containsKey("gainPercent"))
+  if (error || !doc["sampleIndex"].is<uint8_t>() || !doc["gainPercent"].is<uint16_t>())
   {
     sendError(webServer, "Missing sampleIndex or gainPercent");
     return;
@@ -1144,7 +1144,7 @@ static void handleSequencerCursorRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("stepIndex") || !doc.containsKey("trackIndex"))
+  if (error || !doc["stepIndex"].is<uint8_t>() || !doc["trackIndex"].is<uint8_t>())
   {
     sendError(webServer, "Missing stepIndex or trackIndex");
     return;
@@ -1186,7 +1186,7 @@ static void handleSequencerEditModeRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc.containsKey("enabled"))
+  if (error || !doc["enabled"].is<bool>())
   {
     sendError(webServer, "Missing enabled field");
     return;
