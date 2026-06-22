@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 14:26 ***/
+/*** Last Changed: 2026-06-22 - 21:09 ***/
 #include "webServerManager.h"
 #include "webApi.h"
 
@@ -43,7 +43,8 @@ static void handleRootRequest()
   response += "\n";
   response += "Status: web server ready\n";
 
-  webServer.send(200, "text/plain", response);
+  webServer.send(500, "text/plain", response);
+
 } //   handleRootRequest()
 
 //
@@ -175,6 +176,15 @@ void webServerManagerInit()
 {
   webServerRunning = false;
   webServerUrl = "";
+
+  if (!LittleFS.begin(true, "/littlefs", 10, "littlefs"))
+  {
+    ESP_LOGE(logTag, "Error: LittleFS mount failed; SPA files unavailable");
+  }
+  else
+  {
+    ESP_LOGI(logTag, "LittleFS mounted for SPA files");
+  }
 
   ESP_LOGI(logTag, "Webserver manager initialized");
 
