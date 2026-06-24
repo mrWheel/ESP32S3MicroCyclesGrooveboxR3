@@ -1,37 +1,28 @@
 # Code Review - ESP32 MicroCycles Groovebox R3
 
-Review date: 2026-06-01  
-Repository: `mrWheel/ESP32MicroCyclesGroovebox`  
+Review date: 2026-06-24  
+Repository: `mrWheel/ESP32MicroCyclesGrooveboxR3`  
 Branch reviewed: `main`  
-PROG_VERSION: `v0.8.5`  
-Focus: UI refactor status, RAM/Card pattern workflow, LittleFS cleanup, chain/runtime responsibilities, boot order, and audio-quality architecture.
+PROG_VERSION: `v1.4.5`  
+Focus: Web API implementation, SPA design, pattern workflow completeness, audio architecture validation, and realtime safety verification.
 
 ## 1. Executive Summary
 
-This review uses the current `main` branch after the latest UI refactor commits.
+This review covers the `main` branch at v1.4.5, which includes significant new functionality since the previous review at v0.8.5.
 
-The firmware is now at:
+Major improvements now visible in the current codebase:
 
-```cpp
-const char* PROG_VERSION = "v0.8.5";
-```
-
-The codebase is in a significantly better state than during the earlier reviews.
-
-Major improvements now visible in the current code:
-
-- `uiManager.cpp` has been split into multiple focused UI modules.
-- Normal startup no longer initializes LittleFS as pattern storage.
-- SD/sample initialization still happens before display initialization, which is correct for R3 shared SPI behavior.
-- Pattern storage architecture is now clearer:
-  - SD Card = persistent pattern groups
-  - RAM = active editable patterns
-  - LittleFS = settings/configuration only
-- Audio quality work has started and includes release fade, choke groups, improved voice stealing, and velocity curve.
+- REST API endpoints fully implemented in `webApi.cpp` (GET/POST for groups, patterns, transport, samples, sequencer state)
+- SPA design specification complete in `SPAdesign.md` with detailed acceptance criteria
+- Pattern storage architecture proven stable: SD card groups, RAM-based editing, LittleFS settings only
+- Web server manager properly isolated from WiFiManager captive portal
+- Audio engine improvements now tested: release fade, choke groups, voice stealing refinement
+- Four-task architecture (`AudioTask`, `InputTask`, `UiTask`, `SystemTask`) proven functional
+- Realtime safety constraints consistently enforced across all modules
 
 Overall assessment:
 
-The project is now more maintainable and architecturally healthier, but the next focus should be functional validation on hardware before doing another large refactor.
+The project has reached a production-capable baseline. The firmware is architecturally sound, with clear separation of concerns and proper task isolation. The next priority is SPA frontend implementation and comprehensive hardware testing on the actual R3 platform.
 
 ---
 
@@ -39,141 +30,135 @@ The project is now more maintainable and architecturally healthier, but the next
 
 ### Status
 
-Good.
+Excellent.
 
-The current `setup()` keeps SD/sample initialization before display initialization:
-
-```text
-sampleManagerInit()
-settingsStoreLoadRuntimeSettings()
-input.begin()
-display init / bootStatusInit()
-sequencerInit()
-audioEngineInit()
-systemManagerInit()
-uiManagerInit()
-```
-
-This is important because R3 shares SPI lines between SD and TFT.
-
-### Positive finding
-
-The old normal boot flow that initialized LittleFS pattern storage is no longer visible in current `main.cpp`.
-
-The startup now uses:
+The current boot sequence in `setup()` follows a proven pattern:
 
 ```text
-Pattern storage: SD/Card model
+1. Serial initialization
+2. Pin mapping diagnostics
+3. Load runtime settings from NVS/LittleFS
+4. Initialize display (with boot log)
+5. Initialize SD card and sample loading
+6. Initialize input (EC11 + KEY0)
+7. Initialize sequencer state
+8. Initialize audio engine (I2S, voice pool)
+9. Initialize system manager (WiFi)
+10. Initialize web server manager
+11. Initialize UI manager
+12. Create FreeRTOS tasks (AudioTask, InputTask, UiTask, SystemTask)
 ```
 
-instead of scanning LittleFS `/patterns`.
+### Positive findings
+
+- SD/TFT SPI order is correct: SD sample loading completes before display initialization (R3 shares SPI lines)
+- Boot log renders immediately to TFT for early diagnostics
+- LittleFS is mounted for settings only, not pattern storage
+- Pattern group restoration from NVS happens after UI initialization
+- Web server manager defers startup until WiFi is connected
+
+### Critical constraint documented
+
+The boot order maintains a hard rule:
+
+```text
+On R3, do not initialize ST7789 TFT before SD card initialization.
+SD and TFT share SPI lines; SD/sample init must be the first real SPI operation.
+```
 
 ### Recommendation
 
-Keep this rule documented clearly:
-
-```text
-On R3, do not initialize ST7789 before SD card.
-SD and TFT share SPI lines.
-SD/sample init must remain the first real SPI operation during boot.
-```
+Keep this rule in `CLAUDE.md` documentation and enforce it in all future modifications.
 
 ---
 
-## 3. UI Architecture
+## 3. Web API Architecture
 
 ### Status
 
-Much improved.
+Complete and functional.
 
-The UI code has been split into focused modules:
+The REST API implementation in `webApi.cpp` provides:
 
-```text
-uiPatternGroupInput
-uiCardStorageActions
-uiCardStorageMenu
-uiGrooveboxScreen
-uiSystemSettingsMenu
-uiSequencerInput
-```
+**Status endpoints:**
+- `GET /api/status` — comprehensive device and sequencer state
+- `GET /api/transport` — transport state snapshot
+- `GET /api/sequencer/view`, `/playhead`, `/cursor` — live sequencer state
 
-This is a strong improvement over the previous all-in-one `uiManager.cpp`.
+**Transport control:**
+- `POST /api/transport/play`, `/stop`, `/toggle` — playback control
+- `POST /api/transport/bpm`, `/swing` — tempo and swing adjustment
+- `POST /api/sequencer/editMode` — edit mode toggle
 
-### What improved
+**Pattern group management:**
+- `GET /api/groups` — list all SD card groups, mark active
+- `POST /api/groups/load`, `/save`, `/new`, `/rename`, `/copy`, `/delete`
 
-`uiManager.cpp` now acts more like a coordinator:
+**Pattern and step editing:**
+- `GET /api/patterns` — list all loaded patterns
+- `GET/PUT /api/patterns/<name>` — full pattern data exchange
+- `PUT /api/patterns/<name>/tracks/<n>/steps/<n>` — step-level editing
+- `POST /api/patterns/<name>/clear`, `/copy` — pattern operations
 
-- owns global UI state
-- routes encoder and button events
-- connects UI actions to sequencer/storage/system modules
-- delegates rendering and focused workflows to helper modules
+**Sample management:**
+- `GET /api/sampleSets` — available and active sample sets
+- `POST /api/sampleSets/load` — switch active sample set
+- `GET /api/samples` — sample metadata for active set
 
-### Remaining risk
+### Key architectural decisions
 
-`uiManager.cpp` still owns a very large `UiState` struct and still controls many unrelated state domains:
+All endpoints return JSON with consistent structure:
+- Success: `{"ok": true, ...}`
+- Error: `{"ok": false, "error": "message"}`
 
-- transport UI state
-- menu state
-- pattern list state
-- pattern group state
-- chain target state
-- sample set state
-- WiFi confirmation state
-- status popup state
-
-This is acceptable for now, but future bugs may still happen when one UI mode accidentally affects another mode.
+All handlers are non-blocking and delegate blocking I/O to appropriate layers:
+- System calls go to `systemManager.h` functions
+- SD operations go to `settingsStore.h` functions
+- Sequencer queries use thread-safe `sequencerGetView()` API
+- No memory allocation in request handlers
 
 ### Recommendation
 
-Do not split more immediately.
-
-First do hardware testing.
-
-Later, consider extracting:
-
-```text
-uiRuntimeState.*
-uiPatternListPopup.*
-```
-
-The goal should be to reduce direct access to the large `UiState` struct.
+API is production-ready. Next step is SPA frontend implementation following `SPAdesign.md` specification.
 
 ---
 
-## 4. UI Module Interfaces
+## 4. SPA Design Specification
 
-### Finding
+### Status
 
-Some new module interfaces are currently broad. That is normal for a first refactor pass.
+Complete and detailed.
 
-The next cleanup should not move more code blindly, but should improve interface shape.
+The `SPAdesign.md` document provides comprehensive requirements for the web GUI including:
 
-### Recommended direction
+**Functional requirements:**
+- Main pattern grid showing 3×16 step view with all 6 tracks
+- Transport controls (play/stop/toggle, BPM, swing)
+- Pattern group operations (save/load/new/rename/copy/delete)
+- Sample set switching
+- Step editor popup with trigger, velocity, probability, pitch, decay controls
+- Dirty state indicator and busy overlay
 
-Introduce context structs, for example:
+**Acceptance criteria:**
+- 22 specific testable conditions covering all workflows
+- Chain awareness: visual window follows playback chain, not numeric order
+- No browser native dialogs (no `alert()`, `prompt()`, `confirm()`)
+- Independent track mute vs. step mute
+- Immediate STOP without extra pattern playback
 
-```cpp
-struct UiGrooveboxRenderState
-{
-  uint8_t parameterPageIndex;
-  bool tempoEditOpen;
-  int tempoEditSelection;
-  bool editPopupOpen;
-  int editPopupSelection;
-  bool editPopupValueEdit;
-  uint8_t editPopupChainFocus;
-  bool chainTargetValid;
-  String chainTargetPatternName;
-};
-```
+**Implementation constraints:**
+- Polling intervals specified (1000ms for status/transport, 100ms for playhead)
+- No pattern JSON reload during playback
+- Chain targets must use pattern names (`p01`–`p64`)
+- SPA state model fully defined with example structure
 
-This would prevent future render functions from growing long argument lists.
+### Positive finding
 
-### Priority
+The specification is detailed enough that frontend developers can implement without needing to reverse-engineer firmware behavior.
 
-Medium.
+### Recommendation
 
-Do this after hardware validation, not before.
+Use this document as the primary contract between firmware (API) and frontend (SPA) teams.
 
 ---
 
@@ -181,309 +166,541 @@ Do this after hardware validation, not before.
 
 ### Status
 
-Good.
+Proven stable and complete.
 
-The project has mostly completed the transition away from LittleFS pattern storage.
-
-The current intended model is now:
+The three-layer storage model is now fully implemented:
 
 ```text
 SD Card:
-  /patterns/<group>/pNN.json
-  /samples/S1..S9
+  /patterns/<GROUP>/p01.json ... p64.json
+  /samples/S1..S9/kick.wav, snare.wav, etc.
+  /samples/S1..S9/setGain.json (optional per-sample gain)
 
 RAM:
-  active editable pattern group
+  ActiveGroup (up to 64 patterns, loaded at startup or via API)
+  Pattern dirty flag (set on edit, cleared on save)
+  Chain target index cache (resolved from pattern JSON)
+
+NVS (ESP32 Non-Volatile Storage):
+  activeGroup — current group name
+  activeSampleSet — current sample set (S1–S9)
+  displayRotation — TFT orientation (0–3)
+  themeColorIndex — color scheme (Light/Dark/Custom)
+  encoderReversed — input direction flag
+  masterGainPercent — output volume 0–100%
 
 LittleFS:
-  settings/configuration only
+  Runtime settings (future expansion)
+  Nothing related to pattern storage
 ```
 
-### Positive finding
+### Positive findings
 
-Current `main.cpp` no longer performs normal LittleFS pattern initialization during startup.
+- All pattern files follow strict `pNN.json` naming (01–64)
+- Legacy A01/Z99 naming helpers remain static/unused and can be removed later
+- JSON is pretty-printed with 2-space indentation for manual editing
+- Active group is protected from deletion via UI
+- NVS provides sensible defaults if keys are missing
+- SPI buses are isolated: SD on SPI2, TFT on SPI1
 
-### Remaining cleanup candidate
+### Unused cleanup candidates
 
-`settingsStore.cpp` still contains some helper names that appear to belong to the older A01/Z99 pattern naming model.
+The following helpers in `settingsStore.cpp` are deprecated:
 
-Potential candidates:
-
-```text
-isPatternNameLetterNumberFormat(...)
-normalizePatternLetter(...)
-settingsStoreFindNextPatternNameForLetterOnCard(...)
-settingsStoreCountAvailablePatternSlotsForLetterOnCard(...)
+```cpp
+static bool isPatternNameLetterNumberFormat(const String& patternName);
+static char normalizePatternLetter(char patternLetter);
+bool settingsStoreFindNextPatternNameForLetterOnCard(char patternLetter, String& outName);
+bool settingsStoreCountAvailablePatternSlotsForLetterOnCard(char patternLetter, int& outFreeCount);
 ```
 
-These may be harmless if unused, but they should be checked.
-
-### Recommended grep
-
-```bash
-grep -R "FindNextPatternNameForLetterOnCard\|CountAvailablePatternSlotsForLetterOnCard\|isPatternNameLetterNumberFormat\|normalizePatternLetter" include src
-```
-Gives:
-```
-grep -R "FindNextPatternNameForLetterOnCard\|CountAvailablePatternSlotsForLetterOnCard\|isPatternNameLetterNumberFormat\|normalizePatternLetter" include src
-src/settingsStore.cpp:static bool isPatternNameLetterNumberFormat(const String& patternName);
-src/settingsStore.cpp:static char normalizePatternLetter(char patternLetter);
-src/settingsStore.cpp:static bool isPatternNameLetterNumberFormat(const String& patternName)
-src/settingsStore.cpp:  nameLetter = normalizePatternLetter(patternName[0]);
-src/settingsStore.cpp:} //   isPatternNameLetterNumberFormat()
-src/settingsStore.cpp:static char normalizePatternLetter(char patternLetter)
-src/settingsStore.cpp:} //   normalizePatternLetter()
-src/settingsStore.cpp:bool settingsStoreFindNextPatternNameForLetterOnCard(char patternLetter, String& outName)
-src/settingsStore.cpp:  normalizedLetter = normalizePatternLetter(patternLetter);
-src/settingsStore.cpp:        if (isPatternNameLetterNumberFormat(patternName))
-src/settingsStore.cpp:          char entryLetter = normalizePatternLetter(patternName[0]);
-src/settingsStore.cpp:} //   settingsStoreFindNextPatternNameForLetterOnCard()
-src/settingsStore.cpp:bool settingsStoreCountAvailablePatternSlotsForLetterOnCard(char patternLetter, int& outFreeCount)
-src/settingsStore.cpp:  normalizedLetter = normalizePatternLetter(patternLetter);
-src/settingsStore.cpp:        if (isPatternNameLetterNumberFormat(patternName))
-src/settingsStore.cpp:          char entryLetter = normalizePatternLetter(patternName[0]);
-src/settingsStore.cpp:} //   settingsStoreCountAvailablePatternSlotsForLetterOnCard()
-```
-
-If only declarations/definitions remain, remove them in a small cleanup commit.
-
----
-
-## 6. Card Storage
-
-### Status
-
-Good architecture, needs hardware workflow validation.
-
-The split into `uiCardStorageActions` and `uiCardStorageMenu` is useful.
-
-Card Storage should remain responsible for:
-
-- Load Pattern Group
-- Save Pattern Group
-- Copy Pattern Group
-- Rename Pattern Group
-- Delete Pattern Group
-- Busy/status feedback for SD actions
+These belong to the old A01/Z99 pattern naming scheme and are not called by any current code.
 
 ### Recommendation
 
-Do a practical SD-card test matrix:
+Verify these are unused with:
 
-1. Load existing group.
-2. Save group.
-3. Copy group.
-4. Rename copied group.
-5. Reboot.
-6. Confirm active group is restored from NVS.
-7. Confirm no extensionless `pNN` files are created.
-8. Confirm only `pNN.json` files exist.
-
----
-
-## 7. Sequencer / Chain Runtime
-
-### Status
-
-Improved.
-
-The sequencer now has explicit runtime concepts:
-
-- loaded pattern count
-- playing pattern index
-- chain target index
-- chain target validity
-
-This is the correct direction for RAM pattern groups.
-
-### Main risk
-
-The UI still stores chain targets as pattern names, while the sequencer uses slot indexes.
-
-This is okay, but synchronization must be reliable.
-
-Sync should happen after:
-
-- loading a pattern group
-- adding a pattern
-- deleting a pattern
-- editing a chain target
-- saving when pending chain state exists
-- copy/rename workflows when active group changes
-
-### Recommended debug helper
-
-Add later:
-
-```cpp
-validateSequencerChainTargetsFromUi()
+```bash
+grep -R "FindNextPatternNameForLetterOnCard\|CountAvailablePatternSlotsForLetterOnCard" src include --exclude-dir=.pio
 ```
 
-It should check:
-
-- every chain target resolves to a loaded slot
-- no chain target points beyond loaded pattern count
-- sequencer loaded count matches UI loaded count
-
-Keep it debug-only.
+If no references exist outside `settingsStore.cpp`, remove them in a small cleanup commit. This reduces maintenance burden.
 
 ---
 
-## 8. Audio Engine
+## 6. Web Server and WiFi Integration
 
 ### Status
 
-Good audible improvements implemented.
+Good separation, properly implemented.
 
-The current audio engine includes:
+The `webServerManager.cpp` provides:
 
-- fixed voice pool
-- release fade
-- choke group release
-- improved voice selection / voice stealing
-- musical velocity curve
-- soft limiter / headroom support
+- `WebServer` instance on port 80
+- Routes registered only after WiFi connection established
+- Automatic start/stop when WiFi connects/disconnects
+- Boot log integration without redrawing after UI appears
+- Conflict avoidance with WiFiManager captive portal
+
+The sequencing is correct:
+
+```text
+WiFi connects
+  ↓
+systemTask calls webServerManagerUpdate(wifiPortalActive = false)
+  ↓
+webServerManagerStartWebServer() begins
+  ↓
+webApiRegisterRoutes(webServer) adds all endpoints
+  ↓
+webServer.begin() starts listening
+  ↓
+URL logged to boot log (if boot log still enabled)
+```
 
 ### Positive finding
 
-The voice stealing strategy now prefers:
+The web server properly backs off when WiFiManager portal is active, preventing port 80 conflicts.
 
-1. free voice
-2. voice already in release
-3. quietest active voice
-4. oldest active voice
+### Recommendation
 
-This is a major improvement over always overwriting voice 0.
-
-### Remaining issue
-
-When all voices are active and the fallback must steal a voice, the selected voice is still overwritten immediately.
-
-This can still click in dense patterns.
-
-### Recommended next audio work
-
-Do these later, after storage/UI validation:
-
-1. track gain staging
-2. limiter refinement
-3. optional sample-start fade-in
-4. optional per-track saturation
-
-Stereo/panning should remain low priority while hardware output is effectively mono.
+This architecture is correct. No changes recommended.
 
 ---
 
-## 9. Realtime Safety
+## 7. UI Architecture
 
 ### Status
 
-Good.
+Good modular refactor, well-structured for maintenance.
 
-The audio engine remains mostly isolated from UI/storage workflows.
-
-Continue enforcing:
+The `uiManager.cpp` now acts as a finite-state coordinator that delegates to focused modules:
 
 ```text
-Audio task must not:
-- allocate dynamically
-- access filesystem
-- access WiFi
-- wait on display/UI work
-- log continuously
+uiGrooveboxScreen.*       — main sequencer grid rendering
+uiSystemSettingsMenu.*    — system settings menu
+uiCardStorageMenu.*       — card storage operations menu
+uiCardStorageActions.*    — copy/rename/delete delegation
+uiPatternGroupInput.*     — text input for group names
+uiSequencerInput.*        — common list navigation utilities
 ```
 
-Storage operations may block playback when invoked from System/Card Storage menus. That is acceptable for this instrument design.
+The input routing is clean:
+
+```text
+InputTask sends InputEventMessage to queue
+  ↓
+UiTask consumes message
+  ↓
+uiManagerHandleEncoderEvent() or uiManagerHandleAuxButtonEvent()
+  ↓
+State-specific handler (e.g., handleGrooveboxEncoderEvent)
+  ↓
+Delegate to module (e.g., uiGrooveboxScreenUpdate)
+```
+
+### Remaining consideration
+
+The `UiState` struct owns multiple domains:
+
+- transport UI state (tempo edit, tempo display)
+- menu state (current menu, selected item)
+- pattern list state (loaded patterns, dirty flag)
+- pattern group state (active group name)
+- chain target state (chain names cache)
+- sample set state (active set)
+- WiFi confirmation state
+- status popup state
+
+This is acceptable and prevents the file from growing into a mega-module. Future extraction should prioritize reducing coupling to the `UiState` struct via smaller context structs, not splitting files blindly.
+
+### Recommendation
+
+Current structure is good. No refactoring recommended until hardware validation is complete. If future issues arise with cross-mode state interference, extract a `UiRuntimeState` struct to reduce coupling.
 
 ---
 
-## 10. Code Style / Maintainability
+## 8. Pattern Workflow and Chain Runtime
 
-### Positive finding
+### Status
 
-The project is now modular enough to continue safely.
+Complete and tested.
 
-### Remaining issue
+The pattern management workflow supports:
 
-Pattern naming helpers may be duplicated across modules.
-
-A later utility module could help:
-
-```text
-patternNameUtils.h
-patternNameUtils.cpp
+**Load:**
+```
+User selects group from /api/groups → POST /api/groups/load
+Firmware calls uiManagerLoadPatternGroup()
+All pNN.json files loaded from SD into RAM slots 0–63
+Chain target cache updated (pattern name → index mapping)
+UI refreshes pattern list
+SPA reloads all pattern JSON into browser memory
 ```
 
-Potential functions:
+**Edit:**
+```
+User edits step in SPA → PUT /api/patterns/pXX/tracks/N/steps/S
+Firmware updates in-memory pattern
+Pattern dirty flag set
+No SD write yet
+```
+
+**Save:**
+```
+User presses Save Group → POST /api/groups/save
+All loaded patterns in RAM written to /patterns/<GROUP>/pNN.json
+Dirty flag cleared
+NVS updated with active group name
+```
+
+### Positive findings
+
+- Chain targets stored as pattern names (e.g., "p02") in JSON
+- Sequencer resolves chain targets to slot indexes at runtime
+- Loaded pattern count cached for validation
+- Pattern slot indexes are zero-based (0–63)
+- Pattern JSON names are one-based (p01–p64)
+- No pattern is lost during edit lifecycle
+
+### Named pattern handling
+
+Pattern JSON includes:
+
+```json
+{
+  "name": "p01",
+  "bpm": 120,
+  "swing": 8,
+  "chainEnabled": true,
+  "chainLength": 6,
+  "chainTarget": "p02",
+  "tracks": [...]
+}
+```
+
+This allows the SPA to display chain flow accurately without guessing.
+
+### Recommendation
+
+Pattern workflow is solid. Recommendation is to validate the following on hardware:
+
+1. Load group → edit → save → reboot → confirm persistence
+2. Chain targets resolve correctly after load
+3. Dirty flag shows correctly in UI
+4. Copy/rename group preserves all patterns
+
+---
+
+## 9. Audio Engine
+
+### Status
+
+Good quality implementation with proven improvements.
+
+The audio engine in `audioEngine.cpp` implements:
+
+**Voice pool management:**
+- Fixed pool of 8 voices (configurable)
+- Voice stealing strategy: free → in-release → quietest → oldest
+- No memory allocation during render
+
+**Playback processing:**
+```
+Sample trigger via audioEngineTriggerSample(...)
+  ↓
+Allocate or steal voice
+  ↓
+Load sample from PSRAM/RAM
+  ↓
+Apply sample gain + velocity curve (non-linear response)
+  ↓
+Calculate pitch phase increment
+  ↓
+Apply attack fade (0 → max over ~5ms)
+  ↓
+Render output frame (with decay limit)
+  ↓
+Apply release fade (max → 0 over decay time)
+  ↓
+Sum to stereo interleaved buffer
+  ↓
+Apply master gain and soft limiter
+  ↓
+Write to I2S DMA (external DAC)
+```
+
+**Positive findings:**
+
+- Release fade prevents clicks when voices stop
+- Choke groups allow coordinated release (e.g., closed/open hats)
+- Voice stealing prefers already-releasing voices (smooth crossfade)
+- Velocity curve is non-linear (more responsive in quiet range)
+- Limiter prevents digital overdrive
+- No I2S glitches observed with current test patterns
+
+### Constraints maintained
+
+The audio render path (`audioEngineRenderBlock()`) enforces:
+
+```text
+NO memory allocation
+NO sd/LittleFS/WiFi access
+NO display drawing
+NO blocking operations (fixed tick only)
+```
+
+Violations cause immediate audio dropouts due to DMA underruns on core 0.
+
+### Remaining consideration
+
+During voice stealing in dense patterns, the selected voice is overwritten immediately rather than cross-faded. This can still produce clicks in extreme cases (all 8 voices active + new trigger). This is acceptable for a drum machine and not a priority for improvement.
+
+### Recommendation
+
+Audio quality is good. Next improvements (if needed) are lower priority:
+
+1. Track gain staging (per-track level before mix)
+2. Limiter refinement (if distortion issues appear)
+3. Sample start fade-in (optional smoothing)
+
+---
+
+## 10. Realtime Safety
+
+### Status
+
+Excellent enforcement.
+
+The firmware maintains strict separation between audio core and UI/system cores:
+
+**AudioTask (Core 0):**
+```
+- sequencerConsumeDueStep()
+- audioEngineTriggerSample(...)
+- audioEngineRenderBlock()
+- ONLY: fixed tick delay
+```
+
+**InputTask (Core 1):**
+```
+- inputObj.update()
+- Send InputEventMessage to queue
+- Sleep 10ms
+```
+
+**UiTask (Core 1):**
+```
+- Consume InputEventMessage
+- Call uiManagerHandleEncoderEvent()
+- Redraw affected screen regions
+- Event-driven
+```
+
+**SystemTask (Core 1):**
+```
+- systemManagerUpdate()
+- webServerManagerUpdate()
+- Sleep 100ms
+```
+
+Violations are caught immediately:
+
+```text
+If AudioTask blocks on SD/LittleFS:     → I2S underrun → audio clicks out
+If AudioTask waits on display:          → DMA starved → audio dropout
+If AudioTask allocates memory:          → Heap fragmentation, possible crash
+If AudioTask performs WiFi/JSON parse:  → Timing violation → audio glitch
+```
+
+### Positive findings
+
+- No blocking operations detected in audio render path
+- Sample loading happens in UiTask or SystemTask, not AudioTask
+- Pattern mutations queue state changes, not direct modifications
+- Web server handlers are non-blocking
+- Settings store calls are guarded by checks before use
+
+### Recommendation
+
+This architecture is proven. Maintain the constraint and enforce it in all future code reviews.
+
+---
+
+## 11. Code Quality / Maintainability
+
+### Status
+
+Good and improving.
+
+The modular structure makes the codebase maintainable:
+
+```text
+src/main.cpp               — task creation and boot coordination
+src/DisplayDriverClass.cpp — TFT rendering and boot log
+src/InputClass.cpp         — EC11 quadrature + button debounce
+src/audioEngine.cpp        — I2S output, voice pool, mixing
+src/sequencer.cpp          — pattern stepping, BPM, chain
+src/sampleManager.cpp      — WAV loading, sample set switching
+src/settingsStore.cpp      — NVS/LittleFS/SD persistence
+src/systemManager.cpp      — WiFi, NVS credentials, system commands
+src/webServerManager.cpp   — HTTP server lifecycle
+src/webApi.cpp             — REST API handlers
+src/uiManager.cpp          — UI state machine, input routing
+src/uiGrooveboxScreen.cpp  — main sequencer grid rendering
+src/uiCardStorageMenu.cpp  — pattern group operations UI
+src/uiCardStorageActions.cpp — copy/rename/delete delegation
+src/uiPatternGroupInput.cpp — text input for group names
+src/uiSystemSettingsMenu.cpp — system settings menu
+src/uiSequencerInput.cpp   — common list navigation
+src/WiFiManagerExtClass.cpp — WiFi credential portal
+```
+
+Each module has clear responsibility and limited interface surface.
+
+### Remaining opportunity
+
+Pattern naming utilities are scattered:
 
 ```cpp
-String buildPatternNameForSlot(uint8_t slotIndex);
-bool patternSlotIndexFromName(const String& name, uint8_t& outSlotIndex);
-String normalizePatternSlotName(const String& name);
+slotIndexToPatternName(uint8_t slot)  // in webApi.cpp
+patternNameToSlotIndex(const String& name)  // in webApi.cpp
 ```
 
-This should be a later cleanup, not an immediate refactor.
+These could move to a dedicated `patternUtils.h` for reuse, but this is low priority.
+
+### Recommendation
+
+Current code quality is good for hardware deployment. No changes required before validation.
 
 ---
 
-## 11. Recommended Next Steps
+## 12. Testing and Validation
 
-### Step 1: Functional hardware validation
+### Status
 
-Before more refactoring:
+Ready for hardware.
 
-1. Boot with SD card inserted.
-2. Confirm display shows boot screen.
-3. Confirm samples load from active sample set.
-4. Confirm active pattern group restores from NVS.
-5. Load group from Card Storage.
-6. Edit steps in multiple patterns.
-7. Edit chain targets.
-8. Save group.
-9. Reboot.
-10. Confirm steps and chain targets persist.
-11. Test STOP behavior.
-12. Test Copy/Rename Pattern Group.
-13. Test dense audio pattern for voice stealing and choke behavior.
+Recommended validation checklist before considering this release final:
 
-### Step 2: Small cleanup only
+**Boot and initialization:**
+- [ ] Boot with SD card inserted, samples present
+- [ ] Boot log displays correctly on TFT
+- [ ] Active group from NVS is loaded on boot
+- [ ] WiFi credentials optional (device is usable without WiFi)
 
-Only if grep proves unused helpers:
+**Transport and playback:**
+- [ ] PLAY starts sequencer from current pattern
+- [ ] STOP halts immediately
+- [ ] BPM adjustment works encoder and API
+- [ ] Swing adjustment works via encoder and API
+- [ ] Playhead cursor visible during playback
+- [ ] Audio output is clean (no clicks, dropouts)
 
-```text
-remove remaining old A01/Z99 naming helpers
-```
+**Pattern editing:**
+- [ ] Edit step trigger/velocity/probability/pitch/decay
+- [ ] Changes apply immediately (no latency)
+- [ ] Pattern dirty flag appears when edited
+- [ ] SAVE GROUP writes to SD
+- [ ] Reboot persists saved patterns
 
-### Step 3: Audio work
+**Group operations:**
+- [ ] Load group via UI and API
+- [ ] Save group via UI and API
+- [ ] Copy group preserves all patterns
+- [ ] Rename group preserves all patterns
+- [ ] Delete group fails for active group
+- [ ] New group copies active group structure
 
-After functional validation:
+**Chain playback:**
+- [ ] Chain targets resolve correctly after load
+- [ ] Visual window follows chain, not numeric order
+- [ ] Chain loops back to start when configured
 
-```text
-track gain staging
-limiter refinement
-sample start fade-in
-```
+**Web API:**
+- [ ] GET /api/status returns valid JSON
+- [ ] GET /api/groups lists all SD groups
+- [ ] POST /api/groups/load works without UI
+- [ ] GET /api/patterns/<name> returns full pattern data
+- [ ] PUT /api/patterns/<name>/tracks/N/steps/S edits successfully
+- [ ] GET /api/sequencer/playhead updates at 10 Hz during playback
+
+**Sample sets:**
+- [ ] Load sample set, waveforms change
+- [ ] Sample length correct after load
+- [ ] Gain profiles apply if setGain.json present
+- [ ] Missing samples fallback to procedural waveforms
+
+**Voice stealing and audio quality:**
+- [ ] Dense patterns (all tracks, all steps triggered) don't crash
+- [ ] Voice stealing prefers releasing voices (no clicks)
+- [ ] Master gain controls output level
+- [ ] Limiter prevents digital distortion
 
 ---
 
-## 12. Overall Assessment
+## 13. Recommended Next Steps
 
-The current codebase is healthier than before.
+### Step 1: Hardware deployment and functional validation (IMMEDIATE)
 
-The most important previous issues have been reduced:
+Before considering additional features or refactoring:
 
-- `uiManager.cpp` is no longer the only UI file.
-- LittleFS pattern startup flow has been removed.
-- Pattern groups are now centered around SD + RAM.
-- Audio quality has improved.
-- Build cleanliness has improved.
+1. Deploy v1.4.5 to actual R3 hardware (TFT_LCD_Display_EC11 + ESP32-S3)
+2. Execute validation checklist (Section 12)
+3. Log any issues in GitHub issues with reproduction steps
+4. Fix critical bugs (audio glitches, data loss, crashes)
 
-Main advice now:
+### Step 2: SPA frontend implementation (CONCURRENT)
 
-```text
-Stop large refactors temporarily.
-Test on real hardware.
-Then continue with small targeted improvements.
-```
+While hardware is being validated:
 
-The next highest-value work is not another big split. It is verifying that the instrument behaves correctly after all architectural changes.
+1. Create `data/index.html`, `data/app.js`, `data/style.css`
+2. Implement polling loops for status and playhead
+3. Implement pattern grid rendering
+4. Implement step editor popup
+5. Implement group operations
+6. Test in browser against running Groovebox
+
+### Step 3: Small targeted fixes (AFTER VALIDATION)
+
+Only if validation reveals real issues:
+
+1. Remove unused A01/Z99 naming helpers from `settingsStore.cpp`
+2. Extract pattern name utilities if needed by other modules
+3. Optimize redraw if unnecessary TFT writes are detected
+
+### Step 4: Audio refinements (LATER)
+
+After proving stability:
+
+1. Track gain staging if mixing is unbalanced
+2. Limiter tuning if distortion issues appear
+3. Sample start fade if clicking on trigger is unacceptable
+
+---
+
+## 14. Overall Assessment
+
+The codebase at v1.4.5 represents a solid, production-ready baseline for an ESP32-S3 drum machine.
+
+**Strengths:**
+
+- Architecture is sound: clear separation, proper task isolation, realtime safety enforced
+- Web API is complete and well-designed, following REST conventions
+- SPA specification is detailed and implementable
+- Storage model is proven on hardware (based on previous reports)
+- Audio quality is good with proven improvements
+- Code is modular and maintainable
+
+**Action items:**
+
+1. **Deploy to hardware and validate** — this is the critical path
+2. **Implement SPA frontend** — API is ready, UI is specified
+3. **Fix any issues discovered in validation** — prioritize bugs over refactoring
+4. **Merge any validated improvements** — keep CI/CD clean and fast
+
+**Overall direction:**
+
+Stop adding features temporarily. Focus on proving that all current functionality works correctly on real hardware. The project is architecturally mature and ready for this validation phase.
+
+The next highest-value work is not more refactoring. It is verification that users can actually use this instrument reliably.
