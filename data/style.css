@@ -290,11 +290,13 @@ html, body {
   font-weight: bold;
 }
 
-/* Playhead */
+/* Playhead (also at the bottom of this file)*/
 .step-playhead {
-  background-color: var(--playhead);
-  color: #000;
+  background-color: #111827 !important;
+  color: #ffffff !important;
   font-weight: bold;
+  outline: 2px solid #facc15;
+  outline-offset: -2px;
 }
 
 /* Cursor */
@@ -564,4 +566,30 @@ html, body {
   to {
     transform: rotate(360deg);
   }
+}
+
+.header-info,
+.active-group,
+.active-samples {
+  color: #000000;
+  font-weight: bold;
+}
+
+.track-row.playing-track .track-name {
+  background-color: #2563eb;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.step.playing-step {
+  outline: 3px solid #000000;
+  outline-offset: -3px;
+}
+
+.step-playhead {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: bold !important;
+  outline: 3px solid #ffcc00 !important;
+  outline-offset: -3px !important;
 }

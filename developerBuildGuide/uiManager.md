@@ -311,11 +311,6 @@ Names are stored in the current pattern JSON and synchronized on load/save.
 
 7. **Chain slot names sync.** After loading a pattern group, refresh `chainSlotNames[]` from sequencer state so UI always displays correct names.
 
----
-
-[⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)
-
-
 ## Groovebox Control Behavior
 
 - KEY0 medium press in Groovebox PLAY/STOP opens the same Step popup as encoder medium press.
@@ -323,3 +318,7 @@ Names are stored in the current pattern JSON and synchronized on load/save.
 - In track edit mode, encoder medium press opens the Step popup. The popup title should be `Step`, not `Edit`.
 - The former `MUTE` popup item is now `STEP` / STEP ON/OFF. STEP OFF calls the step-level mute path, not the track mute path.
 - Pattern dirty state must be set whenever STEP ON/OFF, Track Mute, velocity, pitch, decay, probability, trigger, or chain settings are changed.
+
+---
+
+[⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)

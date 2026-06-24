@@ -410,11 +410,10 @@ Not minified. This uses slightly more SD space but aids manual editing and debug
 
 7. **SD card errors logged.** IO errors return false and log to boot log. Device remains playable, just can't save/load.
 
----
-
-[⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)
-
-
 ## Step Mute Storage
 
 Each step stores its own `mute` boolean. This field is independent from the track-level `mute` flag. Existing pattern files that do not contain the per-step `mute` field should load with `mute=false` for every step. New pattern files should save the field so STEP OFF states survive reloads.
+
+---
+
+[⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)

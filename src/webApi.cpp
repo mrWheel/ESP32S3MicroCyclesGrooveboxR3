@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-24 - 12:48 ***/
+/*** Last Changed: 2026-06-24 - 17:51 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -73,9 +73,9 @@ static void buildPatternJson(JsonDocument& doc, uint8_t slotIndex)
   doc["name"] = slotIndexToPatternName(slotIndex);
   doc["bpm"] = patternData.bpm;
   doc["swing"] = patternData.swingPercent;
-  doc["chainEnabled"] = patternData.chainEnabled;
+  doc["chainEnabled"] = uiManagerGetPatternChainEnabledForSlot(slotIndex);
   doc["chainLength"] = patternData.chainLength;
-  doc["chainTarget"] = patternData.chainTarget;
+  doc["chainTarget"] = uiManagerGetPatternChainTargetForSlot(slotIndex);
 
   JsonArray tracksArray = doc["tracks"].to<JsonArray>();
 
@@ -175,6 +175,8 @@ static void handleStatusRequest()
   doc["bpm"] = view.bpm;
   doc["swing"] = view.swingPercent;
   doc["currentStep"] = view.currentStep;
+  doc["activePatternIndex"] = view.activePatternIndex;
+  doc["playingPatternIndex"] = view.playingPatternIndex;
   doc["selectedTrack"] = view.selectedTrack;
   doc["selectedStep"] = view.cursorStep;
   doc["patternGroupDirty"] = uiManagerIsPatternGroupDirty();

@@ -1,33 +1,10 @@
 # ESP32S3 MicroCycles Groovebox R3 — Developer Build Guide
 
-**Current firmware version:** `v1.3.9`  
+**Current firmware version:** `v1.4.5`  
 **Hardware platform:** `TFT_LCD_Display_EC11` with ESP32-S3 piggy-back board  
 **Target board class:** ESP32-S3 N8R8, native USB, external I2S DAC, ST7789 TFT, SD card over dedicated SPI
 
 This guide is the main developer document for rebuilding a compatible Groovebox from zero. It describes the hardware, firmware architecture, runtime model, storage model, build environment, and the role of every `.cpp` source file.
----
-
-## Source File Reference
-
-| File | Purpose |
-|------|---------|
-| [main.md](main.md#src-main-cpp) | Firmware entry point, task orchestration, boot order |
-| [DisplayDriverClass.md](DisplayDriverClass.md) | TFT driver, text rendering, UI layout engine |
-| [InputClass.md](InputClass.md) | Encoder and button input handling |
-| [WiFiManagerExtClass.md](WiFiManagerExtClass.md) | WiFiManager wrapper and captive portal |
-| [webServerManager.md](webServerManager.md) | HTTP server foundation for future SPA/API access |
-| [audioEngine.md](audioEngine.md) | I2S output, voice pool, synthesis, mixing |
-| [sampleManager.md](sampleManager.md) | SD card, WAV loading, memory allocation |
-| [sequencer.md](sequencer.md) | Pattern sequencing, step timing, BPM control |
-| [settingsStore.md](settingsStore.md) | NVS/LittleFS persistence, JSON pattern I/O |
-| [systemManager.md](systemManager.md) | WiFi lifecycle, NVS reconnect, system commands |
-| [uiManager.md](uiManager.md) | UI state machine, input routing, screen dispatch |
-| [uiGrooveboxScreen.md](uiGrooveboxScreen.md) | Sequencer screen layout and rendering |
-| [uiSystemSettingsMenu.md](uiSystemSettingsMenu.md) | System settings menu (theme, rotation, etc.) |
-| [uiCardStorageMenu.md](uiCardStorageMenu.md) | Card storage menu (save/load/copy/etc.) |
-| [uiCardStorageActions.md](uiCardStorageActions.md) | Pattern group I/O delegation |
-| [uiPatternGroupInput.md](uiPatternGroupInput.md) | Text input for pattern group names |
-| [uiSequencerInput.md](uiSequencerInput.md) | Common UI list navigation utilities |
 
 ---
 
@@ -52,7 +29,33 @@ This guide is the main developer document for rebuilding a compatible Groovebox 
 - [17. Audio Architecture](#17-audio-architecture)
 - [18. Development Rules](#18-development-rules)
 - [19. Building From Zero](#19-building-from-zero)
-- [20. Source File Reference](#20-source-file-reference)
+- [20. SPA GUI Design](SPAdesign.md)
+- [21. Source File Reference](#21-source-file-reference)
+
+---
+
+## Source File Reference
+
+| File | Purpose |
+|------|---------|
+| [main.md](main.md#src-main-cpp) | Firmware entry point, task orchestration, boot order |
+| [DisplayDriverClass.md](DisplayDriverClass.md) | TFT driver, text rendering, UI layout engine |
+| [InputClass.md](InputClass.md) | Encoder and button input handling |
+| [WiFiManagerExtClass.md](WiFiManagerExtClass.md) | WiFiManager wrapper and captive portal |
+| [webServerManager.md](webServerManager.md) | HTTP server foundation for future SPA/API access |
+| [webApi.md](webApi.md) | REST API endpoints for pattern, sequencer, and device status |
+| [audioEngine.md](audioEngine.md) | I2S output, voice pool, synthesis, mixing |
+| [sampleManager.md](sampleManager.md) | SD card, WAV loading, memory allocation |
+| [sequencer.md](sequencer.md) | Pattern sequencing, step timing, BPM control |
+| [settingsStore.md](settingsStore.md) | NVS/LittleFS persistence, JSON pattern I/O |
+| [systemManager.md](systemManager.md) | WiFi lifecycle, NVS reconnect, system commands |
+| [uiManager.md](uiManager.md) | UI state machine, input routing, screen dispatch |
+| [uiGrooveboxScreen.md](uiGrooveboxScreen.md) | Sequencer screen layout and rendering |
+| [uiSystemSettingsMenu.md](uiSystemSettingsMenu.md) | System settings menu (theme, rotation, etc.) |
+| [uiCardStorageMenu.md](uiCardStorageMenu.md) | Card storage menu (save/load/copy/etc.) |
+| [uiCardStorageActions.md](uiCardStorageActions.md) | Pattern group I/O delegation |
+| [uiPatternGroupInput.md](uiPatternGroupInput.md) | Text input for pattern group names |
+| [uiSequencerInput.md](uiSequencerInput.md) | Common UI list navigation utilities |
 
 ---
 

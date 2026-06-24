@@ -2,13 +2,7 @@
 
 **Purpose:** Sample playback with sample-accurate pitch/pan/decay control, realtime voice mixing, gain processing, and I2S stereo DMA output to external DAC.
 
-[Back](developerBuildGuide.md)
-
 ---
-
-## Purpose
-
-This file owns sample playback, voice mixing, gain handling, limiter/headroom, optional test tone and I2S DMA output.
 
 ---
 
@@ -96,4 +90,4 @@ Copies runtime audio diagnostics.
 
 ---
 
-[UP](developerBuildGuide.md) | [README](../README.md)
+[⬆ UP](developerBuildGuide.md#20-source-file-reference) | [📖 README](../README.md#)

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-22 - 21:09 ***/
+/*** Last Changed: 2026-06-24 - 17:51 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -20,7 +20,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v1.4.4";
+const char* PROG_VERSION = "v1.4.5";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";

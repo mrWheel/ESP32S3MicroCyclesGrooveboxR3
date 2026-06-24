@@ -9,7 +9,7 @@
 ## Responsibilities
 
 ```
-1. Define PROG_VERSION (currently "v1.3.9")
+1. Define PROG_VERSION (currently "v1.4.5")
 2. Initialize Serial for debugging (115200 baud)
 3. Log pin mapping and check for GPIO conflicts
 4. Load runtime settings from NVS/LittleFS
@@ -34,7 +34,7 @@
 **Version definition:**
 
 ```cpp
-const char* PROG_VERSION = "v1.3.9";
+const char* PROG_VERSION = "v1.4.5";
 ```
 
 Located at the top of the file. Update this before each firmware release.

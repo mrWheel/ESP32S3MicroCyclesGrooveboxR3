@@ -2,8 +2,6 @@
 
 **Purpose:** Own the lightweight HTTP server used as the foundation for a future SPA control surface. The current implementation exposes minimal test endpoints, starts only when WiFi is connected, and avoids conflicting with the WiFiManager captive portal.
 
-[Back](developerBuildGuide.md)
-
 ---
 
 ## Responsibilities
@@ -60,7 +58,7 @@ Returns minimal JSON for future SPA integration:
 ```json
 {
   "device": "ESP32-S3 MicroCycles Groovebox",
-  "version": "v1.3.9",
+  "version": "v1.4.5",
   "ip": "192.168.12.83",
   "rssi": -55
 }
@@ -162,6 +160,7 @@ else:
 ---
 
 ## Interaction With Other Modules
+
 
 - `systemManager.cpp` connects WiFi using credentials stored in ESP32 NVS and reports portal state.
 - `main.cpp` calls `webServerManagerUpdate(systemManagerIsWifiPortalActive())` from `SystemTask`.

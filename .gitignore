@@ -5,4 +5,5 @@
 .vscode/launch.json
 .vscode/ipch
 .DS_Store
+.zip
 __pycache__

@@ -19,6 +19,12 @@ const state = {
   selectedGroupForLoad : "",
   editStepsEnabled : true,
   busy : false,
+  lastScrollPatternIndex : -1,
+  lastScrollStepIndex : -1,
+  lastPatternSyncMs : 0,
+  visiblePatternMiddleIndex : 1,
+  visiblePatternRightIndex : 2,
+  visiblePatternWindowReady : false,
 };
 
 // Track names
@@ -34,7 +40,8 @@ document.addEventListener("DOMContentLoaded", async function() {
 
   await loadInitialFirmwareState();
 
-  statusInterval = setInterval(updateStatus, 1000);
+  statusInterval = setInterval(updateGuiSync, 1000);
+  playheadInterval = setInterval(updatePlayhead, 100);
 });
 
 async function loadInitialFirmwareState()
@@ -68,6 +75,7 @@ async function updateActiveGroupFromFirmware()
   }
   catch (e)
   {
+    hideBusy();
     console.error("Active group update failed:", e);
   }
 
@@ -282,16 +290,15 @@ async function updateStatus()
 
       // Update transport UI
       updateTransportUI(data);
-
-      // Start playhead polling if playing
-      if (data.playing && !playheadInterval)
+      if (data.playingPatternIndex !== undefined)
       {
-        playheadInterval = setInterval(updatePlayhead, 250);
+        state.status.playingPatternIndex = data.playingPatternIndex;
+        state.playingPatternIndex = data.playingPatternIndex;
       }
-      else if (!data.playing && playheadInterval)
+
+      if (data.currentStep !== undefined)
       {
-        clearInterval(playheadInterval);
-        playheadInterval = null;
+        state.status.currentStep = data.currentStep;
       }
 
       // Load patterns if group changed
@@ -305,10 +312,49 @@ async function updateStatus()
   }
   catch (e)
   {
+    hideBusy();
     console.error("Status update failed:", e);
   }
 
 } //  updateStatus()
+
+async function updateTransport()
+{
+  try
+  {
+    const res = await fetch("/api/transport");
+    const data = await res.json();
+
+    if (!data.ok)
+    {
+      return;
+    }
+
+    updateTransportUI(data);
+  }
+  catch (e)
+  {
+    console.error("Transport update failed:", e);
+  }
+
+} // updateTransport()
+
+async function updateGuiSync()
+{
+  await updateStatus();
+  await updateTransport();
+
+  const nowMs = Date.now();
+
+if (!state.busy && !state.stepEditorOpen && !state.status.playing &&
+    (nowMs - state.lastPatternSyncMs) > 2500)
+  {
+    state.lastPatternSyncMs = nowMs;
+    await updatePatterns();
+  }
+
+} // updateGuiSync()
+
 
 function updateTransportUI(data)
 {
@@ -319,19 +365,28 @@ function updateTransportUI(data)
 
 } // updateTransportUI()
 
+function normalizePatternIndex(patternIndex)
+{
+  return patternIndex;
+
+} // normalizePatternIndex()
+
 async function updatePlayhead()
 {
   try
   {
     const res = await fetch("/api/sequencer/playhead");
     const data = await res.json();
+
     if (data.ok)
     {
       state.status.currentStep = data.currentStep;
-      state.status.activePatternIndex = data.activePatternIndex;
-      state.status.playingPatternIndex = data.playingPatternIndex;
+      state.status.activePatternIndex = normalizePatternIndex(data.activePatternIndex);
+      state.status.playingPatternIndex = normalizePatternIndex(data.playingPatternIndex);
+      state.status.playing = true;
 
-      // Update playhead visual
+      state.playingPatternIndex = state.status.playingPatternIndex;
+
       updateVisiblePatternWindow();
       renderGrid();
     }
@@ -340,6 +395,7 @@ async function updatePlayhead()
   {
     console.error("Playhead update failed:", e);
   }
+
 } // updatePlayhead()
 
 async function updateGroups()
@@ -395,12 +451,18 @@ async function updatePatterns()
       }
 
       state.activePatternIndex = data.activePatternIndex || 0;
-      state.visiblePatternStartIndex = 0;
+      state.visiblePatternWindowReady = false;
+      if (!state.status || !state.status.playing)
+      {
+        state.visiblePatternStartIndex = 0;
+      }
+
       renderGrid();
     }
   }
   catch (e)
   {
+    hideBusy();
     console.error("Patterns update failed:", e);
   }
 } // updatePatterns()
@@ -606,6 +668,9 @@ async function selectGroupToLoad(groupName)
 
     await updatePatterns();
     await updateStatus();
+    await updateTransport();
+
+    document.getElementById("activeGroup").textContent = "Group: " + groupName;
 
     hideBusy();
   }
@@ -868,12 +933,16 @@ async function acceptNewGroupAction()
       return;
     }
 
+    showBusy("Load " + groupName + "...");
+
     state.activeGroup = groupName;
     state.visiblePatternStartIndex = 0;
 
     await updateGroups();
     await updatePatterns();
     await updateStatus();
+
+    document.getElementById("activeGroup").textContent = "Group: " + groupName;
 
     hideBusy();
   }
@@ -898,6 +967,8 @@ async function acceptRenameGroupAction()
 
   try
   {
+    hideActionPopup();
+    showBusy("Renaming " + fromName + "...");
     const res = await fetch("/api/groups/rename", {
       method : "POST",
       headers : {"Content-Type" : "application/json"},
@@ -914,9 +985,10 @@ async function acceptRenameGroupAction()
 
     hideActionPopup();
 
-    if (state.activeGroup === fromName)
+    if (state.activeGroup === fromName) 
     {
       state.activeGroup = toName;
+      document.getElementById("activeGroup").textContent = "Group: " + toName;
     }
 
     await updateGroups();
@@ -925,6 +997,7 @@ async function acceptRenameGroupAction()
   }
   catch (e)
   {
+    hideBusy();
     showActionMessage("Rename Group", "Failed: " + e);
   }
 
@@ -943,6 +1016,8 @@ async function acceptCopyGroupAction()
 
   try
   {
+    hideActionPopup();
+    showBusy("Copying " + fromName + "...");
     const res = await fetch("/api/groups/copy", {
       method : "POST",
       headers : {"Content-Type" : "application/json"},
@@ -960,9 +1035,11 @@ async function acceptCopyGroupAction()
     hideActionPopup();
 
     await updateGroups();
+    hideBusy();
   }
   catch (e)
   {
+    hideBusy();
     showActionMessage("Copy Group", "Failed: " + e);
   }
 
@@ -1035,12 +1112,37 @@ async function loadSampleSet(setName)
   }
   catch (e)
   {
+    hideBusy();
     alert("Load failed: " + e);
   }
 
 } // loadSampleSet()
 
 // ========== PATTERN GRID RENDERING ==========
+
+function getNextPatternIndex(patternIndex)
+{
+  if (state.patterns.length === 0 || patternIndex < 0 || patternIndex >= state.patterns.length)
+  {
+    return 0;
+  }
+
+  const pattern = state.patterns[patternIndex];
+
+  if (pattern.chainEnabled && pattern.chainTarget && pattern.chainTarget.length > 0)
+  {
+    for (let index = 0; index < state.patterns.length; index++)
+    {
+      if (state.patterns[index].name === pattern.chainTarget)
+      {
+        return index;
+      }
+    }
+  }
+
+  return (patternIndex + 1) % state.patterns.length;
+
+} // getNextPatternIndex()
 
 function updateVisiblePatternWindow()
 {
@@ -1049,15 +1151,24 @@ function updateVisiblePatternWindow()
     return;
   }
 
-  const totalPatterns = state.patterns.length;
   const playingPatternIndex = state.status.playingPatternIndex || 0;
-  const currentStep = state.status.currentStep || 0;
-  const middlePatternIndex = (state.visiblePatternStartIndex + 1) % totalPatterns;
 
-  if (playingPatternIndex === middlePatternIndex && currentStep === 15)
+  if (!state.visiblePatternWindowReady)
   {
-    state.visiblePatternStartIndex = (state.visiblePatternStartIndex + 1) % totalPatterns;
+    state.visiblePatternStartIndex = playingPatternIndex;
+    state.visiblePatternMiddleIndex = getNextPatternIndex(state.visiblePatternStartIndex);
+    state.visiblePatternRightIndex = getNextPatternIndex(state.visiblePatternMiddleIndex);
+    state.visiblePatternWindowReady = true;
+    return;
   }
+
+  if (playingPatternIndex === state.visiblePatternRightIndex)
+  {
+    state.visiblePatternStartIndex = state.visiblePatternMiddleIndex;
+    state.visiblePatternMiddleIndex = state.visiblePatternRightIndex;
+    state.visiblePatternRightIndex = getNextPatternIndex(state.visiblePatternMiddleIndex);
+  }
+
 } // updateVisiblePatternWindow()
 
 function renderGrid()
@@ -1075,14 +1186,20 @@ function renderGrid()
   const visiblePatterns = [];
 
   // Collect 3 visible patterns
-  for (let p = 0; p < 3; p++)
-  {
-    const patIdx = (state.visiblePatternStartIndex + p) % totalPatterns;
-    if (patIdx < state.patterns.length)
-    {
-      visiblePatterns.push({index : patIdx, data : state.patterns[patIdx]});
-    }
-  }
+  visiblePatterns.push({
+    index : state.visiblePatternStartIndex,
+    data : state.patterns[state.visiblePatternStartIndex]
+  });
+
+  visiblePatterns.push({
+    index : state.visiblePatternMiddleIndex,
+    data : state.patterns[state.visiblePatternMiddleIndex]
+  });
+
+  visiblePatterns.push({
+    index : state.visiblePatternRightIndex,
+    data : state.patterns[state.visiblePatternRightIndex]
+  });
 
   // Header row with pattern names
   const headerRow = document.createElement("tr");
@@ -1300,6 +1417,7 @@ async function closeStepEditor()
       }
       catch (e)
       {
+        hideBusy();
         alert("Update failed: " + e);
       }
     }
