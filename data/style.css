@@ -498,3 +498,70 @@ html, body {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+.edit-steps-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--grid-border);
+  background-color: #edf2f7;
+  color: var(--fg-color);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.group-list-button:hover,
+.delete-group-button:hover {
+  background-color: #dbeafe;
+}
+
+.popup-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid var(--grid-border);
+  padding-top: 8px;
+}
+
+.busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(31, 41, 51, 0.25);
+}
+
+.busy-box {
+  min-width: 220px;
+  padding: 18px;
+  background-color: #fdfcf7;
+  color: #1f2933;
+  border: 2px solid #303030;
+  box-shadow: 6px 6px 18px rgba(0, 0, 0, 0.35);
+  text-align: center;
+  font-weight: bold;
+}
+
+.busy-spinner {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 10px auto;
+  border: 5px solid #cbd5e1;
+  border-top: 5px solid #2563eb;
+  border-radius: 50%;
+  animation: busySpin 0.8s linear infinite;
+}
+
+@keyframes busySpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

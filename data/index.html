@@ -31,6 +31,10 @@
         <button class="btn btn-play" id="btnPlay" title="Play">PLAY</button>
         <button class="btn btn-stop" id="btnStop" title="Stop">STOP</button>
         <button class="btn btn-toggle" id="btnToggle" title="Toggle">TOGGLE</button>
+        <label class="edit-steps-toggle">
+          <input type="checkbox" id="toggleEditSteps" checked>
+          EDIT STEPS
+        </label>
       </div>
       <div class="transport-sliders">
         <div class="slider-group">
@@ -72,13 +76,16 @@
       </table>
     </div>
 
-    <!-- Group List Panel -->
+    <!-- Group List Popup -->
     <div class="group-list-panel" id="groupListPanel" style="display: none;">
       <div class="step-editor-header">
         <h3>Load Group</h3>
-        <button class="btn btn-small" id="btnCloseGroupList">CLOSE</button>
       </div>
       <div id="groupListItems" class="group-list-items"></div>
+      <div class="popup-footer">
+        <button class="btn btn-small" id="btnCancelGroupList">CANCEL</button>
+        <button class="btn btn-small" id="btnAcceptGroupList">ACCEPT</button>
+      </div>
     </div>
 
     <!-- Action Popup -->
@@ -138,6 +145,14 @@
 
   </div><!-- container -->
 
+  <!-- Busy Overlay -->
+  <div class="busy-overlay" id="busyOverlay" style="display: none;">
+    <div class="busy-box">
+      <div class="busy-spinner"></div>
+      <div id="busyText">Working...</div>
+    </div>
+  </div>
+  
   <script src="/app.js"></script>
 </body>
 </html>

@@ -16,6 +16,9 @@ const state = {
   dirty : false,
   actionPopupMode : "",
   actionPopupValue : "",
+  selectedGroupForLoad : "",
+  editStepsEnabled : true,
+  busy : false,
 };
 
 // Track names
@@ -104,12 +107,28 @@ async function ensureActiveGroupIsLoaded()
 function initializeEventHandlers()
 {
   // Transport buttons
-  document.getElementById("btnPlay").addEventListener(
-      "click", () => { fetch("/api/transport/play", {method : "POST"}); });
-  document.getElementById("btnStop").addEventListener(
-      "click", () => { fetch("/api/transport/stop", {method : "POST"}); });
-  document.getElementById("btnToggle")
-      .addEventListener("click", () => { fetch("/api/transport/toggle", {method : "POST"}); });
+  document.getElementById("btnPlay").addEventListener("click", function() {
+    closeAllPopups();
+    fetch("/api/transport/play", {method : "POST"});
+  });
+
+  document.getElementById("btnStop").addEventListener("click", function() {
+    closeAllPopups();
+    fetch("/api/transport/stop", {method : "POST"});
+  });
+
+  document.getElementById("btnToggle").addEventListener("click", function() {
+    closeAllPopups();
+    fetch("/api/transport/toggle", {method : "POST"});
+  });
+
+  document.getElementById("toggleEditSteps").addEventListener("change", function() {
+    state.editStepsEnabled = this.checked;
+
+    if (!state.editStepsEnabled) {
+      closeStepEditor();
+    }
+  });
 
   // BPM and Swing controls
   const sliderBpm = document.getElementById("sliderBpm");
@@ -142,7 +161,8 @@ function initializeEventHandlers()
   document.getElementById("btnRenameGroup").addEventListener("click", renameGroup);
   document.getElementById("btnCopyGroup").addEventListener("click", copyGroup);
   document.getElementById("btnDeleteGroup").addEventListener("click", deleteGroup);
-  document.getElementById("btnCloseGroupList").addEventListener("click", hideGroupListWindow);
+  document.getElementById("btnCancelGroupList").addEventListener("click", hideGroupListWindow);
+  document.getElementById("btnAcceptGroupList").addEventListener("click", acceptGroupListSelection);
   document.getElementById("btnActionCancel").addEventListener("click", hideActionPopup);
   document.getElementById("btnActionAccept").addEventListener("click", acceptActionPopup);
 
@@ -202,6 +222,33 @@ function linkSliderAndInput(sliderId, inputId, onChangeCallback)
   });
 
 } // linkSliderAndInput()
+
+function closeAllPopups()
+{
+  hideGroupListWindow();
+  hideActionPopup();
+
+  if (state.stepEditorOpen)
+  {
+    closeStepEditor();
+  }
+
+} // closeAllPopups()
+
+function showBusy(message)
+{
+  state.busy = true;
+  document.getElementById("busyText").textContent = message;
+  document.getElementById("busyOverlay").style.display = "flex";
+
+} // showBusy()
+
+function hideBusy()
+{
+  state.busy = false;
+  document.getElementById("busyOverlay").style.display = "none";
+
+} // hideBusy()
 
 // ========== API CALLS ==========
 
@@ -424,33 +471,42 @@ async function setSwing(swing)
 
 async function saveGroup()
 {
+  closeAllPopups();
+  showBusy("Saving group...");
+
   try
   {
     const res = await fetch("/api/groups/save", {method : "POST"});
     const data = await res.json();
+
+    hideBusy();
+
     if (data.ok)
     {
-      alert("Group saved!");
+      showActionMessage("Save Group", "Group saved");
       await updateStatus();
+      return;
     }
-    else
-    {
-      alert("Error: " + data.error);
-    }
+
+    showActionMessage("Save Group", "Error: " + data.error);
   }
   catch (e)
   {
-    alert("Save failed: " + e);
+    hideBusy();
+    showActionMessage("Save Group", "Save failed: " + e);
   }
+
 } // saveGroup()
 
 async function loadGroup()
 {
+  closeAllPopups();
+
   const groups = await updateGroups();
 
   if (!groups || groups.length === 0)
   {
-    alert("No pattern groups found on SD card");
+    showActionMessage("Load Group", "No pattern groups found on SD card");
     return;
   }
 
@@ -465,6 +521,8 @@ function showGroupListWindow(groups)
   const loadButton = document.getElementById("btnLoadGroup");
   const buttonRect = loadButton.getBoundingClientRect();
   const activeGroupName = state.activeGroup || (state.status ? state.status.activeGroup : "");
+
+  state.selectedGroupForLoad = "";
 
   list.innerHTML = "";
 
@@ -484,8 +542,15 @@ function showGroupListWindow(groups)
       button.textContent = "  " + groupName;
     }
 
-    button.addEventListener("click", async function() {
-      await selectGroupToLoad(groupName);
+    button.addEventListener("click", function() {
+      state.selectedGroupForLoad = groupName;
+
+      const allButtons = list.querySelectorAll("button");
+      allButtons.forEach(function(item) {
+        item.classList.remove("active-group-button");
+      });
+
+      button.classList.add("active-group-button");
     });
 
     list.appendChild(button);
@@ -502,8 +567,23 @@ function hideGroupListWindow()
   document.getElementById("groupListPanel").style.display = "none";
 } // hideGroupListWindow()
 
+async function acceptGroupListSelection()
+{
+  if (!state.selectedGroupForLoad)
+  {
+    showActionMessage("Load Group", "Select a group first");
+    return;
+  }
+
+  await selectGroupToLoad(state.selectedGroupForLoad);
+
+} // acceptGroupListSelection()
+
 async function selectGroupToLoad(groupName)
 {
+  hideGroupListWindow();
+  showBusy("Loading " + groupName + "...");
+
   try
   {
     const res = await fetch("/api/groups/load", {
@@ -516,22 +596,25 @@ async function selectGroupToLoad(groupName)
 
     if (!data.ok)
     {
-      alert("Error: " + data.error);
+      hideBusy();
+      showActionMessage("Load Group", "Error: " + data.error);
       return;
     }
-
-    hideGroupListWindow();
 
     state.activeGroup = groupName;
     state.visiblePatternStartIndex = 0;
 
     await updatePatterns();
     await updateStatus();
+
+    hideBusy();
   }
   catch (e)
   {
-    alert("Load failed: " + e);
+    hideBusy();
+    showActionMessage("Load Group", "Load failed: " + e);
   }
+
 } // selectGroupToLoad()
 
 async function newGroup()
@@ -765,6 +848,9 @@ async function acceptNewGroupAction()
     return;
   }
 
+  hideActionPopup();
+  showBusy("Creating " + groupName + "...");
+
   try
   {
     const res = await fetch("/api/groups/new", {
@@ -777,11 +863,10 @@ async function acceptNewGroupAction()
 
     if (!data.ok)
     {
+      hideBusy();
       showActionMessage("New Group", "Error: " + data.error);
       return;
     }
-
-    hideActionPopup();
 
     state.activeGroup = groupName;
     state.visiblePatternStartIndex = 0;
@@ -789,9 +874,12 @@ async function acceptNewGroupAction()
     await updateGroups();
     await updatePatterns();
     await updateStatus();
+
+    hideBusy();
   }
   catch (e)
   {
+    hideBusy();
     showActionMessage("New Group", "Failed: " + e);
   }
 
@@ -890,6 +978,9 @@ async function acceptDeleteGroupAction()
     return;
   }
 
+  hideActionPopup();
+  showBusy("Deleting " + groupName + "...");
+
   try
   {
     const res = await fetch("/api/groups/delete", {
@@ -902,16 +993,19 @@ async function acceptDeleteGroupAction()
 
     if (!data.ok)
     {
+      hideBusy();
       showActionMessage("Delete Group", "Error: " + data.error);
       return;
     }
 
-    hideActionPopup();
-
     await updateGroups();
+    await updateStatus();
+
+    hideBusy();
   }
   catch (e)
   {
+    hideBusy();
     showActionMessage("Delete Group", "Failed: " + e);
   }
 
@@ -1069,7 +1163,10 @@ function renderGrid()
 
         // Open Step editor when hovering over a step.
         cell.addEventListener("mouseenter", function() {
-          selectStep(patIdx, trackIdx, stepIdx, cell);
+          if (state.editStepsEnabled)
+          {
+            selectStep(patIdx, trackIdx, stepIdx, cell);
+          }
         });
 
         row.appendChild(cell);

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 14:26 ***/
+/*** Last Changed: 2026-06-24 - 12:48 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -3564,3 +3564,18 @@ bool uiManagerSavePatternGroup()
 {
   return saveLoadedPatternGroupToCard();
 } //   uiManagerSavePatternGroup()
+
+//-- Return the physical display to the Groovebox screen after web actions.
+void uiManagerReturnToGrooveboxScreen()
+{
+  uiState.menuOpen = false;
+  uiState.tempoEditOpen = false;
+  uiState.editPopupOpen = false;
+  uiState.patternListOpen = false;
+  uiState.patternDeleteMode = false;
+  uiState.patternStatusOpen = false;
+  uiState.wifiManagerConfirmOpen = false;
+  uiState.eraseWifiConfirmOpen = false;
+  uiState.dirty = true;
+
+} //   uiManagerReturnToGrooveboxScreen()

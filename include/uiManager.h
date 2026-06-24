@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 14:26 ***/
+/*** Last Changed: 2026-06-24 - 12:48 ***/
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
@@ -39,5 +39,8 @@ bool uiManagerLoadPatternGroup(const String& groupName);
 
 //-- Save the active pattern group to SD card.
 bool uiManagerSavePatternGroup();
+
+//-- Return the physical display to the Groovebox screen after web actions.
+void uiManagerReturnToGrooveboxScreen();
 
 #endif

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-22 - 16:42 ***/
+/*** Last Changed: 2026-06-24 - 12:48 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -400,6 +400,8 @@ static void handleGroupsLoadRequest()
   response["groupName"] = groupName;
   response["patternCount"] = uiManagerGetLoadedPatternCount();
 
+  uiManagerReturnToGrooveboxScreen();
+
   sendJson(webServer, response);
 
 } //   handleGroupsLoadRequest()
@@ -422,14 +424,15 @@ static void handleGroupsSaveRequest()
     return;
   }
 
+  uiManagerReturnToGrooveboxScreen();
+
   sendOk(webServer);
 
 } //   handleGroupsSaveRequest()
 
-//-- POST /api/groups/new — create new pattern group with default p01
+//-- POST /api/groups/new — create new pattern group
 static void handleGroupsNewRequest()
 {
-
   if (!webServer.hasArg("plain"))
   {
     sendError(webServer, "Missing body");
@@ -438,6 +441,7 @@ static void handleGroupsNewRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
+
   if (error || !doc["name"].is<const char*>())
   {
     sendError(webServer, "Invalid JSON or missing name");
@@ -445,6 +449,7 @@ static void handleGroupsNewRequest()
   }
 
   String groupName = doc["name"].as<String>();
+  String activeGroup = settingsStoreGetActivePatternGroup();
 
   if (!sampleManagerIsSdCardReady())
   {
@@ -452,8 +457,13 @@ static void handleGroupsNewRequest()
     return;
   }
 
-  PatternData emptyPattern;
-  if (!settingsStoreSavePatternToCard(groupName, "p01", emptyPattern))
+  if (activeGroup.isEmpty())
+  {
+    sendError(webServer, "No active group to copy");
+    return;
+  }
+
+  if (!settingsStoreCopyPatternGroupOnCard(activeGroup, groupName))
   {
     sendError(webServer, "Failed to create group");
     return;
@@ -464,6 +474,8 @@ static void handleGroupsNewRequest()
     sendError(webServer, "Failed to load new group");
     return;
   }
+
+  uiManagerReturnToGrooveboxScreen();
 
   sendOk(webServer);
 
@@ -508,6 +520,8 @@ static void handleGroupsRenameRequest()
     settingsStoreSetActivePatternGroup(toName);
   }
 
+  uiManagerReturnToGrooveboxScreen();
+
   sendOk(webServer);
 
 } //   handleGroupsRenameRequest()
@@ -544,6 +558,8 @@ static void handleGroupsCopyRequest()
     sendError(webServer, "Failed to copy group");
     return;
   }
+
+  uiManagerReturnToGrooveboxScreen();
 
   sendOk(webServer);
 
@@ -587,6 +603,8 @@ static void handleGroupsDeleteRequest()
     sendError(webServer, "Failed to delete group");
     return;
   }
+
+  uiManagerReturnToGrooveboxScreen();
 
   sendOk(webServer);
 
