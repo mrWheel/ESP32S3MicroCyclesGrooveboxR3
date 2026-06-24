@@ -1,4 +1,5 @@
-# ESP32S3 MicroCycles Groovebox R3 — Developer Build Guide
+# ESP32S3 MicroCycles Groovebox R3
+# Developer Build Guide
 
 **Current firmware version:** `v1.4.5`  
 **Hardware platform:** `TFT_LCD_Display_EC11` with ESP32-S3 piggy-back board  
