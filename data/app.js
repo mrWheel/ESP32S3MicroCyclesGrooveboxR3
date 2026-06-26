@@ -120,14 +120,25 @@ function initializeEventHandlers()
     fetch("/api/transport/play", {method : "POST"});
   });
 
+  document.getElementById("btnPause").addEventListener("click", async function() {
+    closeAllPopups();
+
+    if (state.status && state.status.paused)
+    {
+      await fetch("/api/transport/continue", {method : "POST"});
+    }
+    else
+    {
+      await fetch("/api/transport/pause", {method : "POST"});
+    }
+
+    await updateStatus();
+    await updateTransport();
+  });
+
   document.getElementById("btnStop").addEventListener("click", function() {
     closeAllPopups();
     fetch("/api/transport/stop", {method : "POST"});
-  });
-
-  document.getElementById("btnToggle").addEventListener("click", function() {
-    closeAllPopups();
-    fetch("/api/transport/toggle", {method : "POST"});
   });
 
   document.getElementById("toggleEditSteps").addEventListener("change", function() {
@@ -330,6 +341,32 @@ async function updateTransport()
       return;
     }
 
+    if (data.playing !== undefined)
+    {
+      state.status.playing = !!data.playing;
+    }
+
+    if (data.paused !== undefined)
+    {
+      state.status.paused = !!data.paused;
+    }
+
+    if (data.currentStep !== undefined)
+    {
+      state.status.currentStep = data.currentStep;
+    }
+
+    if (data.activePatternIndex !== undefined)
+    {
+      state.status.activePatternIndex = normalizePatternIndex(data.activePatternIndex);
+    }
+
+    if (data.playingPatternIndex !== undefined)
+    {
+      state.status.playingPatternIndex = normalizePatternIndex(data.playingPatternIndex);
+      state.playingPatternIndex = state.status.playingPatternIndex;
+    }
+
     updateTransportUI(data);
   }
   catch (e)
@@ -346,7 +383,8 @@ async function updateGuiSync()
 
   const nowMs = Date.now();
 
-if (!state.busy && !state.stepEditorOpen && !state.status.playing &&
+if (!state.busy && !state.stepEditorOpen && !state.status.playing && 
+     !state.status.paused &&
     (nowMs - state.lastPatternSyncMs) > 2500)
   {
     state.lastPatternSyncMs = nowMs;
@@ -358,10 +396,33 @@ if (!state.busy && !state.stepEditorOpen && !state.status.playing &&
 
 function updateTransportUI(data)
 {
-  document.getElementById("sliderBpm").value = data.bpm;
-  document.getElementById("inputBpm").value = data.bpm;
-  document.getElementById("sliderSwing").value = data.swing;
-  document.getElementById("inputSwing").value = data.swing;
+  if (data.bpm !== undefined)
+  {
+    document.getElementById("sliderBpm").value = data.bpm;
+    document.getElementById("inputBpm").value = data.bpm;
+  }
+
+  if (data.swing !== undefined)
+  {
+    document.getElementById("sliderSwing").value = data.swing;
+    document.getElementById("inputSwing").value = data.swing;
+  }
+
+  if (data.paused !== undefined)
+  {
+    const pauseButton = document.getElementById("btnPause");
+
+    if (data.paused)
+    {
+      pauseButton.textContent = "CONTINUE";
+      pauseButton.title = "Continue";
+    }
+    else
+    {
+      pauseButton.textContent = "PAUSE";
+      pauseButton.title = "Pause";
+    }
+  }
 
 } // updateTransportUI()
 
@@ -380,15 +441,40 @@ async function updatePlayhead()
 
     if (data.ok)
     {
+      const previousStep = state.status.currentStep;
+      const previousPlayingPatternIndex = state.status.playingPatternIndex;
+      const previousPaused = state.status.paused;
+
       state.status.currentStep = data.currentStep;
       state.status.activePatternIndex = normalizePatternIndex(data.activePatternIndex);
       state.status.playingPatternIndex = normalizePatternIndex(data.playingPatternIndex);
-      state.status.playing = true;
+
+      if (data.playing !== undefined)
+      {
+        state.status.playing = !!data.playing;
+      }
+
+      if (data.paused !== undefined)
+      {
+        state.status.paused = !!data.paused;
+      }
 
       state.playingPatternIndex = state.status.playingPatternIndex;
 
-      updateVisiblePatternWindow();
-      renderGrid();
+      updateTransportUI(state.status);
+
+      if (state.status.paused)
+      {
+        return;
+      }
+
+      if (previousStep !== state.status.currentStep ||
+          previousPlayingPatternIndex !== state.status.playingPatternIndex ||
+          previousPaused !== state.status.paused)
+      {
+        updateVisiblePatternWindow();
+        renderGrid();
+      }
     }
   }
   catch (e)
@@ -1162,10 +1248,12 @@ function updateVisiblePatternWindow()
     return;
   }
 
+  // Shift the visible window only after two full patterns.
+  // Example: p01|p02|p03 -> p03|p05|p04.
   if (playingPatternIndex === state.visiblePatternRightIndex)
   {
-    state.visiblePatternStartIndex = state.visiblePatternMiddleIndex;
-    state.visiblePatternMiddleIndex = state.visiblePatternRightIndex;
+    state.visiblePatternStartIndex = state.visiblePatternRightIndex;
+    state.visiblePatternMiddleIndex = getNextPatternIndex(state.visiblePatternStartIndex);
     state.visiblePatternRightIndex = getNextPatternIndex(state.visiblePatternMiddleIndex);
   }
 
@@ -1182,10 +1270,8 @@ function renderGrid()
     return;
   }
 
-  const totalPatterns = state.patterns.length;
   const visiblePatterns = [];
 
-  // Collect 3 visible patterns
   visiblePatterns.push({
     index : state.visiblePatternStartIndex,
     data : state.patterns[state.visiblePatternStartIndex]
@@ -1201,38 +1287,51 @@ function renderGrid()
     data : state.patterns[state.visiblePatternRightIndex]
   });
 
-  // Header row with pattern names
   const headerRow = document.createElement("tr");
   const headerCell = document.createElement("td");
+
   headerCell.textContent = "Track";
   headerCell.className = "track-name-cell";
   headerRow.appendChild(headerCell);
 
   for (let p = 0; p < visiblePatterns.length; p++)
   {
+    const patIdx = visiblePatterns[p].index;
+
     for (let s = 0; s < 16; s++)
     {
       const cell = document.createElement("td");
+      let classNames = [];
+
       cell.textContent = visiblePatterns[p].data ? visiblePatterns[p].data.name.substring(1) : "?";
+
+      if (state.status.playingPatternIndex === patIdx && state.status.currentStep === s)
+      {
+        classNames.push("step-header-playhead");
+      }
+
       if (s === 0 && p > 0)
-        cell.className = "pattern-separator";
+      {
+        classNames.push("pattern-separator");
+      }
+
+      cell.className = classNames.join(" ");
       headerRow.appendChild(cell);
     }
   }
+
   tbody.appendChild(headerRow);
 
-  // Data rows (one per track)
   for (let trackIdx = 0; trackIdx < 6; trackIdx++)
   {
     const row = document.createElement("tr");
 
-    // Track name cell
     const trackCell = document.createElement("td");
+
     trackCell.textContent = trackNames[trackIdx];
     trackCell.className = "track-name-cell";
     row.appendChild(trackCell);
 
-    // Steps for each visible pattern
     for (let p = 0; p < visiblePatterns.length; p++)
     {
       const patIdx = visiblePatterns[p].index;
@@ -1242,28 +1341,20 @@ function renderGrid()
       {
         const cell = document.createElement("td");
 
-        // Determine step state
-        let stepText = "-";
+        let stepText = "";
         let classNames = [];
 
         if (pattern && pattern.tracks && pattern.tracks[trackIdx] && pattern.tracks[trackIdx].steps)
         {
           const step = pattern.tracks[trackIdx].steps[stepIdx];
+
           if (step.trigger)
           {
-            stepText = step.mute ? "m" : "x";
+            stepText = step.mute ? "🔇" : "●";
             classNames.push(step.mute ? "step-muted" : "step-active");
           }
         }
 
-        // Check if this is playhead
-        const globalStepInWindow = p * 16 + stepIdx;
-        if (state.status.playingPatternIndex === patIdx && state.status.currentStep === stepIdx)
-        {
-          classNames.push("step-playhead");
-        }
-
-        // Check if this is cursor
         if (state.selectedPatternIndex === patIdx && state.selectedStepLocalIndex === stepIdx &&
             state.selectedTrackIndex === trackIdx)
         {
@@ -1278,11 +1369,14 @@ function renderGrid()
           cell.className += " pattern-separator";
         }
 
-        // Open Step editor when hovering over a step.
-        cell.addEventListener("mouseenter", function() {
+        cell.addEventListener("click", function() {
           if (state.editStepsEnabled)
           {
             selectStep(patIdx, trackIdx, stepIdx, cell);
+          }
+          else
+          {
+            toggleStepTrigger(patIdx, trackIdx, stepIdx);
           }
         });
 
@@ -1305,6 +1399,61 @@ function selectStep(patternIndex, trackIndex, stepIndex, anchorCell)
   renderGrid();
 
 } // selectStep()
+
+async function toggleStepTrigger(patternIndex, trackIndex, stepIndex)
+{
+  if (patternIndex >= state.patterns.length)
+  {
+    return;
+  }
+
+  const pattern = state.patterns[patternIndex];
+
+  if (!pattern.tracks || !pattern.tracks[trackIndex] || !pattern.tracks[trackIndex].steps)
+  {
+    return;
+  }
+
+  const step = pattern.tracks[trackIndex].steps[stepIndex];
+
+  const updatedStep = {
+    trigger : !step.trigger,
+    mute : step.mute,
+    velocity : step.velocity,
+    probability : step.probability,
+    lockEnabled : step.lockEnabled,
+    lockPitch : step.lockPitch,
+    lockDecay : step.lockDecay
+  };
+
+  try
+  {
+    const res = await fetch(
+        "/api/patterns/" + pattern.name + "/tracks/" + trackIndex + "/steps/" + stepIndex, {
+          method : "PUT",
+          headers : {"Content-Type" : "application/json"},
+          body : JSON.stringify(updatedStep)
+        });
+
+    const data = await res.json();
+
+    if (data.ok)
+    {
+      step.trigger = updatedStep.trigger;
+      renderGrid();
+    }
+    else
+    {
+      alert("Error: " + data.error);
+    }
+  }
+  catch (e)
+  {
+    hideBusy();
+    alert("Update failed: " + e);
+  }
+
+} // toggleStepTrigger()
 
 // ========== STEP EDITOR ==========
 

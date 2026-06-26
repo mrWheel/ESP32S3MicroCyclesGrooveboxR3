@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 13:52 ***/
+/*** Last Changed: 2026-06-26 - 15:17 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -224,28 +224,52 @@ static void handleTransportRequest()
 static void handleTransportPlayRequest()
 {
   SequencerView view;
+
   sequencerGetView(view);
 
-  if (!view.playing)
+  if (view.paused)
+  {
+    sequencerResumePlayback();
+  }
+  else if (!view.playing)
   {
     sequencerStartFromActivePattern();
   }
 
-  sendOk(*((WebServer*)nullptr)); // Placeholder for actual server reference
+  sendOk(webServer);
+
 } //   handleTransportPlayRequest()
 
 //-- POST /api/transport/stop — hard stop
 static void handleTransportStopRequest()
 {
   sequencerStopImmediately();
-  sendOk(*((WebServer*)nullptr));
+  sendOk(webServer);
+
 } //   handleTransportStopRequest()
+
+//-- POST /api/transport/pause — pause transport
+static void handleTransportPauseRequest()
+{
+  sequencerPausePlayback();
+  sendOk(webServer);
+
+} //   handleTransportPauseRequest()
+
+//-- POST /api/transport/continue — continue paused transport
+static void handleTransportContinueRequest()
+{
+  sequencerResumePlayback();
+  sendOk(webServer);
+
+} //   handleTransportContinueRequest()
 
 //-- POST /api/transport/toggle — toggle play/stop
 static void handleTransportToggleRequest()
 {
   sequencerTogglePlay();
-  sendOk(*((WebServer*)nullptr));
+  sendOk(webServer);
+
 } //   handleTransportToggleRequest()
 
 //-- POST /api/transport/bpm — set BPM
@@ -275,7 +299,7 @@ static void handleTransportBpmRequest()
     sequencerAdjustBpm(delta);
   }
 
-  sendOk(*((WebServer*)nullptr));
+  sendOk(webServer);
 
 } //   handleTransportBpmRequest()
 
@@ -1146,6 +1170,7 @@ static void handleSequencerPlayheadRequest()
   doc["bpm"] = view.bpm;
   doc["currentStep"] = view.currentStep;
   doc["playing"] = view.playing;
+  doc["paused"] = view.paused;
   doc["activePatternIndex"] = view.activePatternIndex;
   doc["playingPatternIndex"] = view.playingPatternIndex;
   doc["chainEnabled"] = view.chainEnabled;
@@ -1239,6 +1264,8 @@ void webApiRegisterRoutes(WebServer& server)
 
   webServer.on("/api/transport/play", HTTP_POST, handleTransportPlayRequest);
   webServer.on("/api/transport/stop", HTTP_POST, handleTransportStopRequest);
+  webServer.on("/api/transport/pause", HTTP_POST, handleTransportPauseRequest);
+  webServer.on("/api/transport/continue", HTTP_POST, handleTransportContinueRequest);
   webServer.on("/api/transport/toggle", HTTP_POST, handleTransportToggleRequest);
   webServer.on("/api/transport/bpm", HTTP_POST, handleTransportBpmRequest);
   webServer.on("/api/transport/swing", HTTP_POST, handleTransportSwingRequest);
