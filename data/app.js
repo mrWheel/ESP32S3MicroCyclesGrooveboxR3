@@ -14,6 +14,7 @@ const state = {
   stepEditorOpen : false,
   stepEditorDraft : {},
   dirty : false,
+  lastFirmwareDirty : false,
   actionPopupMode : "",
   actionPopupValue : "",
   selectedGroupForLoad : "",
@@ -383,9 +384,9 @@ async function updateGuiSync()
 
   const nowMs = Date.now();
 
-if (!state.busy && !state.stepEditorOpen && !state.status.playing && 
-     !state.status.paused &&
-    (nowMs - state.lastPatternSyncMs) > 2500)
+  if (!state.busy && !state.stepEditorOpen && !state.status.playing &&
+      !state.status.paused && state.status.patternGroupDirty &&
+      (nowMs - state.lastPatternSyncMs) > 1000)
   {
     state.lastPatternSyncMs = nowMs;
     await updatePatterns();

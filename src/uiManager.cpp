@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 13:52 ***/
+/*** Last Changed: 2026-06-26 - 15:38 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -150,6 +150,19 @@ static bool lastSequencerPlaying = false;
 static uint8_t lastSequencerActivePatternIndex = 0xFF;
 static bool sequencerScreenDrawn = false;
 static String lastSequencerFooterLine;
+//-- Request a full redraw of the physical UI.
+void uiManagerRequestRedraw()
+{
+  uiState.dirty = true;
+  lastSequencerStep = 0xFF;
+  lastSequencerCursor = 0xFF;
+  lastSequencerPlaying = false;
+  lastSequencerActivePatternIndex = 0xFF;
+  lastSequencerFooterLine = "";
+  sequencerScreenDrawn = false;
+
+} //   uiManagerRequestRedraw()
+
 static String patternScanBuffer[patternStoreMaxEntries];
 
 //-- Maximum item text length inside list rows (display width is 26 chars).
@@ -3571,9 +3584,32 @@ bool uiManagerGetPatternChainEnabledForSlot(uint8_t slotIndex)
 //
 // Load a pattern group from SD card into memory.
 //
+//
+// Load a pattern group from SD card into memory.
+//
 bool uiManagerLoadPatternGroup(const String& groupName)
 {
-  return loadCardPatternGroupIntoMemory(groupName, false);
+  if (!loadCardPatternGroupIntoMemory(groupName, false))
+  {
+    return false;
+  }
+
+  if (!settingsStoreSetActivePatternGroup(groupName))
+  {
+    showPatternStatus("NVS save failed\n" + groupName, 2500);
+    return false;
+  }
+
+  saveRuntimeSettingsFromCurrentState();
+
+  uiState.activePatternName = uiManagerGetPatternNameForSlot(0);
+  uiState.patternGroupDirty = false;
+  uiState.patternListNeedsRefresh = true;
+
+  uiManagerRequestRedraw();
+
+  return true;
+
 } //   uiManagerLoadPatternGroup()
 
 //

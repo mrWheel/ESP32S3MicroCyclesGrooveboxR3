@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 15:17 ***/
+/*** Last Changed: 2026-06-26 - 15:38 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -277,26 +277,30 @@ static void handleTransportBpmRequest()
 {
   if (!webServer.hasArg("plain"))
   {
-    sendError(*((WebServer*)nullptr), "Missing body");
+    sendError(webServer, "Missing body");
     return;
   }
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
+
   if (error || !doc["bpm"].is<uint16_t>())
   {
-    sendError(*((WebServer*)nullptr), "Invalid JSON or missing bpm");
+    sendError(webServer, "Invalid JSON or missing bpm");
     return;
   }
 
   uint16_t targetBpm = doc["bpm"];
   SequencerView view;
+
   sequencerGetView(view);
 
-  int delta = (int)targetBpm - (int)view.bpm;
+  int delta = static_cast<int>(targetBpm) - static_cast<int>(view.bpm);
+
   if (delta != 0)
   {
     sequencerAdjustBpm(delta);
+    uiManagerRequestRedraw();
   }
 
   sendOk(webServer);
@@ -306,7 +310,6 @@ static void handleTransportBpmRequest()
 //-- POST /api/transport/swing — set swing
 static void handleTransportSwingRequest()
 {
-
   if (!webServer.hasArg("plain"))
   {
     sendError(webServer, "Missing body");
@@ -315,6 +318,7 @@ static void handleTransportSwingRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
+
   if (error || !doc["swing"].is<uint8_t>())
   {
     sendError(webServer, "Invalid JSON or missing swing");
@@ -323,12 +327,15 @@ static void handleTransportSwingRequest()
 
   uint8_t targetSwing = doc["swing"];
   SequencerView view;
+
   sequencerGetView(view);
 
-  int delta = (int)targetSwing - (int)view.swingPercent;
+  int delta = static_cast<int>(targetSwing) - static_cast<int>(view.swingPercent);
+
   if (delta != 0)
   {
     sequencerAdjustSwing(delta);
+    uiManagerRequestRedraw();
   }
 
   sendOk(webServer);

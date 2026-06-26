@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 13:52 ***/
+/*** Last Changed: 2026-06-26 - 15:38 ***/
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
@@ -42,5 +42,8 @@ bool uiManagerSavePatternGroup();
 
 //-- Return the physical display to the Groovebox screen after web actions.
 void uiManagerReturnToGrooveboxScreen();
+
+//-- Request a full redraw of the physical UI.
+void uiManagerRequestRedraw();
 
 #endif
