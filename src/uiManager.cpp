@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 12:45 ***/
+/*** Last Changed: 2026-06-26 - 13:52 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -142,6 +142,8 @@ enum class UiEncoderState : uint8_t
 
 //-- Runtime state.
 static UiState uiState;
+static PatternData uiPatternBuffer;
+static String uiCardPatternNames[patternStoreMaxEntries];
 static uint8_t lastSequencerStep = 0xFF;
 static uint8_t lastSequencerCursor = 0xFF;
 static bool lastSequencerPlaying = false;
@@ -751,9 +753,14 @@ static void refreshChainSeriesPatternCache()
 
 } //   refreshChainSeriesPatternCache()
 
-//-- Return available loaded pNN targets excluding the active pattern name.
-static int getAvailablePatternsForCurrentSeries(String outNames[patternStoreMaxEntries])
+//-- Validate the current chain target against loaded RAM pattern slots.
+static bool isCurrentChainTargetValid()
 {
+  if (uiState.chainTargetPatternName.isEmpty())
+  {
+    return false;
+  }
+
   if (!uiState.chainSeriesPatternCacheValid)
   {
     refreshChainSeriesPatternCache();
@@ -761,29 +768,7 @@ static int getAvailablePatternsForCurrentSeries(String outNames[patternStoreMaxE
 
   for (int nameIndex = 0; nameIndex < uiState.chainSeriesPatternCount; nameIndex++)
   {
-    outNames[nameIndex] = uiState.chainSeriesPatternNames[nameIndex];
-  }
-
-  return uiState.chainSeriesPatternCount;
-
-} //   getAvailablePatternsForCurrentSeries()
-
-//-- Validate the current chain target against loaded RAM pattern slots.
-static bool isCurrentChainTargetValid()
-{
-  String availableNames[patternStoreMaxEntries];
-  int availableCount;
-
-  if (uiState.chainTargetPatternName.isEmpty())
-  {
-    return false;
-  }
-
-  availableCount = getAvailablePatternsForCurrentSeries(availableNames);
-
-  for (int nameIndex = 0; nameIndex < availableCount; nameIndex++)
-  {
-    if (availableNames[nameIndex] == uiState.chainTargetPatternName)
+    if (uiState.chainSeriesPatternNames[nameIndex] == uiState.chainTargetPatternName)
     {
       return true;
     }
@@ -871,7 +856,6 @@ static void flushPendingChainSettings()
 //-- Select next/previous chain target pattern in the same series letter.
 static void selectNextPatternInSeries(int direction)
 {
-  String availableNames[patternStoreMaxEntries];
   int availableCount;
   int currentIndex = -1;
 
@@ -880,7 +864,12 @@ static void selectNextPatternInSeries(int direction)
     return;
   }
 
-  availableCount = getAvailablePatternsForCurrentSeries(availableNames);
+  if (!uiState.chainSeriesPatternCacheValid)
+  {
+    refreshChainSeriesPatternCache();
+  }
+
+  availableCount = uiState.chainSeriesPatternCount;
 
   if (availableCount <= 0)
   {
@@ -890,7 +879,7 @@ static void selectNextPatternInSeries(int direction)
 
   for (int nameIndex = 0; nameIndex < availableCount; nameIndex++)
   {
-    if (availableNames[nameIndex] == uiState.chainTargetPatternName)
+    if (uiState.chainSeriesPatternNames[nameIndex] == uiState.chainTargetPatternName)
     {
       currentIndex = nameIndex;
       break;
@@ -915,7 +904,7 @@ static void selectNextPatternInSeries(int direction)
     }
   }
 
-  uiState.chainTargetPatternName = availableNames[currentIndex];
+  uiState.chainTargetPatternName = uiState.chainSeriesPatternNames[currentIndex];
   uiState.chainTargetValid = true;
 
 } //   selectNextPatternInSeries()
@@ -1598,8 +1587,6 @@ static bool loadSelectedCardPatternGroup()
 //-- Load one Card pattern group directly into sequencer memory by group name.
 static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showStatus)
 {
-  PatternData patternData;
-  String cardPatternNames[patternStoreMaxEntries];
   size_t cardPatternCount = 0;
 
   if (groupName.isEmpty())
@@ -1614,7 +1601,7 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
 
   displayBootLogInfo("Group " + groupName);
 
-  if (!settingsStoreListPatternsInGroupOnCard(groupName, cardPatternNames, patternStoreMaxEntries,
+  if (!settingsStoreListPatternsInGroupOnCard(groupName, uiCardPatternNames, patternStoreMaxEntries,
                                               cardPatternCount))
   {
     if (showStatus)
@@ -1655,30 +1642,31 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
   for (size_t patternIndex = 0;
        patternIndex < cardPatternCount && patternIndex < sequencerPatternCount; patternIndex++)
   {
-    if (!settingsStoreLoadPatternFromCard(groupName, cardPatternNames[patternIndex], patternData))
+    if (!settingsStoreLoadPatternFromCard(groupName, uiCardPatternNames[patternIndex],
+                                          uiPatternBuffer))
     {
       if (showStatus)
       {
-        showPatternStatus("Load failed\n" + cardPatternNames[patternIndex], 2500);
+        showPatternStatus("Load failed\n" + uiCardPatternNames[patternIndex], 2500);
       }
 
       return false;
     }
 
-    displayBootLogInfo("Pattern " + cardPatternNames[patternIndex]);
+    displayBootLogInfo("Pattern " + uiCardPatternNames[patternIndex]);
 
-    sequencerImportPatternToSlot(static_cast<uint8_t>(patternIndex), patternData);
+    sequencerImportPatternToSlot(static_cast<uint8_t>(patternIndex), uiPatternBuffer);
 
-    uiState.chainSlotPatternNames[patternIndex] = cardPatternNames[patternIndex];
-    uiState.chainSlotTargetPatternNames[patternIndex] = patternData.chainTarget;
-    uiState.chainSlotChainEnabled[patternIndex] = patternData.chainEnabled;
+    uiState.chainSlotPatternNames[patternIndex] = uiCardPatternNames[patternIndex];
+    uiState.chainSlotTargetPatternNames[patternIndex] = uiPatternBuffer.chainTarget;
+    uiState.chainSlotChainEnabled[patternIndex] = uiPatternBuffer.chainEnabled;
   }
 
   sequencerSetLoadedPatternCount(static_cast<uint8_t>(cardPatternCount));
   syncSequencerChainTargetsFromUi();
   sequencerSetActivePatternIndex(0);
 
-  uiState.activePatternName = cardPatternNames[0];
+  uiState.activePatternName = uiCardPatternNames[0];
   uiState.chainTargetPatternName = "";
   uiState.chainTargetValid = false;
   uiState.chainSettingsDirty = false;

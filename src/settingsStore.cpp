@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-22 - 16:42 ***/
+/*** Last Changed: 2026-06-26 - 13:52 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -774,11 +774,11 @@ bool settingsStoreFindNextPatternNameForLetterOnCard(char patternLetter, String&
 
   directory.close();
 
-  for (int patternIndex = 1; patternIndex <= 99; patternIndex++)
+  for (int patternIndex = 1; patternIndex <= sequencerPatternCount; patternIndex++)
   {
     if (!usedNumbers[patternIndex])
     {
-      char candidateName[8];
+      char candidateName[16];
 
       snprintf(candidateName, sizeof(candidateName), "%c%02d", normalizedLetter, patternIndex);
 

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 11:40 ***/
+/*** Last Changed: 2026-06-26 - 13:52 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -40,7 +40,7 @@ static void sendError(WebServer& server, const char* message, int code = 400)
   sendJson(server, doc, code);
 } //   sendError()
 
-//-- Helper: convert slot index (0-47) to pattern name (p01-p48)
+//-- Helper: convert slot index to pattern name.
 static String slotIndexToPatternName(uint8_t slotIndex)
 {
   char buf[5];
@@ -48,7 +48,7 @@ static String slotIndexToPatternName(uint8_t slotIndex)
   return String(buf);
 } //   slotIndexToPatternName()
 
-//-- Helper: parse pattern name (p01-p48) to slot index; returns -1 if invalid
+//-- Helper: parse pattern name to slot index; returns -1 if invalid.
 static int16_t patternNameToSlotIndex(const String& name)
 {
   if (name.length() != 3 || name[0] != 'p')
@@ -56,7 +56,7 @@ static int16_t patternNameToSlotIndex(const String& name)
     return -1;
   }
   int num = atoi(name.c_str() + 1);
-  if (num < 1 || num > 48)
+  if (num < 1 || num > sequencerPatternCount)
   {
     return -1;
   }
