@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-17 - 11:48 ***/
+/*** Last Changed: 2026-06-26 - 11:40 ***/
 #include "DisplayDriverClass.h"
 #include "appConfig.h"
 #include "colorSettings.h"
@@ -1081,7 +1081,7 @@ void displayDrawTestColorFade(const char* colorName, uint16_t darkColorVisual,
     }
 
     tft.fillRect(0, y, tft.width(), drawH, shadePanel);
-    snprintf(rowText, sizeof(rowText), "%d", rowIndex);
+    snprintf(rowText, sizeof(rowText), "%u", static_cast<unsigned>(rowIndex));
     snprintf(hexText, sizeof(hexText), "0x%04X", static_cast<unsigned int>(shadeVisual));
 
     tft.setTextColor(darkLabelPanelColor, shadePanel);
@@ -2617,7 +2617,7 @@ void DisplayDriver::drawTestColorFade(const char* colorName, uint16_t darkColorV
     }
 
     tft.fillRect(0, y, tft.width(), drawH, shadePanel);
-    snprintf(rowText, sizeof(rowText), "%d", rowIndex);
+    snprintf(rowText, sizeof(rowText), "%u", static_cast<unsigned>(rowIndex));
     snprintf(hexText, sizeof(hexText), "0x%04X", static_cast<unsigned int>(shadeVisual));
 
     tft.setTextColor(darkLabelPanelColor, shadePanel);

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 10:30 ***/
+/*** Last Changed: 2026-06-26 - 11:40 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -47,6 +47,7 @@ struct SequencerView
   uint8_t playingPatternIndex;
   uint8_t chainLength;
   bool playing;
+  bool paused;
   bool editMode;
   bool chainEnabled;
 };
@@ -75,6 +76,11 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
 //-- Handle transport and edit controls.
 void sequencerTogglePlay();
 void sequencerStopImmediately();
+void sequencerStopAfterLastPattern();
+void sequencerPausePlayback();
+void sequencerResumePlayback();
+bool sequencerIsPaused();
+void sequencerStartFromFirstPattern();
 void sequencerRequestStopAfterFinalPattern(uint8_t finalPatternIndex);
 void sequencerSetLoadedPatternCount(uint8_t loadedPatternCount);
 void sequencerClearPatternChainTargets();

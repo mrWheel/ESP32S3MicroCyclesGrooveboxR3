@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-24 - 17:51 ***/
+/*** Last Changed: 2026-06-26 - 11:40 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -20,7 +20,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v1.4.5";
+const char* PROG_VERSION = "v1.4.6";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -444,7 +444,7 @@ void setup()
       (xTaskCreatePinnedToCore(audioTask, "AudioTask", 8192, nullptr, 3, nullptr, 0) == pdPASS);
 
   uiTaskStarted =
-      (xTaskCreatePinnedToCore(uiTask, "UiTask", 6144, nullptr, 2, nullptr, 1) == pdPASS);
+      (xTaskCreatePinnedToCore(uiTask, "UiTask", 12288, nullptr, 2, nullptr, 1) == pdPASS);
 
   inputTaskStarted =
       (xTaskCreatePinnedToCore(inputTask, "InputTask", 4096, nullptr, 2, nullptr, 1) == pdPASS);

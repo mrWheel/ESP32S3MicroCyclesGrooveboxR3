@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-24 - 12:48 ***/
+/*** Last Changed: 2026-06-26 - 11:40 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -1799,32 +1799,41 @@ static void stopPlaybackForStorageAction()
 
 } //   stopPlaybackForStorageAction()
 
-//-- Start immediately or stop immediately from the Groovebox screen.
+//-- Toggle PLAY and PAUSE from the Groovebox screen.
 static void handleGrooveboxTransportButton()
 {
   SequencerView view;
 
   sequencerGetView(view);
 
-  if (!view.playing)
+  if (!view.playing && !view.paused)
   {
     flushPendingChainSettings();
     syncSequencerChainTargetsFromUi();
-    sequencerGetView(view);
-
-    if (view.chainEnabled)
-    {
-      sequencerTogglePlay();
-    }
-    else
-    {
-      sequencerStartFromActivePattern();
-    }
+    sequencerStartFromFirstPattern();
 
     return;
   }
 
-  sequencerStopImmediately();
+  if (view.playing)
+  {
+    uiState.activePatternName = buildPatternNameForSlot(view.playingPatternIndex);
+    lastSequencerActivePatternIndex = view.playingPatternIndex;
+
+    sequencerPausePlayback();
+    audioEngineStopAllVoices();
+
+    uiState.dirty = true;
+
+    return;
+  }
+
+  if (view.paused)
+  {
+    sequencerResumePlayback();
+
+    return;
+  }
 
 } //   handleGrooveboxTransportButton()
 
@@ -3471,6 +3480,10 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
     if (view.editMode)
     {
       openEditPopupForCurrentStep();
+    }
+    else if (view.playing || view.paused)
+    {
+      sequencerStopAfterLastPattern();
     }
     else
     {

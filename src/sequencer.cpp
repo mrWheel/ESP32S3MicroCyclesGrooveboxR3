@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-21 - 10:30 ***/
+/*** Last Changed: 2026-06-26 - 11:40 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -20,9 +20,7 @@ enum TransportState : uint8_t
 struct SequencerState
 {
   Pattern patterns[sequencerPatternCount];
-
   uint16_t bpm;
-
   uint8_t swingPercent;
   uint8_t currentStep;
   uint8_t cursorStep;
@@ -33,17 +31,15 @@ struct SequencerState
   uint8_t finalStopPatternIndex;
   uint8_t loadedPatternCount;
   uint8_t pendingPatternIndex;
-
   uint8_t chainTargetIndex[sequencerPatternCount];
   bool chainTargetValid[sequencerPatternCount];
-
   bool playing;
+  bool paused;
   bool editMode;
+  bool stopAfterLastPattern;
   bool chainEnabled;
   bool pendingPatternSwitch;
-
   TransportState transportState;
-
   uint64_t nextStepDueUs;
 };
 
@@ -201,6 +197,8 @@ void sequencerInit()
   state.loadedPatternCount = 1;
   state.pendingPatternIndex = 0;
   state.playing = false;
+  state.paused = false;
+  state.stopAfterLastPattern = false;
   state.editMode = false;
   state.chainEnabled = false;
   state.pendingPatternSwitch = false;
@@ -302,6 +300,12 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
 
           state.pendingPatternSwitch = false;
           state.nextStepDueUs = 0;
+
+          if (state.stopAfterLastPattern &&
+              state.playingPatternIndex == static_cast<uint8_t>(state.loadedPatternCount - 1U))
+          {
+            state.transportState = transportPlayingFinalPattern;
+          }
         }
         else if (state.transportState == transportStopRequested)
         {
@@ -312,7 +316,14 @@ bool sequencerConsumeDueStep(uint64_t nowUs, uint8_t& outStepIndex, uint8_t& out
         else if (state.transportState == transportPlayingFinalPattern)
         {
           state.playing = false;
+          state.paused = false;
+          state.stopAfterLastPattern = false;
           state.transportState = transportStopped;
+          state.pendingPatternSwitch = false;
+          state.activePatternIndex = 0;
+          state.playingPatternIndex = 0;
+          state.pendingPatternIndex = 0;
+          state.currentStep = 0;
           state.nextStepDueUs = 0;
         }
         else if (state.chainEnabled && state.chainTargetValid[state.playingPatternIndex] &&
@@ -351,11 +362,31 @@ void sequencerTogglePlay()
 {
   portENTER_CRITICAL(&sequencerMux);
 
-  state.playing = !state.playing;
-
   if (state.playing)
   {
+    state.playing = false;
+    state.paused = true;
+    state.transportState = transportStopped;
+    state.currentStep = 0;
+    state.nextStepDueUs = 0;
+  }
+  else if (state.paused)
+  {
+    state.playing = true;
+    state.paused = false;
+    state.transportState = transportRunning;
+    state.currentStep = 0;
+    state.nextStepDueUs = 0;
+  }
+  else
+  {
+    state.playing = true;
+    state.paused = false;
+    state.transportState = transportRunning;
+    state.activePatternIndex = 0;
     state.playingPatternIndex = 0;
+    state.pendingPatternIndex = 0;
+    state.pendingPatternSwitch = false;
     state.currentStep = 0;
     state.nextStepDueUs = 0;
   }
@@ -381,20 +412,113 @@ void sequencerStartFromActivePattern()
 
 } //   sequencerStartFromActivePattern()
 
-//-- Stop immediately without waiting for musical pattern boundaries.
-void sequencerStopImmediately()
+//-- Start playback from the first loaded pattern.
+void sequencerStartFromFirstPattern()
 {
   portENTER_CRITICAL(&sequencerMux);
 
-  state.playing = false;
-  state.transportState = transportStopped;
+  state.playing = true;
+  state.paused = false;
+  state.transportState = transportRunning;
+  state.activePatternIndex = 0;
+  state.playingPatternIndex = 0;
+  state.pendingPatternIndex = 0;
   state.pendingPatternSwitch = false;
   state.currentStep = 0;
   state.nextStepDueUs = 0;
 
   portEXIT_CRITICAL(&sequencerMux);
 
+} //   sequencerStartFromFirstPattern()
+
+//-- Pause playback and keep the current playing pattern.
+void sequencerPausePlayback()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (state.playing)
+  {
+    state.playing = false;
+    state.paused = true;
+    state.transportState = transportStopped;
+    state.pendingPatternSwitch = false;
+    state.currentStep = 0;
+    state.nextStepDueUs = 0;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerPausePlayback()
+
+//-- Resume playback from step 1 of the paused playing pattern.
+void sequencerResumePlayback()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (state.paused)
+  {
+    state.playing = true;
+    state.paused = false;
+    state.transportState = transportRunning;
+    state.pendingPatternIndex = state.playingPatternIndex;
+    state.pendingPatternSwitch = false;
+    state.currentStep = 0;
+    state.nextStepDueUs = 0;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerResumePlayback()
+
+//-- Return whether playback is paused.
+bool sequencerIsPaused()
+{
+  bool paused;
+
+  portENTER_CRITICAL(&sequencerMux);
+  paused = state.paused;
+  portEXIT_CRITICAL(&sequencerMux);
+
+  return paused;
+
+} //   sequencerIsPaused()
+
+//-- Stop immediately without waiting for musical pattern boundaries.
+void sequencerStopImmediately()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  state.playing = false;
+  state.paused = false;
+  state.stopAfterLastPattern = false;
+  state.transportState = transportStopped;
+  state.pendingPatternSwitch = false;
+  state.activePatternIndex = 0;
+  state.playingPatternIndex = 0;
+  state.pendingPatternIndex = 0;
+  state.currentStep = 0;
+  state.nextStepDueUs = 0;
+
+  portEXIT_CRITICAL(&sequencerMux);
+
 } //   sequencerStopImmediately()
+
+void sequencerStopAfterLastPattern()
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (state.playing || state.paused)
+  {
+    state.playing = true;
+    state.paused = false;
+    state.stopAfterLastPattern = true;
+    state.pendingPatternSwitch = true;
+    state.pendingPatternIndex = state.loadedPatternCount - 1;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerStopAfterLastPattern()
 
 //-- Request switch to another pattern at the next pattern boundary.
 void sequencerRequestPatternSwitchAfterCurrentPattern(uint8_t patternIndex)
@@ -1107,7 +1231,10 @@ void sequencerGetView(SequencerView& outView)
 {
   portENTER_CRITICAL(&sequencerMux);
 
-  outView.pattern = &state.patterns[state.activePatternIndex];
+  const uint8_t displayPatternIndex =
+      (state.playing || state.paused) ? state.playingPatternIndex : state.activePatternIndex;
+
+  outView.pattern = &state.patterns[displayPatternIndex];
   outView.bpm = state.bpm;
   outView.swingPercent = state.swingPercent;
   outView.currentStep = state.currentStep;
@@ -1117,6 +1244,7 @@ void sequencerGetView(SequencerView& outView)
   outView.playingPatternIndex = state.playingPatternIndex;
   outView.chainLength = state.chainLength;
   outView.playing = state.playing;
+  outView.paused = state.paused;
   outView.editMode = state.editMode;
   outView.chainEnabled = state.chainEnabled;
 

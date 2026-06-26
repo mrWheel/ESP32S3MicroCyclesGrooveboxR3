@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-24 - 17:51 ***/
+/*** Last Changed: 2026-06-26 - 11:40 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -171,6 +171,7 @@ static void handleStatusRequest()
   doc["activeSampleSet"] = sampleManagerGetActiveSampleSet();
 
   doc["playing"] = view.playing;
+  doc["paused"] = view.paused;
   doc["editMode"] = view.editMode;
   doc["bpm"] = view.bpm;
   doc["swing"] = view.swingPercent;
@@ -206,6 +207,7 @@ static void handleTransportRequest()
   doc["bpm"] = view.bpm;
   doc["swing"] = view.swingPercent;
   doc["playing"] = view.playing;
+  doc["paused"] = view.paused;
   doc["editMode"] = view.editMode;
   doc["chainEnabled"] = view.chainEnabled;
   doc["chainLength"] = view.chainLength;
@@ -1124,6 +1126,7 @@ static void handleSequencerViewRequest()
   doc["playingPatternIndex"] = view.playingPatternIndex;
   doc["chainLength"] = view.chainLength;
   doc["playing"] = view.playing;
+  doc["paused"] = view.paused;
   doc["editMode"] = view.editMode;
   doc["chainEnabled"] = view.chainEnabled;
 
