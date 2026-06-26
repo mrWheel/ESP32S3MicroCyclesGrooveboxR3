@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 11:40 ***/
+/*** Last Changed: 2026-06-26 - 12:45 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -1335,7 +1335,7 @@ static bool addPatternInMemory()
 
   if (loadedPatternCount >= sequencerPatternCount)
   {
-    showPatternStatus("Pattern memory\nfull", 2500);
+    showPatternStatus("Max 32 patterns\nper group", 3000);
     return false;
   }
 
@@ -1635,6 +1635,16 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
     return false;
   }
 
+  if (cardPatternCount > sequencerPatternCount)
+  {
+    cardPatternCount = sequencerPatternCount;
+
+    if (showStatus)
+    {
+      showPatternStatus("Only first 32\npatterns loaded", 3000);
+    }
+  }
+
   for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
   {
     uiState.chainSlotPatternNames[slotIndex] = "";
@@ -1700,6 +1710,10 @@ static bool saveLoadedPatternGroupToCard()
   SequencerView view;
   String groupName = settingsStoreGetActivePatternGroup();
   uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+  if (loadedPatternCount > sequencerPatternCount)
+  {
+    loadedPatternCount = sequencerPatternCount;
+  }
   int savedCount = 0;
 
   if (!ensureSdCardPresentForUiAction("Save Group"))
@@ -1817,11 +1831,15 @@ static void handleGrooveboxTransportButton()
 
   if (view.playing)
   {
+    sequencerSetActivePatternIndex(view.playingPatternIndex);
+
     uiState.activePatternName = buildPatternNameForSlot(view.playingPatternIndex);
     lastSequencerActivePatternIndex = view.playingPatternIndex;
 
     sequencerPausePlayback();
     audioEngineStopAllVoices();
+
+    loadChainSettingsForActivePattern();
 
     uiState.dirty = true;
 

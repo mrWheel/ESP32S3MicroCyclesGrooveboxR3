@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-22 - 16:42 ***/
+/*** Last Changed: 2026-06-26 - 12:45 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 #ifndef SETTINGS_STORE_H
 #define SETTINGS_STORE_H
@@ -38,7 +38,7 @@ bool settingsStoreSetWifiCredentials(const String& ssid, const String& password)
 
 #include "sequencer.h"
 
-static const size_t patternStoreMaxEntries = 64;
+static const size_t patternStoreMaxEntries = 32;
 
 //-- Runtime settings persisted in NVS.
 struct RuntimeSettings

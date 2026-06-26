@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 11:40 ***/
+/*** Last Changed: 2026-06-26 - 12:45 ***/
 #include "uiGrooveboxScreen.h"
 
 #include "progVersion.h"
@@ -455,10 +455,11 @@ void uiGrooveboxScreenDraw(DisplayDriver& display, const SequencerView& view,
   char headerLine[48];
   char rowBuffer[32];
 
-  const uint8_t displayPatternIndex =
-      (view.playing || view.paused) ? view.playingPatternIndex : view.activePatternIndex;
+  //-weg-const uint8_t displayPatternIndex =
+  //-weg-    (view.playing || view.paused) ? view.playingPatternIndex : view.activePatternIndex;
 
-  viewPatternName = getPatternNameForSlot(displayPatternIndex, chainSlotPatternNames);
+  //-weg-viewPatternName = getPatternNameForSlot(displayPatternIndex, chainSlotPatternNames);
+  viewPatternName = getPatternNameForSlot(view.activePatternIndex, chainSlotPatternNames);
 
   snprintf(headerLine, sizeof(headerLine), "BPM %03u SW %02u %s %s",
            static_cast<unsigned>(view.bpm), static_cast<unsigned>(view.swingPercent),

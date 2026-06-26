@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 11:40 ***/
+/*** Last Changed: 2026-06-26 - 12:45 ***/
 #ifndef SEQUENCER_H
 #define SEQUENCER_H
 
@@ -7,7 +7,7 @@
 
 static const uint8_t sequencerTrackCount = 6;
 static const uint8_t sequencerStepCount = 16;
-static const uint8_t sequencerPatternCount = 48;
+static const uint8_t sequencerPatternCount = 32;
 
 //-- Trigger metadata for one step.
 struct Step

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 11:40 ***/
+/*** Last Changed: 2026-06-26 - 12:45 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -1231,10 +1231,11 @@ void sequencerGetView(SequencerView& outView)
 {
   portENTER_CRITICAL(&sequencerMux);
 
-  const uint8_t displayPatternIndex =
-      (state.playing || state.paused) ? state.playingPatternIndex : state.activePatternIndex;
+  //-weg-const uint8_t displayPatternIndex =
+  //-weg-    (state.playing || state.paused) ? state.playingPatternIndex : state.activePatternIndex;
 
-  outView.pattern = &state.patterns[displayPatternIndex];
+  //-weg-outView.pattern = &state.patterns[displayPatternIndex];
+  outView.pattern = &state.patterns[state.activePatternIndex];
   outView.bpm = state.bpm;
   outView.swingPercent = state.swingPercent;
   outView.currentStep = state.currentStep;
