@@ -13,6 +13,7 @@ const state = {
   selectedPatternIndex : 0,
   stepEditorOpen : false,
   stepEditorDraft : {},
+  stepEditorOriginal : {},
   dirty : false,
   lastFirmwareDirty : false,
   actionPopupMode : "",
@@ -198,9 +199,9 @@ function initializeEventHandlers()
   });
 
   // Step editor
-  document.getElementById("btnCloseStepEditor").addEventListener("click", closeStepEditor);
-  document.getElementById("btnCloseStepEditorFooter").addEventListener("click", closeStepEditor);
-  document.getElementById("stepEditor").addEventListener("mouseleave", closeStepEditor);
+  document.getElementById("btnCloseStepEditor").addEventListener("click", cancelStepEditor);
+  document.getElementById("btnCancelStepEditor").addEventListener("click", cancelStepEditor);
+  document.getElementById("btnAcceptStepEditor").addEventListener("click", acceptStepEditor);
 
   // Step editor value changes
   document.getElementById("stepTrigger").addEventListener("change", function() {
@@ -208,7 +209,7 @@ function initializeEventHandlers()
   });
 
   document.getElementById("stepMute").addEventListener("change", function() {
-    state.stepEditorDraft.mute = this.checked;
+    state.stepEditorDraft.mute = !this.checked;
   });
 
   linkSliderAndInput("stepVelocity", "stepVelocityNum",
@@ -221,9 +222,17 @@ function initializeEventHandlers()
   });
 
   linkSliderAndInput("stepLockPitch", "stepLockPitchNum",
-                     (v) => { state.stepEditorDraft.lockPitch = parseInt(v); });
+                     (v) => {
+                       state.stepEditorDraft.lockPitch = parseInt(v);
+                       state.stepEditorDraft.lockEnabled = true;
+                       document.getElementById("stepLockEnabled").checked = true;
+                     });
   linkSliderAndInput("stepLockDecay", "stepLockDecayNum",
-                     (v) => { state.stepEditorDraft.lockDecay = parseInt(v); });
+                     (v) => {
+                       state.stepEditorDraft.lockDecay = parseInt(v);
+                       state.stepEditorDraft.lockEnabled = true;
+                       document.getElementById("stepLockEnabled").checked = true;
+                     });
 
 } // initializeEventHandlers()
 
@@ -1472,6 +1481,16 @@ function openStepEditor(anchorCell)
   const pattern = state.patterns[patIdx];
   const step = pattern.tracks[trackIdx].steps[stepIdx];
 
+  state.stepEditorOriginal = {
+    trigger : step.trigger,
+    mute : step.mute,
+    velocity : step.velocity,
+    probability : step.probability,
+    lockEnabled : step.lockEnabled,
+    lockPitch : step.lockPitch,
+    lockDecay : step.lockDecay
+  };
+
   state.stepEditorDraft = {
     trigger : step.trigger,
     mute : step.mute,
@@ -1483,7 +1502,7 @@ function openStepEditor(anchorCell)
   };
 
   document.getElementById("stepTrigger").checked = step.trigger;
-  document.getElementById("stepMute").checked = step.mute;
+  document.getElementById("stepMute").checked = !step.mute;
   document.getElementById("stepVelocity").value = step.velocity;
   document.getElementById("stepVelocityNum").value = step.velocity;
   document.getElementById("stepProbability").value = step.probability;
@@ -1494,7 +1513,7 @@ function openStepEditor(anchorCell)
   document.getElementById("stepLockDecay").value = step.lockDecay;
   document.getElementById("stepLockDecayNum").value = step.lockDecay;
 
-  const title = "Step: " + pattern.name + " / " + trackNames[trackIdx] + " / " + (stepIdx + 1);
+  const title = "Step: " + pattern.name + " / " + trackNames[trackIdx] + " / S:" + (stepIdx + 1);
   document.getElementById("stepEditorTitle").textContent = title;
 
   state.stepEditorOpen = true;
@@ -1509,14 +1528,26 @@ function openStepEditor(anchorCell)
     editor.style.left = rect.left + "px";
     editor.style.top = rect.top + "px";
   }
+
 } // openStepEditor()
 
-async function closeStepEditor()
+function cancelStepEditor()
+{
+  state.stepEditorOpen = false;
+  state.stepEditorDraft = {};
+  state.stepEditorOriginal = {};
+  document.getElementById("stepEditor").style.display = "none";
+  renderGrid();
+
+} // cancelStepEditor()
+
+async function acceptStepEditor()
 {
   if (!state.stepEditorOpen)
+  {
     return;
+  }
 
-  // Send changes if any
   const patIdx = state.selectedPatternIndex;
   const trackIdx = state.selectedTrackIndex;
   const stepIdx = state.selectedStepLocalIndex;
@@ -1526,7 +1557,6 @@ async function closeStepEditor()
     const pattern = state.patterns[patIdx];
     const step = pattern.tracks[trackIdx].steps[stepIdx];
 
-    // Check if draft differs from original
     const changed = (state.stepEditorDraft.trigger !== step.trigger ||
                      state.stepEditorDraft.mute !== step.mute ||
                      state.stepEditorDraft.velocity !== step.velocity ||
@@ -1537,8 +1567,8 @@ async function closeStepEditor()
 
     if (changed)
     {
-      // Send update
       const patternName = pattern.name;
+
       try
       {
         const res = await fetch(
@@ -1548,9 +1578,9 @@ async function closeStepEditor()
               body : JSON.stringify(state.stepEditorDraft)
             });
         const data = await res.json();
+
         if (data.ok)
         {
-          // Update local state
           step.trigger = state.stepEditorDraft.trigger;
           step.mute = state.stepEditorDraft.mute;
           step.velocity = state.stepEditorDraft.velocity;
@@ -1558,24 +1588,35 @@ async function closeStepEditor()
           step.lockEnabled = state.stepEditorDraft.lockEnabled;
           step.lockPitch = state.stepEditorDraft.lockPitch;
           step.lockDecay = state.stepEditorDraft.lockDecay;
-          renderGrid();
         }
         else
         {
           alert("Error: " + data.error);
+          return;
         }
       }
       catch (e)
       {
         hideBusy();
         alert("Update failed: " + e);
+        return;
       }
     }
   }
 
   state.stepEditorOpen = false;
+  state.stepEditorDraft = {};
+  state.stepEditorOriginal = {};
   document.getElementById("stepEditor").style.display = "none";
-}
+  renderGrid();
+
+} // acceptStepEditor()
+
+function closeStepEditor()
+{
+  cancelStepEditor();
+
+} // closeStepEditor()
 
 // ========== INITIALIZE ==========
 console.log("Groovebox WebUI loaded");

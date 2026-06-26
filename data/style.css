@@ -372,6 +372,15 @@ html, body {
   max-width: 120px;
 }
 
+.step-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid var(--grid-border);
+  padding-top: 8px;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .step-editor-content {

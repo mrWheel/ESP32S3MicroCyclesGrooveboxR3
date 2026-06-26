@@ -106,43 +106,43 @@
       </div>
       <div class="step-editor-content">
         <div class="editor-row">
-          <label>Trigger:</label>
+          <label>STEP TRIGGER:</label>
           <input type="checkbox" id="stepTrigger" class="checkbox">
         </div>
         <div class="editor-row">
-          <label>Step OFF:</label>
+          <label>STEP ON:</label>
           <input type="checkbox" id="stepMute" class="checkbox">
         </div>
         <div class="editor-row">
-          <label>Velocity:</label>
+          <label>VELOCITY:</label>
           <input type="range" id="stepVelocity" min="1" max="255" value="128" class="slider">
           <input type="number" id="stepVelocityNum" min="1" max="255" value="128" class="number-input">
         </div>
         <div class="editor-row">
-          <label>Probability:</label>
-          <input type="range" id="stepProbability" min="0" max="100" value="100" class="slider">
-          <input type="number" id="stepProbabilityNum" min="0" max="100" value="100" class="number-input">%
-        </div>
-        <div class="editor-row">
-          <label>Lock Enabled:</label>
-          <input type="checkbox" id="stepLockEnabled" class="checkbox">
-        </div>
-        <div class="editor-row">
-          <label>Lock Pitch:</label>
+          <label>PITCH:</label>
           <input type="range" id="stepLockPitch" min="-24" max="24" value="0" class="slider">
           <input type="number" id="stepLockPitchNum" min="-24" max="24" value="0" class="number-input">
         </div>
         <div class="editor-row">
-          <label>Lock Decay:</label>
+          <label>DECAY:</label>
           <input type="range" id="stepLockDecay" min="10" max="200" value="100" class="slider">
           <input type="number" id="stepLockDecayNum" min="10" max="200" value="100" class="number-input">%
         </div>
         <div class="editor-row">
-          <button class="btn btn-small" id="btnCloseStepEditorFooter">CLOSE</button>
+          <label>PROBABILITY:</label>
+          <input type="range" id="stepProbability" min="0" max="100" value="100" class="slider">
+          <input type="number" id="stepProbabilityNum" min="0" max="100" value="100" class="number-input">%
+        </div>
+        <div class="editor-row">
+          <label>USE PITCH/DECAY:</label>
+          <input type="checkbox" id="stepLockEnabled" class="checkbox">
         </div>
       </div>
+      <div class="step-editor-footer">
+        <button class="btn btn-small" id="btnCancelStepEditor">CANCEL</button>
+        <button class="btn btn-small" id="btnAcceptStepEditor">ACCEPT</button>
+      </div>
     </div>
-
   </div><!-- container -->
 
   <!-- Busy Overlay -->

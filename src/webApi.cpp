@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 15:38 ***/
+/*** Last Changed: 2026-06-26 - 16:38 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -856,7 +856,6 @@ static void handlePatternsCopyRequest()
 //-- PUT /api/patterns/{patternName}/tracks/{trackIndex}/steps/{stepIndex}
 static void handleStepEditRequest()
 {
-
   String patternName = webServer.pathArg(0);
   uint8_t trackIndex = webServer.pathArg(1).toInt();
   uint8_t stepIndex = webServer.pathArg(2).toInt();
@@ -868,6 +867,7 @@ static void handleStepEditRequest()
   }
 
   int16_t slotIndex = patternNameToSlotIndex(patternName);
+
   if (slotIndex < 0 || slotIndex >= uiManagerGetLoadedPatternCount())
   {
     sendError(webServer, "Invalid pattern name", 404);
@@ -882,30 +882,61 @@ static void handleStepEditRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
+
   if (error)
   {
     sendError(webServer, "Invalid JSON");
     return;
   }
 
+  SequencerView view;
   PatternData patternData;
+
+  sequencerGetView(view);
   sequencerExportPatternFromSlot((uint8_t)slotIndex, patternData);
 
+  if (slotIndex == view.activePatternIndex)
+  {
+    patternData.chainEnabled = view.chainEnabled;
+    patternData.chainLength = view.chainLength;
+  }
+
   Step& step = patternData.pattern.tracks[trackIndex].steps[stepIndex];
+
   if (doc["trigger"].is<bool>())
+  {
     step.trigger = doc["trigger"];
+  }
+
   if (doc["mute"].is<bool>())
+  {
     step.mute = doc["mute"];
+  }
+
   if (doc["velocity"].is<uint8_t>())
+  {
     step.velocity = doc["velocity"];
+  }
+
   if (doc["probability"].is<uint8_t>())
+  {
     step.probability = doc["probability"];
+  }
+
   if (doc["lockEnabled"].is<bool>())
+  {
     step.lockEnabled = doc["lockEnabled"];
+  }
+
   if (doc["lockPitch"].is<int8_t>())
+  {
     step.lockPitch = doc["lockPitch"];
+  }
+
   if (doc["lockDecay"].is<uint8_t>())
+  {
     step.lockDecay = doc["lockDecay"];
+  }
 
   sequencerImportPatternToSlot((uint8_t)slotIndex, patternData);
   uiManagerSetPatternGroupDirty(true);
