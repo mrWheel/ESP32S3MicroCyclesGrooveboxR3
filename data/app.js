@@ -762,7 +762,6 @@ async function saveGroup()
 
     if (data.ok)
     {
-      showActionMessage("Save Group", "Group saved");
       await updateStatus();
       return;
     }
@@ -1415,8 +1414,6 @@ async function loadSampleSet(setName)
       state.activeSampleSet = setName;
       updateSampleSetSelectValue(setName);
       document.getElementById("activeSamples").textContent = "Samples: " + setName;
-
-      showActionMessage("Load Sample Set", "Sample set " + setName + " loaded");
 
       await updateStatus();
       await updateSampleSets();

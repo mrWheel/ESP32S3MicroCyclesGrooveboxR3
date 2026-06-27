@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-27 - 14:14 ***/
+/*** Last Changed: 2026-06-27 - 14:50 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -933,6 +933,8 @@ static bool ensureSdCardPresentForUiAction(const String& actionName);
 //-- Save current runtime settings to storage.
 static void saveRuntimeSettingsFromCurrentState();
 
+static void stopPlaybackForStorageAction();
+
 //-- Create one empty pattern payload for a new group.
 static void buildEmptyPatternData(PatternData& patternData)
 {
@@ -972,6 +974,7 @@ static bool createNewPatternGroupOnCard(const String& groupName, String& statusM
   }
 
   buildEmptyPatternData(patternData);
+  stopPlaybackForStorageAction();
 
   drawBusyPopupNow("New Group", "Creating " + groupName);
 
@@ -1030,6 +1033,8 @@ static void commitPatternGroupNameInput()
   uiState.patternStatusOpen = false;
   uiState.patternStatusText = "";
   uiState.dirty = true;
+
+  stopPlaybackForStorageAction();
 
   if (newGroupMode)
   {
@@ -1180,7 +1185,6 @@ static void refreshPatternList()
 static bool loadSelectedPattern()
 {
   PatternData patternData;
-  SequencerView view;
   String groupName = settingsStoreGetActivePatternGroup();
 
   if (uiState.patternCount <= 0 || uiState.patternListSelection < 0 ||
@@ -1509,12 +1513,7 @@ static bool loadSelectedCardPatternGroup()
 
   String selectedGroupName = uiState.patternNames[uiState.patternListSelection];
 
-  sequencerGetView(view);
-
-  if (view.playing)
-  {
-    sequencerStopImmediately();
-  }
+  stopPlaybackForStorageAction();
 
   uiState.patternListOpen = false;
   uiState.cardStorageMenuOpen = false;
@@ -1674,10 +1673,7 @@ static bool saveLoadedPatternGroupToCard()
 
   sequencerGetView(view);
 
-  if (view.playing)
-  {
-    sequencerStopImmediately();
-  }
+  stopPlaybackForStorageAction();
 
   flushPendingChainSettings();
   syncSequencerChainTargetsFromUi();
@@ -1754,6 +1750,7 @@ static void stopPlaybackForStorageAction()
   if (view.playing)
   {
     sequencerStopImmediately();
+    audioEngineStopAllVoices();
   }
 
 } //   stopPlaybackForStorageAction()

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-27 - 14:14 ***/
+/*** Last Changed: 2026-06-27 - 14:50 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -455,6 +455,7 @@ static void handleGroupsSaveRequest()
   }
 
   sequencerStopImmediately();
+  audioEngineStopAllVoices();
 
   if (!uiManagerSavePatternGroup())
   {
@@ -494,6 +495,9 @@ static void handleGroupsNewRequest()
     sendError(webServer, "SD card not ready", 503);
     return;
   }
+
+  sequencerStopImmediately();
+  audioEngineStopAllVoices();
 
   if (activeGroup.isEmpty())
   {
@@ -546,6 +550,9 @@ static void handleGroupsRenameRequest()
     return;
   }
 
+  sequencerStopImmediately();
+  audioEngineStopAllVoices();
+
   if (!settingsStoreRenamePatternGroupOnCard(fromName, toName))
   {
     sendError(webServer, "Failed to rename group");
@@ -591,6 +598,9 @@ static void handleGroupsCopyRequest()
     return;
   }
 
+  sequencerStopImmediately();
+  audioEngineStopAllVoices();
+
   if (!settingsStoreCopyPatternGroupOnCard(fromName, toName))
   {
     sendError(webServer, "Failed to copy group");
@@ -635,6 +645,9 @@ static void handleGroupsDeleteRequest()
     sendError(webServer, "SD card not ready", 503);
     return;
   }
+
+  sequencerStopImmediately();
+  audioEngineStopAllVoices();
 
   if (!settingsStoreDeletePatternGroupFromCard(groupName))
   {
