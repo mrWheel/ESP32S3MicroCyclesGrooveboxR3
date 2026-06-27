@@ -1,8 +1,9 @@
-/*** Last Changed: 2026-06-27 - 14:14 ***/
+/*** Last Changed: 2026-06-27 - 16:18 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
 #include "appConfig.h"
+#include "loadStatus.h"
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <Preferences.h>
@@ -1084,6 +1085,7 @@ bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
   if (SD.cardType() == CARD_NONE)
   {
     ESP_LOGW(logTag, "SD card not available for pattern group copy");
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
@@ -1092,6 +1094,7 @@ bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
     ESP_LOGW(logTag, "Invalid pattern group copy: %s -> %s", sourceGroupName.c_str(),
              targetGroupName.c_str());
 
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
@@ -1101,18 +1104,21 @@ bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
   if (!SD.exists(sourcePath))
   {
     ESP_LOGW(logTag, "Source pattern group does not exist: %s", sourcePath.c_str());
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
   if (SD.exists(targetPath))
   {
     ESP_LOGW(logTag, "Target pattern group already exists: %s", targetPath.c_str());
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
   if (!SD.mkdir(targetPath))
   {
     ESP_LOGW(logTag, "Failed to create target pattern group: %s", targetPath.c_str());
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
@@ -1127,16 +1133,39 @@ bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
 
     ESP_LOGW(logTag, "Failed to open source pattern group: %s", sourcePath.c_str());
     SD.rmdir(targetPath);
+    loadStatusFail("Copy Group failed");
 
     return false;
   }
 
+  uint8_t totalFiles = 0;
+  File countEntry = sourceDirectory.openNextFile();
+
+  while (countEntry)
+  {
+    if (!countEntry.isDirectory())
+    {
+      totalFiles++;
+    }
+
+    countEntry.close();
+    countEntry = sourceDirectory.openNextFile();
+  }
+
+  sourceDirectory.rewindDirectory();
+
+  loadStatusStart((String("Copy Group ") + sourceGroupName + " -> " + targetGroupName).c_str(),
+                  totalFiles);
+
+  uint8_t copiedFiles = 0;
   File entry = sourceDirectory.openNextFile();
 
   while (entry)
   {
     if (!entry.isDirectory())
     {
+      copiedFiles++;
+
       String sourceFilePath = String(entry.name());
       String fileName = sourceFilePath;
       int slashIndex = fileName.lastIndexOf('/');
@@ -1146,6 +1175,15 @@ bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
         fileName = fileName.substring(slashIndex + 1);
       }
 
+      int extensionIndex = fileName.lastIndexOf('.');
+
+      if (extensionIndex > 0)
+      {
+        fileName = fileName.substring(0, extensionIndex);
+      }
+
+      loadStatusUpdate(copiedFiles, fileName.c_str());
+
       String targetFilePath = targetPath + "/" + fileName;
       File targetFile = SD.open(targetFilePath, FILE_WRITE);
 
@@ -1154,7 +1192,7 @@ bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
         ESP_LOGW(logTag, "Failed to create copied pattern file: %s", targetFilePath.c_str());
         entry.close();
         sourceDirectory.close();
-
+        loadStatusFail("Copy Group failed");
         return false;
       }
 
@@ -1179,6 +1217,8 @@ bool settingsStoreCopyPatternGroupOnCard(const String& sourceGroupName,
 
   sourceDirectory.close();
 
+  loadStatusFinish();
+
   ESP_LOGI(logTag, "Copied pattern group %s to %s", sourceGroupName.c_str(),
            targetGroupName.c_str());
 
@@ -1194,12 +1234,14 @@ bool settingsStoreListPatternsInGroupOnCard(const String& groupName, String patt
 
   if (patternNames == nullptr || maxCount == 0)
   {
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
   if (SD.cardType() == CARD_NONE)
   {
     ESP_LOGW(logTag, "SD card not available while listing group %s", groupName.c_str());
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
@@ -1214,6 +1256,7 @@ bool settingsStoreListPatternsInGroupOnCard(const String& groupName, String patt
     }
 
     ESP_LOGW(logTag, "Card pattern group not found: %s", groupDirectoryPath.c_str());
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
@@ -1287,6 +1330,7 @@ bool settingsStoreLoadPatternFromCard(const String& groupName, const String& pat
   {
     ESP_LOGW(logTag, "SD card not available while loading %s/%s", groupName.c_str(),
              normalizedName.c_str());
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
@@ -1303,6 +1347,7 @@ bool settingsStoreLoadPatternFromCard(const String& groupName, const String& pat
     ESP_LOGW(logTag, "Card pattern file not found: %s or %s", patternPath.c_str(),
              jsonPatternPath.c_str());
 
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
@@ -1311,6 +1356,7 @@ bool settingsStoreLoadPatternFromCard(const String& groupName, const String& pat
   if (!file)
   {
     ESP_LOGW(logTag, "Failed to open Card pattern %s for read", pathToLoad.c_str());
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
@@ -1331,17 +1377,20 @@ bool settingsStoreLoadPatternFromCard(const String& groupName, const String& pat
   {
     ESP_LOGW(logTag, "Invalid Card pattern %s (%s)", pathToLoad.c_str(), error.c_str());
 
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
   if (!parsePatternJsonDocument(jsonDocument, patternData, pathToLoad))
   {
     ESP_LOGW(logTag, "Failed to parse Card pattern %s", pathToLoad.c_str());
+    loadStatusFail("Copy Group failed");
     return false;
   }
 
   ESP_LOGI(logTag, "Loaded Card pattern %s", pathToLoad.c_str());
 
+  loadStatusFinish();
   return true;
 
 } //   settingsStoreLoadPatternFromCard()

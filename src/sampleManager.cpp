@@ -1,8 +1,9 @@
-/*** Last Changed: 2026-06-27 - 14:14 ***/
+/*** Last Changed: 2026-06-27 - 16:18 ***/
 #include "sampleManager.h"
 #include "appConfig.h"
 #include "settingsStore.h"
 #include "DisplayDriverClass.h"
+#include "loadStatus.h"
 
 #include <ArduinoJson.h>
 #include <SD.h>
@@ -222,12 +223,14 @@ bool sampleManagerLoadSampleSet(const char* sampleSetName)
 
   if (!sdCardReady)
   {
+    loadStatusFail("SD not ready");
     ESP_LOGW(logTag, "Warning: Cannot load sample set, SD is not ready");
     return false;
   }
 
   if (!sampleManagerSampleSetExists(sampleSetName))
   {
+    loadStatusFail("Sample set missing");
     ESP_LOGW(logTag, "Warning: Sample set %s does not exist",
              sampleSetName ? sampleSetName : "null");
     return false;
@@ -239,12 +242,16 @@ bool sampleManagerLoadSampleSet(const char* sampleSetName)
   loadSampleGainPercent();
 
   String sampleSetDir = getSampleSetDir();
+  String loadTitle = String("Loading Sample Set ") + activeSampleSet;
+
+  loadStatusStart(loadTitle.c_str(), sampleCount);
 
   ESP_LOGI(logTag, "Active sample set: %s", activeSampleSet);
 
   for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
   {
     logSampleManagerStackHighWaterMark(sampleNames[sampleIndex]);
+    loadStatusUpdate(sampleIndex + 1, sampleNames[sampleIndex]);
 
     if (sampleSlots[sampleIndex].fromSd && sampleSlots[sampleIndex].data &&
         sampleSlots[sampleIndex].data != fallbackSamples[sampleIndex])
@@ -281,8 +288,13 @@ bool sampleManagerLoadSampleSet(const char* sampleSetName)
 
   if (!settingsStoreSetActiveSampleSet(String(activeSampleSet)))
   {
+    loadStatusFail("NVS save failed");
     ESP_LOGW(logTag, "Warning: Failed to store active sample set %s", activeSampleSet);
+    return false;
   }
+
+  loadStatusFinish();
+
   ESP_LOGI(logTag, "Active sample set loaded: %s", activeSampleSet);
 
   return true;

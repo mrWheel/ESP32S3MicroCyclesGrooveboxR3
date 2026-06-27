@@ -606,6 +606,14 @@ html, body {
   background-color: rgba(31, 41, 51, 0.25);
 }
 
+#busySubText {
+  margin-top: 8px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: normal;
+  color: #1f2933;
+}
+
 .busy-box {
   min-width: 220px;
   padding: 18px;

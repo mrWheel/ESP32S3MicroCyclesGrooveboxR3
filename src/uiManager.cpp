@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-27 - 14:50 ***/
+/*** Last Changed: 2026-06-27 - 16:18 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -18,6 +18,7 @@
 #include "systemManager.h"
 #include "InputClass.h"
 #include "progVersion.h"
+#include "loadStatus.h"
 
 #include <Arduino.h>
 #include <ctype.h>
@@ -1210,6 +1211,7 @@ static bool loadSelectedPattern()
     return false;
   }
 
+  SequencerView view;
   sequencerGetView(view);
   sequencerImportPatternToSlot(view.activePatternIndex, patternData);
 
@@ -1498,8 +1500,6 @@ static bool ensureSdCardPresentForUiAction(const String& actionName)
 //-- Load selected Card pattern group.
 static bool loadSelectedCardPatternGroup()
 {
-  SequencerView view;
-
   if (!ensureSdCardPresentForUiAction("Load Group"))
   {
     return false;
@@ -1552,10 +1552,12 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
       showPatternStatus("No active\ngroup", 2500);
     }
 
+    loadStatusFail("Group load failed");
     return false;
   }
 
   displayBootLogInfo("Group " + groupName);
+  loadStatusStart((String("Loading Group ") + groupName).c_str(), 0);
 
   if (!settingsStoreListPatternsInGroupOnCard(groupName, uiCardPatternNames, patternStoreMaxEntries,
                                               cardPatternCount))
@@ -1565,8 +1567,12 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
       showPatternStatus("List failed\n" + groupName, 2500);
     }
 
+    loadStatusFail("Group load failed");
     return false;
   }
+
+  loadStatusStart((String("Loading Group ") + groupName).c_str(),
+                  static_cast<uint8_t>(cardPatternCount));
 
   if (cardPatternCount == 0)
   {
@@ -1575,6 +1581,7 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
       showPatternStatus("Empty group\n" + groupName, 2500);
     }
 
+    loadStatusFail("Group load failed");
     return false;
   }
 
@@ -1598,6 +1605,8 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
   for (size_t patternIndex = 0;
        patternIndex < cardPatternCount && patternIndex < sequencerPatternCount; patternIndex++)
   {
+    loadStatusUpdate(static_cast<uint8_t>(patternIndex + 1),
+                     uiCardPatternNames[patternIndex].c_str());
     if (!settingsStoreLoadPatternFromCard(groupName, uiCardPatternNames[patternIndex],
                                           uiPatternBuffer))
     {
@@ -1606,6 +1615,7 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
         showPatternStatus("Load failed\n" + uiCardPatternNames[patternIndex], 2500);
       }
 
+      loadStatusFail("Group load failed");
       return false;
     }
 
@@ -1631,96 +1641,59 @@ static bool loadCardPatternGroupIntoMemory(const String& groupName, bool showSta
   refreshChainSeriesPatternCache();
   loadChainSettingsForActivePattern();
 
-  /***
-    if (showStatus)
-    {
-      showPatternStatus("Loaded group\n" + groupName, 2500);
-    }
-  ***/
-
   ESP_LOGI(logTag, "Loaded Card group %s into RAM (%u patterns)", groupName.c_str(),
            static_cast<unsigned>(cardPatternCount));
 
   uiState.patternGroupDirty = false;
+  loadStatusFinish();
 
   return true;
 
 } //   loadCardPatternGroupIntoMemory()
 
-//-- Save loaded in-memory pattern slots to active Card pattern group.
+//-- This function saves the loaded pattern group to SD card.
 static bool saveLoadedPatternGroupToCard()
 {
-  PatternData patternData;
-  SequencerView view;
-  String groupName = settingsStoreGetActivePatternGroup();
-  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
-  if (loadedPatternCount > sequencerPatternCount)
-  {
-    loadedPatternCount = sequencerPatternCount;
-  }
-  int savedCount = 0;
+  String activeGroupName = settingsStoreGetActivePatternGroup();
 
-  if (!ensureSdCardPresentForUiAction("Save Group"))
+  if (activeGroupName.isEmpty())
   {
+    showPatternStatus("No active group", 2000);
     return false;
   }
-
-  if (groupName.isEmpty())
-  {
-    showPatternStatus("No active\ngroup name", 2500);
-    return false;
-  }
-
-  sequencerGetView(view);
 
   stopPlaybackForStorageAction();
 
-  flushPendingChainSettings();
-  syncSequencerChainTargetsFromUi();
+  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
 
-  drawBusyPopupNow("Save Group", "Saving " + groupName);
+  loadStatusStart((String("Saving Group ") + activeGroupName).c_str(), loadedPatternCount);
 
   for (uint8_t slotIndex = 0; slotIndex < loadedPatternCount; slotIndex++)
   {
-    String patternName = uiState.chainSlotPatternNames[slotIndex];
+    String patternName = uiManagerGetPatternNameForSlot(slotIndex);
+    PatternData patternData;
 
-    if (patternName.isEmpty())
-    {
-      patternName = buildPatternNameForSlot(slotIndex);
-    }
+    loadStatusUpdate(static_cast<uint8_t>(slotIndex + 1), patternName.c_str());
 
     sequencerExportPatternFromSlot(slotIndex, patternData);
 
     patternData.chainEnabled = uiState.chainSlotChainEnabled[slotIndex];
     patternData.chainTarget = uiState.chainSlotTargetPatternNames[slotIndex];
-    patternData.chainLength = loadedPatternCount;
 
-    if (!patternData.chainEnabled)
+    if (!settingsStoreSavePatternToCard(activeGroupName, patternName, patternData))
     {
-      patternData.chainTarget = "";
-    }
-
-    if (!sampleManagerIsSdCardInserted())
-    {
-      showPatternStatus("Save Group\nSD removed", 3000);
-      return false;
-    }
-
-    if (!settingsStoreSavePatternToCard(groupName, patternName, patternData))
-    {
+      loadStatusFail("Group save failed");
       showPatternStatus("Save failed\n" + patternName, 2500);
       return false;
     }
-
-    savedCount++;
   }
 
-  uiCardStorageDeleteStalePatterns(groupName, loadedPatternCount);
-  saveRuntimeSettingsFromCurrentState();
-
   uiState.patternGroupDirty = false;
+  uiState.chainSettingsDirty = false;
 
-  ESP_LOGI(logTag, "Saved %d in-memory patterns to Card group %s", savedCount, groupName.c_str());
+  loadStatusFinish();
+
+  showPatternStatus("Group saved\n" + activeGroupName, 1800);
 
   return true;
 

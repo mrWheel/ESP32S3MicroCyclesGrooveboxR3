@@ -316,6 +316,7 @@ function showBusy(message)
 {
   state.busy = true;
   document.getElementById("busyText").textContent = message;
+  document.getElementById("busySubText").textContent = "";
   document.getElementById("busyOverlay").style.display = "flex";
 
 } // showBusy()
@@ -323,9 +324,72 @@ function showBusy(message)
 function hideBusy()
 {
   state.busy = false;
+  document.getElementById("busySubText").textContent = "";
   document.getElementById("busyOverlay").style.display = "none";
 
 } // hideBusy()
+
+//-- This function updates the busy popup with load progress.
+function updateBusyProgressText(data)
+{
+  let message = "";
+
+  if (data.loadMessage)
+  {
+    message = data.loadMessage;
+  }
+  else if (data.loadItem)
+  {
+    message = data.loadItem;
+  }
+  else if (data.title)
+  {
+    message = data.title;
+  }
+
+  if (message)
+  {
+    document.getElementById("busySubText").textContent = message;
+  }
+
+} // updateBusyProgressText()
+
+//-- This function waits until the firmware load job is finished.
+async function waitForLoadJob(title)
+{
+  showBusy(title);
+
+  for (;;)
+  {
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    const res = await fetch("/api/load-job/status");
+    const data = await res.json();
+
+    if (!data.ok)
+    {
+      hideBusy();
+      showActionMessage(title, "Load status failed");
+      return false;
+    }
+
+    updateBusyProgressText(data);
+
+    if (data.failed)
+    {
+      hideBusy();
+      showActionMessage(title, "Error: " + data.error);
+      return false;
+    }
+
+    if (data.finished)
+    {
+      hideBusy();
+      return true;
+    }
+  }
+
+} // waitForLoadJob()
 
 // ========== API CALLS ==========
 
@@ -349,6 +413,10 @@ async function updateStatus()
       document.getElementById("ipAddress").textContent = data.ip;
       document.getElementById("activeGroup").textContent = "Group: " + data.activeGroup;
       document.getElementById("activeSamples").textContent = "Samples: " + data.activeSampleSet;
+      if (state.busy && data.loadMessage)
+      {
+        document.getElementById("busySubText").textContent = data.loadMessage;
+      }
 
       if (previousSampleSet !== state.activeSampleSet)
       {
@@ -748,25 +816,31 @@ async function setSwing(swing)
 
 // ========== GROUP MANAGEMENT ==========
 
+//-- This function saves the active pattern group and shows progress.
 async function saveGroup()
 {
   closeAllPopups();
-  showBusy("Saving group...");
 
   try
   {
     const res = await fetch("/api/groups/save", {method : "POST"});
     const data = await res.json();
 
-    hideBusy();
-
-    if (data.ok)
+    if (!data.ok)
     {
-      await updateStatus();
+      showActionMessage("Save Group", "Error: " + data.error);
       return;
     }
 
-    showActionMessage("Save Group", "Error: " + data.error);
+    const ok = await waitForLoadJob("Saving group...");
+
+    if (!ok)
+    {
+      return;
+    }
+
+    await updateStatus();
+    await updatePatterns();
   }
   catch (e)
   {
@@ -857,10 +931,10 @@ async function acceptGroupListSelection()
 
 } // acceptGroupListSelection()
 
+//-- This function loads a selected pattern group and shows progress.
 async function selectGroupToLoad(groupName)
 {
   hideGroupListWindow();
-  showBusy("Loading " + groupName + "...");
 
   try
   {
@@ -874,8 +948,14 @@ async function selectGroupToLoad(groupName)
 
     if (!data.ok)
     {
-      hideBusy();
       showActionMessage("Load Group", "Error: " + data.error);
+      return;
+    }
+
+    const ok = await waitForLoadJob("Loading " + groupName + "...");
+
+    if (!ok)
+    {
       return;
     }
 
@@ -887,8 +967,6 @@ async function selectGroupToLoad(groupName)
     await updateTransport();
 
     document.getElementById("activeGroup").textContent = "Group: " + groupName;
-
-    hideBusy();
   }
   catch (e)
   {
@@ -1224,6 +1302,7 @@ async function acceptRenameGroupAction()
 
 } // acceptRenameGroupAction()
 
+//-- This function copies the active pattern group and shows progress.
 async function acceptCopyGroupAction()
 {
   const fromName = state.actionPopupValue;
@@ -1238,7 +1317,7 @@ async function acceptCopyGroupAction()
   try
   {
     hideActionPopup();
-    showBusy("Copying " + fromName + "...");
+
     const res = await fetch("/api/groups/copy", {
       method : "POST",
       headers : {"Content-Type" : "application/json"},
@@ -1253,10 +1332,14 @@ async function acceptCopyGroupAction()
       return;
     }
 
-    hideActionPopup();
+    const ok = await waitForLoadJob("Copying " + fromName + " to " + toName + "...");
+
+    if (!ok)
+    {
+      return;
+    }
 
     await updateGroups();
-    hideBusy();
   }
   catch (e)
   {
@@ -1393,10 +1476,9 @@ async function acceptSampleSetAction()
 
 } // acceptSampleSetAction()
 
+//-- This function loads a sample set and shows progress.
 async function loadSampleSet(setName)
 {
-  showBusy("Loading sample set " + setName + "...");
-
   try
   {
     const res = await fetch("/api/sample-sets/load", {
@@ -1407,21 +1489,25 @@ async function loadSampleSet(setName)
 
     const data = await res.json();
 
-    hideBusy();
-
-    if (data.ok)
+    if (!data.ok)
     {
-      state.activeSampleSet = setName;
-      updateSampleSetSelectValue(setName);
-      document.getElementById("activeSamples").textContent = "Samples: " + setName;
-
-      await updateStatus();
-      await updateSampleSets();
-
+      showActionMessage("Load Sample Set", "Error: " + data.error);
       return;
     }
 
-    showActionMessage("Load Sample Set", "Error: " + data.error);
+    const ok = await waitForLoadJob("Loading sample set " + setName + "...");
+
+    if (!ok)
+    {
+      return;
+    }
+
+    state.activeSampleSet = setName;
+    updateSampleSetSelectValue(setName);
+    document.getElementById("activeSamples").textContent = "Samples: " + setName;
+
+    await updateStatus();
+    await updateSampleSets();
   }
   catch (e)
   {

@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-27 - 14:50 ***/
+/*** Last Changed: 2026-06-27 - 16:18 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -8,6 +8,8 @@
 #include "systemManager.h"
 #include "webServerManager.h"
 #include "progVersion.h"
+#include "loadStatus.h"
+#include "loadJob.h"
 #include <ArduinoJson.h>
 #include <esp_heap_caps.h>
 #include <WebServer.h>
@@ -152,6 +154,38 @@ static bool parsePatternFromJson(const JsonDocument& doc, PatternData& patternDa
   return true;
 } //   parsePatternFromJson()
 
+//-- This function sends the current load job status.
+static void handleLoadJobStatusRequest()
+{
+  LoadJobState jobState;
+
+  loadJobGetState(jobState);
+
+  JsonDocument doc;
+
+  doc["ok"] = true;
+  doc["active"] = jobState.active;
+  doc["finished"] = jobState.finished;
+  doc["failed"] = jobState.failed;
+  doc["title"] = jobState.title;
+  doc["name"] = jobState.name;
+  doc["error"] = jobState.error;
+  doc["loadActive"] = loadStatusIsActive();
+  doc["loadTitle"] = loadStatusGetTitle();
+  doc["loadItem"] = loadStatusGetItem();
+  doc["loadMessage"] = loadStatusGetMessage();
+  doc["loadCurrent"] = loadStatusGetCurrent();
+  doc["loadTotal"] = loadStatusGetTotal();
+
+  if (jobState.finished)
+  {
+    loadJobClearFinished();
+  }
+
+  sendJson(webServer, doc);
+
+} //   handleLoadJobStatusRequest()
+
 //-- GET /api/status — comprehensive system status
 static void handleStatusRequest()
 {
@@ -181,6 +215,15 @@ static void handleStatusRequest()
   doc["selectedTrack"] = view.selectedTrack;
   doc["selectedStep"] = view.cursorStep;
   doc["patternGroupDirty"] = uiManagerIsPatternGroupDirty();
+
+  doc["loadActive"] = loadStatusIsActive();
+  doc["loadTitle"] = loadStatusGetTitle();
+  doc["loadItem"] = loadStatusGetItem();
+  doc["loadMessage"] = loadStatusGetMessage();
+  doc["loadCurrent"] = loadStatusGetCurrent();
+  doc["loadTotal"] = loadStatusGetTotal();
+  doc["loadFailed"] = loadStatusHasFailed();
+  doc["loadError"] = loadStatusGetError();
 
   doc["sdCardInserted"] = sampleManagerIsSdCardInserted();
   doc["sdCardReady"] = sampleManagerIsSdCardReady();
@@ -381,7 +424,7 @@ static void handleGroupsActiveRequest()
 
 } //   handleGroupsActiveRequest()
 
-//-- POST /api/groups/load — load a pattern group.
+//-- This function starts an asynchronous pattern group load job.
 static void handleGroupsLoadRequest()
 {
   if (!webServer.hasArg("plain"))
@@ -424,48 +467,41 @@ static void handleGroupsLoadRequest()
     return;
   }
 
-  sequencerStopImmediately();
-  audioEngineStopAllVoices();
-
-  if (!uiManagerLoadPatternGroup(groupName))
+  if (!loadJobStartLoadGroup(groupName))
   {
-    sendError(webServer, "Failed to load group");
+    sendError(webServer, "Load job already active", 409);
     return;
   }
 
   JsonDocument response;
   response["ok"] = true;
+  response["started"] = true;
   response["groupName"] = groupName;
-  response["patternCount"] = uiManagerGetLoadedPatternCount();
-
-  uiManagerReturnToGrooveboxScreen();
 
   sendJson(webServer, response);
 
 } //   handleGroupsLoadRequest()
 
-//-- POST /api/groups/save — save active pattern group to SD
+//-- This function starts an asynchronous pattern group save job.
 static void handleGroupsSaveRequest()
 {
-
   if (!sampleManagerIsSdCardReady())
   {
     sendError(webServer, "SD card not ready", 503);
     return;
   }
 
-  sequencerStopImmediately();
-  audioEngineStopAllVoices();
-
-  if (!uiManagerSavePatternGroup())
+  if (!loadJobStartSaveGroup())
   {
-    sendError(webServer, "Failed to save group");
+    sendError(webServer, "Load job already active", 409);
     return;
   }
 
-  uiManagerReturnToGrooveboxScreen();
+  JsonDocument response;
+  response["ok"] = true;
+  response["started"] = true;
 
-  sendOk(webServer);
+  sendJson(webServer, response);
 
 } //   handleGroupsSaveRequest()
 
@@ -571,10 +607,9 @@ static void handleGroupsRenameRequest()
 
 } //   handleGroupsRenameRequest()
 
-//-- POST /api/groups/copy — copy pattern group
+//-- This function starts an asynchronous pattern group copy job.
 static void handleGroupsCopyRequest()
 {
-
   if (!webServer.hasArg("plain"))
   {
     sendError(webServer, "Missing body");
@@ -583,33 +618,35 @@ static void handleGroupsCopyRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
-  if (error || !doc["from"].is<const char*>() || !doc["to"].is<const char*>())
+
+  if (error)
   {
-    sendError(webServer, "Missing 'from' or 'to'");
+    sendError(webServer, "Invalid JSON");
     return;
   }
 
-  String fromName = doc["from"].as<String>();
-  String toName = doc["to"].as<String>();
+  String fromName = doc["from"] | "";
+  String toName = doc["to"] | "";
 
-  if (!sampleManagerIsSdCardReady())
+  if (fromName.isEmpty() || toName.isEmpty())
   {
-    sendError(webServer, "SD card not ready", 503);
+    sendError(webServer, "Missing from/to");
     return;
   }
 
-  sequencerStopImmediately();
-  audioEngineStopAllVoices();
-
-  if (!settingsStoreCopyPatternGroupOnCard(fromName, toName))
+  if (!loadJobStartCopyGroup(fromName, toName))
   {
-    sendError(webServer, "Failed to copy group");
+    sendError(webServer, "Load job already active", 409);
     return;
   }
 
-  uiManagerReturnToGrooveboxScreen();
+  JsonDocument response;
+  response["ok"] = true;
+  response["started"] = true;
+  response["from"] = fromName;
+  response["to"] = toName;
 
-  sendOk(webServer);
+  sendJson(webServer, response);
 
 } //   handleGroupsCopyRequest()
 
@@ -1140,7 +1177,7 @@ static void handleSampleSetsActiveRequest()
 
 } //   handleSampleSetsActiveRequest()
 
-//-- POST /api/sample-sets/load — load sample set
+//-- This function starts an asynchronous sample set load job.
 static void handleSampleSetsLoadRequest()
 {
   if (!webServer.hasArg("plain"))
@@ -1160,24 +1197,18 @@ static void handleSampleSetsLoadRequest()
 
   String setName = doc["name"].as<String>();
 
-  sequencerStopImmediately();
-  audioEngineStopAllVoices();
-
-  if (!sampleManagerLoadSampleSet(setName.c_str()))
+  if (!loadJobStartLoadSampleSet(setName))
   {
-    sendError(webServer, "Failed to load sample set");
+    sendError(webServer, "Load job already active", 409);
     return;
   }
 
-  if (!settingsStoreSetActiveSampleSet(setName))
-  {
-    sendError(webServer, "Failed to set active sample set");
-    return;
-  }
+  JsonDocument response;
+  response["ok"] = true;
+  response["started"] = true;
+  response["name"] = setName;
 
-  uiManagerRequestRedraw();
-
-  sendOk(webServer);
+  sendJson(webServer, response);
 
 } //   handleSampleSetsLoadRequest()
 
@@ -1374,6 +1405,7 @@ void webApiRegisterRoutes(WebServer& server)
   (void)server;
 
   webServer.on("/api/status", HTTP_GET, handleStatusRequest);
+  webServer.on("/api/load-job/status", HTTP_GET, handleLoadJobStatusRequest);
   webServer.on("/api/transport", HTTP_GET, handleTransportRequest);
 
   webServer.on("/api/transport/play", HTTP_POST, handleTransportPlayRequest);
