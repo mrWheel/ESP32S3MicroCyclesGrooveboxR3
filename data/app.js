@@ -3,6 +3,8 @@ const state = {
   status : {},
   groups : [],
   activeGroup : "",
+  activeSampleSet : "",
+  sampleSetPopupSelection : "",
   patterns : [],
   activePatternIndex : 0,
   playingPatternIndex : 0,
@@ -27,6 +29,8 @@ const state = {
   visiblePatternMiddleIndex : 1,
   visiblePatternRightIndex : 2,
   visiblePatternWindowReady : false,
+  pendingPatternName : "",
+  lastPatternDirtySyncState : false,
 };
 
 // Track names
@@ -60,6 +64,7 @@ async function loadInitialFirmwareState()
   }
 
   renderGrid();
+  renderPatternList();
 
 } // loadInitialFirmwareState()
 
@@ -117,9 +122,30 @@ async function ensureActiveGroupIsLoaded()
 function initializeEventHandlers()
 {
   // Transport buttons
-  document.getElementById("btnPlay").addEventListener("click", function() {
+  document.getElementById("btnPlay").addEventListener("click", async function() {
     closeAllPopups();
-    fetch("/api/transport/play", {method : "POST"});
+
+    await fetch("/api/transport/play", {method : "POST"});
+
+    resetVisiblePatternWindowToIndex(0);
+
+    state.pendingPatternName = "";
+
+    await updateStatus();
+    await updateTransport();
+    await updatePlayhead();
+
+    const playingIndex = state.status.playingPatternIndex !== undefined
+        ? state.status.playingPatternIndex
+        : state.status.activePatternIndex;
+
+    state.visiblePatternStartIndex = playingIndex || 0;
+    state.visiblePatternMiddleIndex = getNextPatternIndex(state.visiblePatternStartIndex);
+    state.visiblePatternRightIndex = getNextPatternIndex(state.visiblePatternMiddleIndex);
+    state.visiblePatternWindowReady = true;
+
+    renderGrid();
+    renderPatternList();
   });
 
   document.getElementById("btnPause").addEventListener("click", async function() {
@@ -138,9 +164,18 @@ function initializeEventHandlers()
     await updateTransport();
   });
 
-  document.getElementById("btnStop").addEventListener("click", function() {
+  document.getElementById("btnStop").addEventListener("click", async function() {
     closeAllPopups();
-    fetch("/api/transport/stop", {method : "POST"});
+
+    await fetch("/api/transport/stop", {method : "POST"});
+
+    state.pendingPatternName = "";
+
+    await updateStatus();
+    await updateTransport();
+
+    renderGrid();
+    renderPatternList();
   });
 
   document.getElementById("toggleEditSteps").addEventListener("change", function() {
@@ -192,10 +227,9 @@ function initializeEventHandlers()
   selectSampleSet.addEventListener("change", function() {
     // Load is triggered by button
   });
-  document.getElementById("btnLoadSampleSet").addEventListener("click", () => {
-    const setName = document.getElementById("selectSampleSet").value;
-    if (setName)
-      loadSampleSet(setName);
+  document.getElementById("btnLoadSampleSet").addEventListener("click", async function() {
+    closeAllPopups();
+    await showSampleSetPopup();
   });
 
   // Step editor
@@ -216,6 +250,20 @@ function initializeEventHandlers()
                      (v) => { state.stepEditorDraft.velocity = parseInt(v); });
   linkSliderAndInput("stepProbability", "stepProbabilityNum",
                      (v) => { state.stepEditorDraft.probability = parseInt(v); });
+
+  document.getElementById("stepChainEnabled").addEventListener("change", function() {
+    state.stepEditorDraft.chainEnabled = this.checked;
+  });
+
+  document.getElementById("stepChainTarget").addEventListener("change", function() {
+    state.stepEditorDraft.chainTarget = this.value;
+
+    if (this.value)
+    {
+      state.stepEditorDraft.chainEnabled = true;
+      document.getElementById("stepChainEnabled").checked = true;
+    }
+  });
 
   document.getElementById("stepLockEnabled").addEventListener("change", function() {
     state.stepEditorDraft.lockEnabled = this.checked;
@@ -287,11 +335,14 @@ async function updateStatus()
   {
     const res = await fetch("/api/status");
     const data = await res.json();
+
     if (data.ok)
     {
-      state.status = data;
+      const previousSampleSet = state.activeSampleSet;
 
-      // Update header
+      state.status = data;
+      state.activeSampleSet = data.activeSampleSet || "";
+
       document.getElementById("version").textContent = data.version;
       document.getElementById("wifiStatus").textContent =
           data.wifiConnected ? "WiFi OK" : "WiFi --";
@@ -299,7 +350,11 @@ async function updateStatus()
       document.getElementById("activeGroup").textContent = "Group: " + data.activeGroup;
       document.getElementById("activeSamples").textContent = "Samples: " + data.activeSampleSet;
 
-      // Update dirty indicator
+      if (previousSampleSet !== state.activeSampleSet)
+      {
+        updateSampleSetSelectValue(state.activeSampleSet);
+      }
+
       if (data.patternGroupDirty)
       {
         document.getElementById("dirtyIndicator").style.display = "inline";
@@ -309,8 +364,8 @@ async function updateStatus()
         document.getElementById("dirtyIndicator").style.display = "none";
       }
 
-      // Update transport UI
       updateTransportUI(data);
+
       if (data.playingPatternIndex !== undefined)
       {
         state.status.playingPatternIndex = data.playingPatternIndex;
@@ -322,7 +377,6 @@ async function updateStatus()
         state.status.currentStep = data.currentStep;
       }
 
-      // Load patterns if group changed
       if (data.activeGroup && data.activeGroup !== state.activeGroup)
       {
         state.activeGroup = data.activeGroup;
@@ -390,15 +444,20 @@ async function updateGuiSync()
 {
   await updateStatus();
   await updateTransport();
+  await updateActiveSampleSetFromFirmware();
 
-  const nowMs = Date.now();
+  const firmwareDirty = !!state.status.patternGroupDirty;
 
   if (!state.busy && !state.stepEditorOpen && !state.status.playing &&
-      !state.status.paused && state.status.patternGroupDirty &&
-      (nowMs - state.lastPatternSyncMs) > 1000)
+      !state.status.paused && firmwareDirty && !state.lastPatternDirtySyncState)
   {
-    state.lastPatternSyncMs = nowMs;
+    state.lastPatternDirtySyncState = true;
     await updatePatterns();
+  }
+
+  if (!firmwareDirty)
+  {
+    state.lastPatternDirtySyncState = false;
   }
 
 } // updateGuiSync()
@@ -470,6 +529,13 @@ async function updatePlayhead()
       }
 
       state.playingPatternIndex = state.status.playingPatternIndex;
+      if (state.pendingPatternName &&
+          state.patterns[state.status.playingPatternIndex] &&
+          state.patterns[state.status.playingPatternIndex].name === state.pendingPatternName)
+      {
+        state.pendingPatternName = "";
+        renderPatternList();
+      }
 
       updateTransportUI(state.status);
 
@@ -554,6 +620,8 @@ async function updatePatterns()
       }
 
       renderGrid();
+      renderPatternList();
+
     }
   }
   catch (e)
@@ -569,19 +637,31 @@ async function updateSampleSets()
   {
     const res = await fetch("/api/sample-sets");
     const data = await res.json();
+
     if (data.ok)
     {
       const select = document.getElementById("selectSampleSet");
+
       select.innerHTML = "";
+
       for (const setName of (data.sampleSets || []))
       {
         const opt = document.createElement("option");
+
         opt.value = setName;
         opt.textContent = setName;
+
         if (setName === data.activeSampleSet)
+        {
           opt.selected = true;
+        }
+
         select.appendChild(opt);
       }
+
+      state.activeSampleSet = data.activeSampleSet || "";
+      document.getElementById("activeSamples").textContent = "Samples: " + state.activeSampleSet;
+      updateSampleSetSelectValue(state.activeSampleSet);
     }
   }
   catch (e)
@@ -590,6 +670,47 @@ async function updateSampleSets()
   }
 
 } // updateSampleSets()
+
+function updateSampleSetSelectValue(setName)
+{
+  const select = document.getElementById("selectSampleSet");
+
+  if (!select || !setName)
+  {
+    return;
+  }
+
+  for (let optionIndex = 0; optionIndex < select.options.length; optionIndex++)
+  {
+    if (select.options[optionIndex].value === setName)
+    {
+      select.selectedIndex = optionIndex;
+      return;
+    }
+  }
+
+} // updateSampleSetSelectValue()
+
+async function updateActiveSampleSetFromFirmware()
+{
+  try
+  {
+    const res = await fetch("/api/sample-sets/active");
+    const data = await res.json();
+
+    if (data.ok && data.name)
+    {
+      state.activeSampleSet = data.name;
+      document.getElementById("activeSamples").textContent = "Samples: " + data.name;
+      updateSampleSetSelectValue(data.name);
+    }
+  }
+  catch (e)
+  {
+    console.error("Active sample set update failed:", e);
+  }
+
+} // updateActiveSampleSetFromFirmware()
 
 // ========== TRANSPORT CONTROL ==========
 
@@ -857,6 +978,7 @@ function hideActionPopup()
 } // hideActionPopup()
 
 function showActionMessage(title, message)
+
 {
   const content = document.getElementById("actionPopupContent");
 
@@ -871,7 +993,7 @@ function showActionMessage(title, message)
   content.appendChild(row);
 
   document.getElementById("btnActionAccept").style.display = "none";
-
+  document.getElementById("btnActionCancel").textContent = "OK";
   showActionPopup(title);
 
 } // showActionMessage()
@@ -991,6 +1113,10 @@ async function acceptActionPopup()
   else if (state.actionPopupMode === "copy")
   {
     await acceptCopyGroupAction();
+  }
+  else if (state.actionPopupMode === "sampleSet")
+  {
+    await acceptSampleSetAction();
   }
   else if (state.actionPopupMode === "delete")
   {
@@ -1186,8 +1312,92 @@ async function acceptDeleteGroupAction()
 
 // ========== SAMPLE SET MANAGEMENT ==========
 
+async function showSampleSetPopup()
+{
+  await updateSampleSets();
+
+  const select = document.getElementById("selectSampleSet");
+  const sampleSets = [];
+
+  for (let optionIndex = 0; optionIndex < select.options.length; optionIndex++)
+  {
+    sampleSets.push(select.options[optionIndex].value);
+  }
+
+  if (sampleSets.length === 0)
+  {
+    showActionMessage("Load Sample Set", "No sample sets found on SD card");
+    return;
+  }
+
+  const content = document.getElementById("actionPopupContent");
+
+  state.actionPopupMode = "sampleSet";
+  state.actionPopupValue = state.activeSampleSet || "";
+
+  content.innerHTML = "";
+
+  const list = document.createElement("div");
+  list.className = "delete-group-list";
+
+  for (const setName of sampleSets)
+  {
+    const button = document.createElement("button");
+
+    button.className = "btn btn-small delete-group-button";
+
+    if (setName === state.activeSampleSet)
+    {
+      button.textContent = "* " + setName;
+      button.classList.add("active-group-button");
+    }
+    else
+    {
+      button.textContent = "  " + setName;
+    }
+
+    button.addEventListener("click", function() {
+      state.actionPopupValue = setName;
+
+      const allButtons = list.querySelectorAll("button");
+
+      allButtons.forEach(function(item) {
+        item.classList.remove("active-group-button");
+      });
+
+      button.classList.add("active-group-button");
+    });
+
+    list.appendChild(button);
+  }
+
+  content.appendChild(list);
+
+  document.getElementById("btnActionAccept").style.display = "inline-block";
+
+  showActionPopup("Load Sample Set");
+
+} // showSampleSetPopup()
+
+async function acceptSampleSetAction()
+{
+  const setName = state.actionPopupValue;
+
+  if (!setName)
+  {
+    showActionMessage("Load Sample Set", "Select a sample set first");
+    return;
+  }
+
+  hideActionPopup();
+  await loadSampleSet(setName);
+
+} // acceptSampleSetAction()
+
 async function loadSampleSet(setName)
 {
+  showBusy("Loading sample set " + setName + "...");
+
   try
   {
     const res = await fetch("/api/sample-sets/load", {
@@ -1195,26 +1405,200 @@ async function loadSampleSet(setName)
       headers : {"Content-Type" : "application/json"},
       body : JSON.stringify({name : setName})
     });
+
     const data = await res.json();
+
+    hideBusy();
+
     if (data.ok)
     {
-      alert("Sample set loaded!");
+      state.activeSampleSet = setName;
+      updateSampleSetSelectValue(setName);
+      document.getElementById("activeSamples").textContent = "Samples: " + setName;
+
+      showActionMessage("Load Sample Set", "Sample set " + setName + " loaded");
+
       await updateStatus();
+      await updateSampleSets();
+
+      return;
     }
-    else
-    {
-      alert("Error: " + data.error);
-    }
+
+    showActionMessage("Load Sample Set", "Error: " + data.error);
   }
   catch (e)
   {
     hideBusy();
-    alert("Load failed: " + e);
+    showActionMessage("Load Sample Set", "Load failed: " + e);
   }
 
 } // loadSampleSet()
 
 // ========== PATTERN GRID RENDERING ==========
+
+function findPatternIndexByName(patternName)
+{
+  for (let patternIndex = 0; patternIndex < state.patterns.length; patternIndex++)
+  {
+    if (state.patterns[patternIndex].name === patternName)
+    {
+      return patternIndex;
+    }
+  }
+
+  return -1;
+
+} // findPatternIndexByName()
+
+function getRequestedPatternChainIndex(patternIndex)
+{
+  if (patternIndex < 0 || patternIndex >= state.patterns.length)
+  {
+    return -1;
+  }
+
+  const pattern = state.patterns[patternIndex];
+
+  if (!pattern.chainEnabled || !pattern.chainTarget)
+  {
+    return -1;
+  }
+
+  return findPatternIndexByName(pattern.chainTarget);
+
+} // getRequestedPatternChainIndex()
+
+function getPatternChainText(pattern)
+{
+  if (!pattern || !pattern.chainEnabled || !pattern.chainTarget)
+  {
+    return "noChain";
+  }
+
+  return pattern.chainTarget;
+
+} // getPatternChainText()
+
+function renderPatternList()
+{
+  const list = document.getElementById("patternListItems");
+
+  if (!list)
+  {
+    return;
+  }
+
+  list.innerHTML = "";
+
+  if (!state.patterns || state.patterns.length === 0)
+  {
+    const emptyRow = document.createElement("div");
+
+    emptyRow.className = "pattern-list-entry";
+    emptyRow.textContent = "No patterns loaded";
+    list.appendChild(emptyRow);
+    return;
+  }
+
+  for (let patternIndex = 0; patternIndex < state.patterns.length; patternIndex++)
+  {
+    const pattern = state.patterns[patternIndex];
+    const row = document.createElement("div");
+    const chainText = getPatternChainText(pattern);
+
+    row.className = "pattern-list-entry";
+
+    if (pattern.name === state.pendingPatternName)
+    {
+      row.classList.add("pattern-list-entry-pending");
+      row.textContent = pattern.name + " -> " + chainText + "  REQUESTED";
+    }
+    else
+    {
+      row.textContent = pattern.name + " -> " + chainText;
+    }
+
+    row.addEventListener("click", function() {
+      selectPatternFromList(pattern.name);
+    });
+
+    list.appendChild(row);
+  }
+
+} // renderPatternList()
+
+async function selectPatternFromList(patternName)
+{
+  const requestedIndex = findPatternIndexByName(patternName);
+
+  if (requestedIndex < 0)
+  {
+    return;
+  }
+
+  const playingIndex = state.status.playingPatternIndex !== undefined
+      ? state.status.playingPatternIndex
+      : state.status.activePatternIndex;
+
+  const chainIndex = getRequestedPatternChainIndex(requestedIndex);
+
+  state.pendingPatternName = patternName;
+
+  state.visiblePatternStartIndex = playingIndex;
+  state.visiblePatternMiddleIndex = requestedIndex;
+  state.visiblePatternRightIndex = chainIndex;
+  state.visiblePatternWindowReady = true;
+
+  renderPatternList();
+  renderGrid();
+
+  try
+  {
+    const res = await fetch("/api/patterns/active", {
+      method : "POST",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({name : patternName})
+    });
+
+    const data = await res.json();
+
+    if (!data.ok)
+    {
+      state.pendingPatternName = "";
+      renderPatternList();
+      showActionMessage("Select Pattern", "Error: " + data.error);
+      return;
+    }
+
+    await updateStatus();
+    await updateTransport();
+  }
+  catch (e)
+  {
+    state.pendingPatternName = "";
+    renderPatternList();
+    showActionMessage("Select Pattern", "Select failed: " + e);
+  }
+
+} // selectPatternFromList()
+
+function resetVisiblePatternWindowToIndex(patternIndex)
+{
+  if (!state.patterns || state.patterns.length === 0)
+  {
+    return;
+  }
+
+  state.pendingPatternName = "";
+  state.visiblePatternStartIndex = patternIndex;
+  state.visiblePatternMiddleIndex = getNextPatternIndex(state.visiblePatternStartIndex);
+  state.visiblePatternRightIndex = getNextPatternIndex(state.visiblePatternMiddleIndex);
+  state.visiblePatternWindowReady = true;
+
+  renderGrid();
+  renderPatternList();
+
+} // resetVisiblePatternWindowToIndex()
 
 function getNextPatternIndex(patternIndex)
 {
@@ -1294,7 +1678,7 @@ function renderGrid()
 
   visiblePatterns.push({
     index : state.visiblePatternRightIndex,
-    data : state.patterns[state.visiblePatternRightIndex]
+    data : state.visiblePatternRightIndex >= 0 ? state.patterns[state.visiblePatternRightIndex] : null  
   });
 
   const headerRow = document.createElement("tr");
@@ -1410,6 +1794,37 @@ function selectStep(patternIndex, trackIndex, stepIndex, anchorCell)
 
 } // selectStep()
 
+async function updatePatternChain(patternName, chainEnabled, chainTarget)
+{
+  try
+  {
+    const res = await fetch("/api/patterns/" + patternName + "/chain", {
+      method : "PUT",
+      headers : {"Content-Type" : "application/json"},
+      body : JSON.stringify({
+        chainEnabled : chainEnabled,
+        chainTarget : chainEnabled ? chainTarget : ""
+      })
+    });
+
+    const data = await res.json();
+
+    if (!data.ok)
+    {
+      showActionMessage("Pattern Chain", "Error: " + data.error);
+      return false;
+    }
+
+    return true;
+  }
+  catch (e)
+  {
+    showActionMessage("Pattern Chain", "Update failed: " + e);
+    return false;
+  }
+
+} // updatePatternChain()
+
 async function toggleStepTrigger(patternIndex, trackIndex, stepIndex)
 {
   if (patternIndex >= state.patterns.length)
@@ -1467,6 +1882,40 @@ async function toggleStepTrigger(patternIndex, trackIndex, stepIndex)
 
 // ========== STEP EDITOR ==========
 
+function fillStepChainTargetSelect(currentPatternName, selectedTarget)
+{
+  const select = document.getElementById("stepChainTarget");
+
+  select.innerHTML = "";
+
+  const noChainOption = document.createElement("option");
+
+  noChainOption.value = "";
+  noChainOption.textContent = "noChain";
+  select.appendChild(noChainOption);
+
+  for (const pattern of state.patterns)
+  {
+    if (!pattern || pattern.name === currentPatternName)
+    {
+      continue;
+    }
+
+    const option = document.createElement("option");
+
+    option.value = pattern.name;
+    option.textContent = pattern.name;
+
+    if (pattern.name === selectedTarget)
+    {
+      option.selected = true;
+    }
+
+    select.appendChild(option);
+  }
+
+} // fillStepChainTargetSelect()
+
 function openStepEditor(anchorCell)
 {
   const patIdx = state.selectedPatternIndex;
@@ -1480,6 +1929,7 @@ function openStepEditor(anchorCell)
 
   const pattern = state.patterns[patIdx];
   const step = pattern.tracks[trackIdx].steps[stepIdx];
+  const chainTarget = pattern.chainTarget || "";
 
   state.stepEditorOriginal = {
     trigger : step.trigger,
@@ -1488,7 +1938,9 @@ function openStepEditor(anchorCell)
     probability : step.probability,
     lockEnabled : step.lockEnabled,
     lockPitch : step.lockPitch,
-    lockDecay : step.lockDecay
+    lockDecay : step.lockDecay,
+    chainEnabled : !!pattern.chainEnabled,
+    chainTarget : chainTarget
   };
 
   state.stepEditorDraft = {
@@ -1498,7 +1950,9 @@ function openStepEditor(anchorCell)
     probability : step.probability,
     lockEnabled : step.lockEnabled,
     lockPitch : step.lockPitch,
-    lockDecay : step.lockDecay
+    lockDecay : step.lockDecay,
+    chainEnabled : !!pattern.chainEnabled,
+    chainTarget : chainTarget
   };
 
   document.getElementById("stepTrigger").checked = step.trigger;
@@ -1512,6 +1966,11 @@ function openStepEditor(anchorCell)
   document.getElementById("stepLockPitchNum").value = step.lockPitch;
   document.getElementById("stepLockDecay").value = step.lockDecay;
   document.getElementById("stepLockDecayNum").value = step.lockDecay;
+
+  fillStepChainTargetSelect(pattern.name, chainTarget);
+
+  document.getElementById("stepChainEnabled").checked = !!pattern.chainEnabled;
+  document.getElementById("stepChainTarget").value = chainTarget;
 
   const title = "Step: " + pattern.name + " / " + trackNames[trackIdx] + " / S:" + (stepIdx + 1);
   document.getElementById("stepEditorTitle").textContent = title;
@@ -1557,50 +2016,75 @@ async function acceptStepEditor()
     const pattern = state.patterns[patIdx];
     const step = pattern.tracks[trackIdx].steps[stepIdx];
 
-    const changed = (state.stepEditorDraft.trigger !== step.trigger ||
-                     state.stepEditorDraft.mute !== step.mute ||
-                     state.stepEditorDraft.velocity !== step.velocity ||
-                     state.stepEditorDraft.probability !== step.probability ||
-                     state.stepEditorDraft.lockEnabled !== step.lockEnabled ||
-                     state.stepEditorDraft.lockPitch !== step.lockPitch ||
-                     state.stepEditorDraft.lockDecay !== step.lockDecay);
+    const stepChanged = (state.stepEditorDraft.trigger !== step.trigger ||
+                         state.stepEditorDraft.mute !== step.mute ||
+                         state.stepEditorDraft.velocity !== step.velocity ||
+                         state.stepEditorDraft.probability !== step.probability ||
+                         state.stepEditorDraft.lockEnabled !== step.lockEnabled ||
+                         state.stepEditorDraft.lockPitch !== step.lockPitch ||
+                         state.stepEditorDraft.lockDecay !== step.lockDecay);
 
-    if (changed)
+    const chainChanged =
+        (state.stepEditorDraft.chainEnabled !== !!pattern.chainEnabled ||
+         state.stepEditorDraft.chainTarget !== (pattern.chainTarget || ""));
+
+    if (stepChanged)
     {
-      const patternName = pattern.name;
-
       try
       {
         const res = await fetch(
-            "/api/patterns/" + patternName + "/tracks/" + trackIdx + "/steps/" + stepIdx, {
+            "/api/patterns/" + pattern.name + "/tracks/" + trackIdx + "/steps/" + stepIdx, {
               method : "PUT",
               headers : {"Content-Type" : "application/json"},
-              body : JSON.stringify(state.stepEditorDraft)
+              body : JSON.stringify({
+                trigger : state.stepEditorDraft.trigger,
+                mute : state.stepEditorDraft.mute,
+                velocity : state.stepEditorDraft.velocity,
+                probability : state.stepEditorDraft.probability,
+                lockEnabled : state.stepEditorDraft.lockEnabled,
+                lockPitch : state.stepEditorDraft.lockPitch,
+                lockDecay : state.stepEditorDraft.lockDecay
+              })
             });
+
         const data = await res.json();
 
-        if (data.ok)
+        if (!data.ok)
         {
-          step.trigger = state.stepEditorDraft.trigger;
-          step.mute = state.stepEditorDraft.mute;
-          step.velocity = state.stepEditorDraft.velocity;
-          step.probability = state.stepEditorDraft.probability;
-          step.lockEnabled = state.stepEditorDraft.lockEnabled;
-          step.lockPitch = state.stepEditorDraft.lockPitch;
-          step.lockDecay = state.stepEditorDraft.lockDecay;
-        }
-        else
-        {
-          alert("Error: " + data.error);
+          showActionMessage("Step Edit", "Error: " + data.error);
           return;
         }
+
+        step.trigger = state.stepEditorDraft.trigger;
+        step.mute = state.stepEditorDraft.mute;
+        step.velocity = state.stepEditorDraft.velocity;
+        step.probability = state.stepEditorDraft.probability;
+        step.lockEnabled = state.stepEditorDraft.lockEnabled;
+        step.lockPitch = state.stepEditorDraft.lockPitch;
+        step.lockDecay = state.stepEditorDraft.lockDecay;
       }
       catch (e)
       {
         hideBusy();
-        alert("Update failed: " + e);
+        showActionMessage("Step Edit", "Update failed: " + e);
         return;
       }
+    }
+
+    if (chainChanged)
+    {
+      const chainUpdated = await updatePatternChain(pattern.name, state.stepEditorDraft.chainEnabled,
+                                                   state.stepEditorDraft.chainTarget);
+
+      if (!chainUpdated)
+      {
+        return;
+      }
+
+      pattern.chainEnabled = state.stepEditorDraft.chainEnabled;
+      pattern.chainTarget = state.stepEditorDraft.chainTarget;
+      renderPatternList();
+      renderGrid();
     }
   }
 
@@ -1608,7 +2092,9 @@ async function acceptStepEditor()
   state.stepEditorDraft = {};
   state.stepEditorOriginal = {};
   document.getElementById("stepEditor").style.display = "none";
+
   renderGrid();
+  renderPatternList();
 
 } // acceptStepEditor()
 

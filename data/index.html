@@ -76,6 +76,12 @@
       </table>
     </div>
 
+    <!-- Pattern List -->
+    <div class="pattern-list-panel" id="patternListPanel">
+      <div class="pattern-list-title">Patterns</div>
+      <div class="pattern-list-items" id="patternListItems"></div>
+    </div>
+
     <!-- Group List Popup -->
     <div class="group-list-panel" id="groupListPanel" style="display: none;">
       <div class="step-editor-header">
@@ -136,6 +142,14 @@
         <div class="editor-row">
           <label>USE PITCH/DECAY:</label>
           <input type="checkbox" id="stepLockEnabled" class="checkbox">
+        </div>
+        <div class="editor-row">
+          <label>CHAIN ENABLED:</label>
+          <input type="checkbox" id="stepChainEnabled" class="checkbox">
+        </div>
+        <div class="editor-row">
+          <label>CHAIN TARGET:</label>
+          <select id="stepChainTarget" class="number-input"></select>
         </div>
       </div>
       <div class="step-editor-footer">

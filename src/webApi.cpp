@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 16:38 ***/
+/*** Last Changed: 2026-06-27 - 14:14 ***/
 #include "webApi.h"
 #include "sequencer.h"
 #include "settingsStore.h"
@@ -424,6 +424,9 @@ static void handleGroupsLoadRequest()
     return;
   }
 
+  sequencerStopImmediately();
+  audioEngineStopAllVoices();
+
   if (!uiManagerLoadPatternGroup(groupName))
   {
     sendError(webServer, "Failed to load group");
@@ -688,7 +691,6 @@ static void handlePatternsActiveGetRequest()
 //-- POST /api/patterns/active — set active pattern
 static void handlePatternsActiveSetRequest()
 {
-
   if (!webServer.hasArg("plain"))
   {
     sendError(webServer, "Missing body");
@@ -697,6 +699,7 @@ static void handlePatternsActiveSetRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
+
   if (error || !doc["name"].is<const char*>())
   {
     sendError(webServer, "Missing name");
@@ -713,16 +716,19 @@ static void handlePatternsActiveSetRequest()
   }
 
   SequencerView view;
+
   sequencerGetView(view);
 
-  if (view.playing)
+  if (view.playing || view.paused)
   {
-    sequencerRequestPatternSwitchAfterCurrentPattern((uint8_t)slotIndex);
+    sequencerRequestPatternSwitchAfterCurrentPattern(static_cast<uint8_t>(slotIndex));
   }
   else
   {
-    sequencerSetActivePatternIndex((uint8_t)slotIndex);
+    sequencerSetActivePatternIndex(static_cast<uint8_t>(slotIndex));
   }
+
+  uiManagerRequestRedraw();
 
   sendOk(webServer);
 
@@ -852,6 +858,58 @@ static void handlePatternsCopyRequest()
   sendOk(webServer);
 
 } //   handlePatternsCopyRequest()
+
+//-- PUT /api/patterns/{patternName}/chain
+static void handlePatternChainEditRequest()
+{
+  String patternName = webServer.pathArg(0);
+  int16_t slotIndex = patternNameToSlotIndex(patternName);
+
+  if (slotIndex < 0 || slotIndex >= uiManagerGetLoadedPatternCount())
+  {
+    sendError(webServer, "Invalid pattern name", 404);
+    return;
+  }
+
+  if (!webServer.hasArg("plain"))
+  {
+    sendError(webServer, "Missing body");
+    return;
+  }
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
+
+  if (error)
+  {
+    sendError(webServer, "Invalid JSON");
+    return;
+  }
+
+  bool chainEnabled = doc["chainEnabled"] | false;
+  String chainTarget = doc["chainTarget"] | "";
+
+  if (chainEnabled)
+  {
+    if (chainTarget.isEmpty())
+    {
+      sendError(webServer, "Missing chainTarget");
+      return;
+    }
+
+    if (patternNameToSlotIndex(chainTarget) < 0)
+    {
+      sendError(webServer, "Invalid chainTarget");
+      return;
+    }
+  }
+
+  uiManagerSetPatternChainForSlot(static_cast<uint8_t>(slotIndex), chainEnabled, chainTarget);
+  uiManagerSetPatternGroupDirty(true);
+
+  sendOk(webServer);
+
+} //   handlePatternChainEditRequest()
 
 //-- PUT /api/patterns/{patternName}/tracks/{trackIndex}/steps/{stepIndex}
 static void handleStepEditRequest()
@@ -1072,7 +1130,6 @@ static void handleSampleSetsActiveRequest()
 //-- POST /api/sample-sets/load — load sample set
 static void handleSampleSetsLoadRequest()
 {
-
   if (!webServer.hasArg("plain"))
   {
     sendError(webServer, "Missing body");
@@ -1081,6 +1138,7 @@ static void handleSampleSetsLoadRequest()
 
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, webServer.arg("plain"));
+
   if (error || !doc["name"].is<const char*>())
   {
     sendError(webServer, "Missing name");
@@ -1088,6 +1146,9 @@ static void handleSampleSetsLoadRequest()
   }
 
   String setName = doc["name"].as<String>();
+
+  sequencerStopImmediately();
+  audioEngineStopAllVoices();
 
   if (!sampleManagerLoadSampleSet(setName.c_str()))
   {
@@ -1100,6 +1161,8 @@ static void handleSampleSetsLoadRequest()
     sendError(webServer, "Failed to set active sample set");
     return;
   }
+
+  uiManagerRequestRedraw();
 
   sendOk(webServer);
 
@@ -1329,6 +1392,10 @@ void webApiRegisterRoutes(WebServer& server)
                handlePatternsClearRequest);
   webServer.on(UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])\\/copy$"), HTTP_POST,
                handlePatternsCopyRequest);
+  webServer.on(UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])\\/copy$"), HTTP_POST,
+               handlePatternsCopyRequest);
+  webServer.on(UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])\\/chain$"), HTTP_PUT,
+               handlePatternChainEditRequest);
   webServer.on(
       UriRegex("^\\/api\\/patterns\\/([pP][0-9][0-9])\\/tracks\\/([0-9]+)\\/steps\\/([0-9]+)$"),
       HTTP_PUT, handleStepEditRequest);

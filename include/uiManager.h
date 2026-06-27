@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 15:38 ***/
+/*** Last Changed: 2026-06-27 - 14:14 ***/
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
@@ -33,6 +33,10 @@ String uiManagerGetPatternChainTargetForSlot(uint8_t slotIndex);
 
 //-- Query whether chain is enabled for a given slot index.
 bool uiManagerGetPatternChainEnabledForSlot(uint8_t slotIndex);
+
+//-- Set chain settings for one loaded pattern slot.
+void uiManagerSetPatternChainForSlot(uint8_t slotIndex, bool chainEnabled,
+                                     const String& chainTarget);
 
 //-- Load a pattern group from SD card into memory.
 bool uiManagerLoadPatternGroup(const String& groupName);

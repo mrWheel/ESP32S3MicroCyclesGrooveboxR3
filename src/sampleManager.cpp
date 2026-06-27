@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 13:52 ***/
+/*** Last Changed: 2026-06-27 - 14:14 ***/
 #include "sampleManager.h"
 #include "appConfig.h"
 #include "settingsStore.h"
@@ -279,6 +279,10 @@ bool sampleManagerLoadSampleSet(const char* sampleSetName)
 
   logSampleManagerStackHighWaterMark("sampleManagerLoadSampleSet end");
 
+  if (!settingsStoreSetActiveSampleSet(String(activeSampleSet)))
+  {
+    ESP_LOGW(logTag, "Warning: Failed to store active sample set %s", activeSampleSet);
+  }
   ESP_LOGI(logTag, "Active sample set loaded: %s", activeSampleSet);
 
   return true;

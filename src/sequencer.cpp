@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 12:45 ***/
+/*** Last Changed: 2026-06-27 - 14:14 ***/
 #include "sequencer.h"
 
 #include <Arduino.h>
@@ -530,10 +530,20 @@ void sequencerRequestPatternSwitchAfterCurrentPattern(uint8_t patternIndex)
     patternIndex = static_cast<uint8_t>(state.loadedPatternCount - 1U);
   }
 
-  if (state.playing && !state.chainEnabled)
+  if (state.playing || state.paused)
   {
     state.pendingPatternIndex = patternIndex;
     state.pendingPatternSwitch = true;
+  }
+  else
+  {
+    state.activePatternIndex = patternIndex;
+    state.playingPatternIndex = patternIndex;
+    state.pendingPatternIndex = patternIndex;
+    state.pendingPatternSwitch = false;
+    state.currentStep = 0;
+    state.cursorStep = 0;
+    state.nextStepDueUs = 0;
   }
 
   portEXIT_CRITICAL(&sequencerMux);
@@ -981,6 +991,25 @@ void sequencerToggleChainEnabled()
   portEXIT_CRITICAL(&sequencerMux);
 
 } //   sequencerToggleChainEnabled()
+
+//-- Explicitly enable or disable chain playback mode.
+void sequencerSetChainPlaybackEnabled(bool enabled)
+{
+  portENTER_CRITICAL(&sequencerMux);
+
+  if (enabled && state.loadedPatternCount > 1U)
+  {
+    state.chainEnabled = true;
+    state.chainLength = state.loadedPatternCount;
+  }
+  else
+  {
+    state.chainEnabled = false;
+  }
+
+  portEXIT_CRITICAL(&sequencerMux);
+
+} //   sequencerSetChainPlaybackEnabled()
 
 //-- Copy current pattern into memory slot.
 void sequencerStorePattern(uint8_t slotIndex)

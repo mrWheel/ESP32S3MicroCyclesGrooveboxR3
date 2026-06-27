@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 13:52 ***/
+/*** Last Changed: 2026-06-27 - 14:14 ***/
 /*** Last Changed: 2026-05-27 - 17:20 ***/
 
 #include "settingsStore.h"
@@ -63,13 +63,20 @@ String settingsStoreGetActiveSampleSet()
 bool settingsStoreSetActiveSampleSet(const String& setName)
 {
   nvs_handle_t handle = openNvsHandle(true);
+
   if (!handle)
+  {
     return false;
-  esp_err_t err = nvs_set_str(handle, "sample_set", setName.c_str());
-  nvs_commit(handle);
+  }
+
+  esp_err_t setError = nvs_set_str(handle, "sample_set", setName.c_str());
+  esp_err_t commitError = nvs_commit(handle);
+
   nvs_close(handle);
-  return err == ESP_OK;
-}
+
+  return (setError == ESP_OK && commitError == ESP_OK);
+
+} //   settingsStoreSetActiveSampleSet()
 
 //-- Get display rotation from NVS
 uint8_t settingsStoreGetDisplayRotation()

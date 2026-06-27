@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-26 - 15:38 ***/
+/*** Last Changed: 2026-06-27 - 14:14 ***/
 #include "uiManager.h"
 #include "uiPatternGroupInput.h"
 #include "uiCardStorageActions.h"
@@ -317,6 +317,7 @@ static void syncActivePatternNameFromSlot(uint8_t slotIndex)
 static void syncSequencerChainTargetsFromUi()
 {
   uint8_t loadedPatternCount = getLoadedPatternSlotCount();
+  bool hasAnyValidChain = false;
 
   sequencerSetLoadedPatternCount(loadedPatternCount);
   sequencerClearPatternChainTargets();
@@ -335,70 +336,13 @@ static void syncSequencerChainTargetsFromUi()
         targetSlotIndex < loadedPatternCount)
     {
       sequencerSetPatternChainTarget(slotIndex, targetSlotIndex, true);
+      hasAnyValidChain = true;
     }
   }
+
+  sequencerSetChainPlaybackEnabled(hasAnyValidChain);
 
 } //   syncSequencerChainTargetsFromUi()
-
-/*** no longer in use (??) *******
-//-- Return true when every loaded pattern is part of the chain starting at p01.
-static bool areAllLoadedPatternsIncludedInPlaybackChain()
-{
-  bool visited[sequencerPatternCount];
-  uint8_t loadedPatternCount = getLoadedPatternSlotCount();
-  uint8_t currentSlotIndex = 0;
-  uint8_t visitedCount = 0;
-
-  if (loadedPatternCount <= 1U)
-  {
-    return true;
-  }
-
-  for (uint8_t slotIndex = 0; slotIndex < sequencerPatternCount; slotIndex++)
-  {
-    visited[slotIndex] = false;
-  }
-
-  for (uint8_t guard = 0; guard < loadedPatternCount + 1U; guard++)
-  {
-    uint8_t nextSlotIndex = 0;
-    String targetName;
-
-    if (currentSlotIndex >= loadedPatternCount)
-    {
-      return false;
-    }
-
-    if (!visited[currentSlotIndex])
-    {
-      visited[currentSlotIndex] = true;
-      visitedCount++;
-    }
-
-    targetName = uiState.chainSlotTargetPatternNames[currentSlotIndex];
-
-    if (!patternSlotIndexFromName(targetName, nextSlotIndex))
-    {
-      return false;
-    }
-
-    if (nextSlotIndex >= loadedPatternCount)
-    {
-      return false;
-    }
-
-    currentSlotIndex = nextSlotIndex;
-
-    if (currentSlotIndex == 0)
-    {
-      break;
-    }
-  }
-
-  return visitedCount == loadedPatternCount;
-
-} //   areAllLoadedPatternsIncludedInPlaybackChain()
- ****/
 
 //-- Map current parameter page to popup selection index.
 static int popupSelectionFromParameterPage(uint8_t parameterPage)
@@ -3521,33 +3465,25 @@ void uiManagerHandleAuxButtonEvent(ButtonEvent buttonEvent)
 
 } //   uiManagerHandleAuxButtonEvent()
 
-//
-// Query whether pattern group has unsaved changes.
-//
+//-- Query whether pattern group has unsaved changes.
 bool uiManagerIsPatternGroupDirty()
 {
   return uiState.patternGroupDirty;
 } //   uiManagerIsPatternGroupDirty()
 
-//
-// Set the pattern group dirty flag explicitly.
-//
+//-- Set the pattern group dirty flag explicitly.
 void uiManagerSetPatternGroupDirty(bool dirty)
 {
   uiState.patternGroupDirty = dirty;
 } //   uiManagerSetPatternGroupDirty()
 
-//
-// Get count of currently loaded patterns in active group.
-//
+//-- Get count of currently loaded patterns in active group.
 uint8_t uiManagerGetLoadedPatternCount()
 {
   return getLoadedPatternSlotCount();
 } //   uiManagerGetLoadedPatternCount()
 
-//
-// Get pattern name string for a given slot index.
-//
+//-- Get pattern name string for a given slot index.
 String uiManagerGetPatternNameForSlot(uint8_t slotIndex)
 {
   if (slotIndex < sequencerPatternCount)
@@ -3557,9 +3493,7 @@ String uiManagerGetPatternNameForSlot(uint8_t slotIndex)
   return "";
 } //   uiManagerGetPatternNameForSlot()
 
-//
-// Get pattern chain target for a given slot index.
-//
+//-- Get pattern chain target for a given slot index.
 String uiManagerGetPatternChainTargetForSlot(uint8_t slotIndex)
 {
   if (slotIndex < sequencerPatternCount)
@@ -3569,9 +3503,28 @@ String uiManagerGetPatternChainTargetForSlot(uint8_t slotIndex)
   return "";
 } //   uiManagerGetPatternChainTargetForSlot()
 
-//
-// Query whether chain is enabled for a given slot index.
-//
+//-- Set chain settings for one loaded pattern slot.
+void uiManagerSetPatternChainForSlot(uint8_t slotIndex, bool chainEnabled,
+                                     const String& chainTarget)
+{
+  if (slotIndex >= sequencerPatternCount)
+  {
+    return;
+  }
+
+  uiState.chainSlotChainEnabled[slotIndex] = chainEnabled;
+  uiState.chainSlotTargetPatternNames[slotIndex] = chainEnabled ? chainTarget : "";
+  uiState.patternGroupDirty = true;
+  uiState.chainSettingsDirty = false;
+  uiState.patternListNeedsRefresh = true;
+
+  syncSequencerChainTargetsFromUi();
+  refreshChainSeriesPatternCache();
+  uiManagerRequestRedraw();
+
+} //   uiManagerSetPatternChainForSlot()
+
+//-- Query whether chain is enabled for a given slot index.
 bool uiManagerGetPatternChainEnabledForSlot(uint8_t slotIndex)
 {
   if (slotIndex < sequencerPatternCount)
@@ -3581,12 +3534,7 @@ bool uiManagerGetPatternChainEnabledForSlot(uint8_t slotIndex)
   return false;
 } //   uiManagerGetPatternChainEnabledForSlot()
 
-//
-// Load a pattern group from SD card into memory.
-//
-//
-// Load a pattern group from SD card into memory.
-//
+//-- Load a pattern group from SD card into memory.
 bool uiManagerLoadPatternGroup(const String& groupName)
 {
   if (!loadCardPatternGroupIntoMemory(groupName, false))
@@ -3612,9 +3560,7 @@ bool uiManagerLoadPatternGroup(const String& groupName)
 
 } //   uiManagerLoadPatternGroup()
 
-//
-// Save the active pattern group to SD card.
-//
+//-- Save the active pattern group to SD card.
 bool uiManagerSavePatternGroup()
 {
   return saveLoadedPatternGroupToCard();

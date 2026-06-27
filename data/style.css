@@ -316,6 +316,65 @@ html, body {
   border-right: 2px solid var(--cursor-color);
 }
 
+/* Pattern List */
+.pattern-list-panel {
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 2px solid #303030;
+  border-radius: 3px;
+  background-color: #fdfcf7;
+  color: #1f2933;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.20);
+  max-width: 320px;
+}
+
+.pattern-list-title {
+  font-weight: bold;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--grid-border);
+  padding-bottom: 4px;
+}
+
+.pattern-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.pattern-list-entry {
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 12px;
+  background-color: #ffffff;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.pattern-list-entry:hover {
+  background-color: #dbeafe;
+  border-color: #2563eb;
+}
+
+.pattern-list-entry-active {
+  font-weight: bold;
+  background-color: #d8ecff;
+}
+
+.pattern-list-entry-playing {
+  outline: 2px solid #facc15;
+  outline-offset: -2px;
+}
+
+.pattern-list-entry-pending {
+  background-color: #fff3b0 !important;
+  color: #000000 !important;
+  font-weight: bold;
+}
+
 /* Step Editor Panel */
 .step-editor {
   position: fixed;
