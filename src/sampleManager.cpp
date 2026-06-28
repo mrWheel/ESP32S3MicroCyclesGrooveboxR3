@@ -1,5 +1,6 @@
-/*** Last Changed: 2026-06-27 - 16:18 ***/
+/*** Last Changed: 2026-06-28 - 11:38 ***/
 #include "sampleManager.h"
+#include "debugUtils.h"
 #include "appConfig.h"
 #include "settingsStore.h"
 #include "DisplayDriverClass.h"
@@ -9,8 +10,8 @@
 #include <SD.h>
 #include <SPI.h>
 #include <esp_heap_caps.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+// #include <freertos/FreeRTOS.h>
+// #include <freertos/task.h>
 #include <esp_log.h>
 #include <math.h>
 #include <string.h>
@@ -59,16 +60,6 @@ static const char* sampleNames[sampleCount] = {"kick", "snare", "ch", "oh", "ton
 
 static char activeSampleSet[4] = "S1";
 static uint16_t sampleGainPercent[sampleCount] = {100, 100, 100, 100, 100, 100};
-
-//-- Log remaining stack space for the currently running task.
-static void logSampleManagerStackHighWaterMark(const char* label)
-{
-  UBaseType_t freeStackWords = uxTaskGetStackHighWaterMark(nullptr);
-  size_t freeStackBytes = static_cast<size_t>(freeStackWords) * sizeof(StackType_t);
-
-  ESP_LOGI(logTag, "[Stack] %s free=%lu bytes", label, static_cast<unsigned long>(freeStackBytes));
-
-} //   logSampleManagerStackHighWaterMark()
 
 //-- Get path to current sample set directory.
 static String getSampleSetDir()
@@ -219,7 +210,7 @@ bool sampleManagerListSampleSets(char sampleSetNames[][4], uint8_t maxSampleSets
 //-- Load another sample set from SD.
 bool sampleManagerLoadSampleSet(const char* sampleSetName)
 {
-  logSampleManagerStackHighWaterMark("sampleManagerLoadSampleSet start");
+  logStackHighWaterMark(logTag, "sampleManagerLoadSampleSet start");
 
   if (!sdCardReady)
   {
@@ -250,7 +241,7 @@ bool sampleManagerLoadSampleSet(const char* sampleSetName)
 
   for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
   {
-    logSampleManagerStackHighWaterMark(sampleNames[sampleIndex]);
+    logStackHighWaterMark(logTag, sampleNames[sampleIndex]);
     loadStatusUpdate(sampleIndex + 1, sampleNames[sampleIndex]);
 
     if (sampleSlots[sampleIndex].fromSd && sampleSlots[sampleIndex].data &&
@@ -281,10 +272,10 @@ bool sampleManagerLoadSampleSet(const char* sampleSetName)
       ESP_LOGW(logTag, "Warning: Missing or invalid sample %s, using fallback", wavPath.c_str());
     }
 
-    logSampleManagerStackHighWaterMark(sampleNames[sampleIndex]);
+    logStackHighWaterMark(logTag, sampleNames[sampleIndex]);
   }
 
-  logSampleManagerStackHighWaterMark("sampleManagerLoadSampleSet end");
+  logStackHighWaterMark(logTag, "sampleManagerLoadSampleSet end");
 
   if (!settingsStoreSetActiveSampleSet(String(activeSampleSet)))
   {
@@ -726,7 +717,7 @@ static bool initSdCard()
 //-- Load and decode a WAV file from SD into the sample slot.
 static bool loadSampleFromSdPath(uint8_t sampleIndex, const char* wavPath)
 {
-  logSampleManagerStackHighWaterMark("loadSampleFromSdPath start");
+  logStackHighWaterMark(logTag, "loadSampleFromSdPath start");
 
   if (!wavPath || sampleIndex >= sampleCount)
   {
@@ -769,7 +760,7 @@ static bool loadSampleFromSdPath(uint8_t sampleIndex, const char* wavPath)
   size_t allocBytes = frameCount * sizeof(int16_t);
 
   logSampleAllocationHeapState(sampleNames[sampleIndex], allocBytes);
-  logSampleManagerStackHighWaterMark("before sample allocation");
+  logStackHighWaterMark(logTag, "before sample allocation");
 
   int16_t* buffer = nullptr;
   bool usedPsram = false;
@@ -798,7 +789,7 @@ static bool loadSampleFromSdPath(uint8_t sampleIndex, const char* wavPath)
     return false;
   }
 
-  logSampleManagerStackHighWaterMark("after sample allocation");
+  logStackHighWaterMark(logTag, "after sample allocation");
 
   wavFile.seek(dataOffset);
 
@@ -823,7 +814,7 @@ static bool loadSampleFromSdPath(uint8_t sampleIndex, const char* wavPath)
     buffer[frame] = monoSample;
   }
 
-  logSampleManagerStackHighWaterMark("after sample decode");
+  logStackHighWaterMark(logTag, "after sample decode");
 
   wavFile.close();
 
@@ -843,7 +834,7 @@ static bool loadSampleFromSdPath(uint8_t sampleIndex, const char* wavPath)
           sizeof(sampleSlots[sampleIndex].name) - 1);
   sampleSlots[sampleIndex].name[sizeof(sampleSlots[sampleIndex].name) - 1] = '\0';
 
-  logSampleManagerStackHighWaterMark("loadSampleFromSdPath end");
+  logStackHighWaterMark(logTag, "loadSampleFromSdPath end");
 
   return true;
 
@@ -852,7 +843,7 @@ static bool loadSampleFromSdPath(uint8_t sampleIndex, const char* wavPath)
 //-- Initialize sample pool and load WAV files from SD.
 bool sampleManagerInit()
 {
-  logSampleManagerStackHighWaterMark("sampleManagerInit start");
+  logStackHighWaterMark(logTag, "sampleManagerInit start");
 
   sdCardReady = initSdCard();
   psramAvailable = (heap_caps_get_total_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) > 0);
@@ -889,7 +880,7 @@ bool sampleManagerInit()
 
   for (uint8_t sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
   {
-    logSampleManagerStackHighWaterMark(sampleNames[sampleIndex]);
+    logStackHighWaterMark(logTag, sampleNames[sampleIndex]);
 
     buildFallbackSample(sampleIndex);
 
@@ -926,10 +917,10 @@ bool sampleManagerInit()
       }
     }
 
-    logSampleManagerStackHighWaterMark(sampleNames[sampleIndex]);
+    logStackHighWaterMark(logTag, sampleNames[sampleIndex]);
   }
 
-  logSampleManagerStackHighWaterMark("sampleManagerInit end");
+  logStackHighWaterMark(logTag, "sampleManagerInit end");
 
   return true;
 

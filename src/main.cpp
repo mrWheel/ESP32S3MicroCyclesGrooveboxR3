@@ -1,4 +1,4 @@
-/*** Last Changed: 2026-06-27 - 16:18 ***/
+/*** Last Changed: 2026-06-28 - 11:38 ***/
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_timer.h>
@@ -9,6 +9,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 
+#include "debugUtils.h"
 #include "DisplayDriverClass.h"
 #include "InputClass.h"
 #include "audioEngine.h"
@@ -22,7 +23,7 @@
 #include "progVersion.h"
 
 //-- PROG_VERSION.
-const char* PROG_VERSION = "v1.5.6";
+const char* PROG_VERSION = "v1.5.7";
 
 //-- Logging tag.
 static const char* logTag = "Groovebox";
@@ -44,17 +45,6 @@ static bool audioTaskStarted = false;
 static bool uiTaskStarted = false;
 static bool inputTaskStarted = false;
 static bool systemTaskStarted = false;
-
-//-- Log remaining stack space for the currently running task.
-static void logCurrentTaskStackHighWaterMark(const char* taskName)
-{
-  UBaseType_t freeStackWords = uxTaskGetStackHighWaterMark(nullptr);
-  size_t freeStackBytes = static_cast<size_t>(freeStackWords) * sizeof(StackType_t);
-
-  ESP_LOGI(logTag, "[Stack] %s free=%lu bytes", taskName,
-           static_cast<unsigned long>(freeStackBytes));
-
-} //   logCurrentTaskStackHighWaterMark()
 
 //-- Build absolute child path for recursive filesystem traversal.
 static String buildFilesystemChildPath(const char* parentPath, const char* entryName)
@@ -247,7 +237,7 @@ static void audioTask(void* parameter)
   int8_t trackPitches[sequencerTrackCount] = {0};
   uint32_t lastStackLogMs = 0;
 
-  logCurrentTaskStackHighWaterMark("AudioTask start");
+  logStackHighWaterMark(logTag, "AudioTask start");
 
   for (;;)
   {
@@ -271,7 +261,7 @@ static void audioTask(void* parameter)
     if ((millis() - lastStackLogMs) >= 10000)
     {
       lastStackLogMs = millis();
-      logCurrentTaskStackHighWaterMark("AudioTask");
+      logStackHighWaterMark(logTag, "AudioTask");
     }
 
     //-- Always yield one tick so IDLE0 can run and task watchdog stays serviced.
@@ -287,7 +277,7 @@ static void inputTask(void* parameter)
 
   uint32_t lastStackLogMs = 0;
 
-  logCurrentTaskStackHighWaterMark("InputTask start");
+  logStackHighWaterMark(logTag, "InputTask start");
 
   for (;;)
   {
@@ -316,7 +306,7 @@ static void inputTask(void* parameter)
     if ((millis() - lastStackLogMs) >= 10000)
     {
       lastStackLogMs = millis();
-      logCurrentTaskStackHighWaterMark("InputTask");
+      logStackHighWaterMark(logTag, "InputTask");
     }
 
     vTaskDelay(pdMS_TO_TICKS(5));
@@ -331,7 +321,7 @@ static void uiTask(void* parameter)
 
   uint32_t lastStackLogMs = 0;
 
-  logCurrentTaskStackHighWaterMark("UiTask start");
+  logStackHighWaterMark(logTag, "UiTask start");
 
   for (;;)
   {
@@ -354,7 +344,7 @@ static void uiTask(void* parameter)
     if ((millis() - lastStackLogMs) >= 10000)
     {
       lastStackLogMs = millis();
-      logCurrentTaskStackHighWaterMark("UiTask");
+      logStackHighWaterMark(logTag, "UiTask");
     }
 
     vTaskDelay(pdMS_TO_TICKS(10));
@@ -369,7 +359,7 @@ static void systemTask(void* parameter)
 
   uint32_t lastStackLogMs = 0;
 
-  logCurrentTaskStackHighWaterMark("SystemTask start");
+  logStackHighWaterMark(logTag, "SystemTask start");
 
   for (;;)
   {
@@ -379,7 +369,7 @@ static void systemTask(void* parameter)
     if ((millis() - lastStackLogMs) >= 10000)
     {
       lastStackLogMs = millis();
-      logCurrentTaskStackHighWaterMark("SystemTask");
+      logStackHighWaterMark(logTag, "SystemTask");
     }
 
     vTaskDelay(pdMS_TO_TICKS(20));
