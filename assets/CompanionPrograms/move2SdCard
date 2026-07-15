@@ -1,0 +1,135 @@
+#!/bin/zsh
+
+#— Copy the local sdCard directory to a mounted SDCARD volume.
+#— Default source and destination.
+sourceDir="./sdCard"
+destDir="/Volumes/SDCARD"
+dryRun=false
+verbose=false
+
+#— Print usage information.
+showUsage()
+{
+  printf "Usage: %s [options]\n" "$0"
+  printf "\n"
+  printf "Options:\n"
+  printf "  -n, --dry-run          Show what would be copied without changing the SDCARD\n"
+  printf "  -s, --source <path>    Source directory, default: ./sdCard\n"
+  printf "  -d, --dest <path>      Destination mount point, default: /Volumes/SDCARD\n"
+  printf "  -v, --verbose          Show more rsync output\n"
+  printf "  -h, --help             Show this help\n"
+  printf "\n"
+
+}   #   showUsage()
+
+#— Print an error and stop.
+stopWithError()
+{
+  printf "Error: %s\n" "$1" >&2
+  exit 1
+
+}   #   stopWithError()
+
+#— Parse command-line arguments.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -n|--dry-run)
+      dryRun=true
+      shift
+      ;;
+
+    -s|--source)
+      [ $# -ge 2 ] || stopWithError "Missing value for $1."
+      sourceDir="$2"
+      shift 2
+      ;;
+
+    --source=*)
+      sourceDir="${1#*=}"
+      shift
+      ;;
+
+    -d|--dest)
+      [ $# -ge 2 ] || stopWithError "Missing value for $1."
+      destDir="$2"
+      shift 2
+      ;;
+
+    --dest=*)
+      destDir="${1#*=}"
+      shift
+      ;;
+
+    -v|--verbose)
+      verbose=true
+      shift
+      ;;
+
+    -h|--help)
+      showUsage
+      exit 0
+      ;;
+
+    *)
+      stopWithError "Unknown option: $1"
+      ;;
+  esac
+done
+
+#— Check if rsync is available.
+command -v rsync >/dev/null 2>&1 || stopWithError "rsync not found."
+
+#— Check if the source directory exists.
+[ -d "$sourceDir" ] || stopWithError "Source directory '$sourceDir' not found."
+
+#— Check if the source directory contains files.
+if [ -z "$(find "$sourceDir" -mindepth 1 -maxdepth 1 2>/dev/null)" ]; then
+  stopWithError "Source directory '$sourceDir' is empty."
+fi
+
+#— Check if the destination mount point exists.
+if [ ! -d "$destDir" ]; then
+  stopWithError "No SDCARD found! Please insert SDCARD."
+fi
+
+#— Check if the destination is really a mounted volume.
+if ! mount | grep -q " on ${destDir} "; then
+  stopWithError "No SDCARD found! Please insert SDCARD."
+fi
+
+#— Check if the destination is writable.
+[ -w "$destDir" ] || stopWithError "SDCARD is not writable."
+
+#— Build rsync options.
+rsyncOptions=(
+  "-a"
+  "--delete"
+  "--exclude=.*"
+)
+
+if [ "$verbose" = true ]; then
+  rsyncOptions+=("-v")
+fi
+
+if [ "$dryRun" = true ]; then
+  rsyncOptions+=("--dry-run")
+  printf "Info: Dry run enabled. No files will be copied.\n"
+fi
+
+#— Copy the contents of the source directory to the SDCARD root.
+printf "Source:      %s/\n" "$sourceDir"
+printf "Destination: %s/\n" "$destDir"
+
+rsync "${rsyncOptions[@]}" "$sourceDir/" "$destDir/"
+rsyncStatus=$?
+
+if [ $rsyncStatus -ne 0 ]; then
+  stopWithError "rsync failed with exit code $rsyncStatus."
+fi
+
+if [ "$dryRun" = true ]; then
+  printf "Done. Dry run completed.\n"
+else
+  sync
+  printf "Done. SDCARD updated.\n"
+fi
