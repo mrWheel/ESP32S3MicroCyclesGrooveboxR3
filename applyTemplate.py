@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#-- Version Date: 10-04-2026 -- (dd-mm-eeyy)
+#-- Version Date: 12-08-2026 -- (dd-mm-eeyy)
 #
 from __future__ import annotations
 
@@ -41,6 +41,10 @@ class FileStats:
 
 
 class UserQuitRequested(Exception):
+    pass
+
+
+class ConfigurationValidationError(Exception):
     pass
 
 
@@ -207,6 +211,115 @@ def _normalize_tag_release_for_compare(text: str) -> str:
             flags=re.MULTILINE,
         )
     return normalized
+
+
+def _is_placeholder_value(value: str, template_value: str) -> bool:
+    normalized = _strip_yaml_outer_quotes(value).strip()
+    template_normalized = _strip_yaml_outer_quotes(template_value).strip()
+    return (
+        not normalized
+        or normalized == template_normalized
+        or (normalized.startswith("<") and normalized.endswith(">"))
+    )
+
+
+def validate_tag_release_configuration(
+    repo_root: Path,
+    template_dir: Path,
+) -> None:
+    """Validate the workflow values using its framework-independent path semantics."""
+    workflow_rel = Path(".github/workflows/tag-release.yml")
+    workflow_path = repo_root / workflow_rel
+    template_workflow_path = template_dir / workflow_rel
+
+    workflow_text = _read_text_safe(workflow_path)
+    template_text = _read_text_safe(template_workflow_path)
+    if workflow_text is None:
+        raise ConfigurationValidationError(
+            f"Cannot read {workflow_rel}. The project cannot be prepared for the "
+            "flasherWebsite until this workflow exists and is readable."
+        )
+
+    values = _extract_tag_release_env_values(workflow_text)
+    template_values = _extract_tag_release_env_values(template_text or "")
+    problems: list[str] = []
+
+    for key in TAG_RELEASE_ENV_KEYS:
+        if key not in values:
+            problems.append(f"{key}: field is missing from the workflow env section")
+            continue
+        if _is_placeholder_value(values[key], template_values.get(key, "")):
+            problems.append(
+                f"{key}: still contains the template/default value "
+                f"{values[key]!r}"
+            )
+
+    program_dir_value = _strip_yaml_outer_quotes(values.get("PROGRAM_DIR", "")).strip()
+    program_src_value = _strip_yaml_outer_quotes(values.get("PROGRAM_SRC", "")).strip()
+
+    if program_dir_value and not _is_placeholder_value(
+        values.get("PROGRAM_DIR", ""), template_values.get("PROGRAM_DIR", "")
+    ):
+        program_dir = Path(program_dir_value)
+        if program_dir.is_absolute():
+            problems.append("PROGRAM_DIR: must be relative to the target project root")
+        else:
+            resolved_dir = (repo_root / program_dir).resolve()
+            try:
+                resolved_dir.relative_to(repo_root)
+            except ValueError:
+                problems.append("PROGRAM_DIR: resolves outside the target project")
+            else:
+                if not resolved_dir.is_dir():
+                    problems.append(
+                        f"PROGRAM_DIR: directory does not exist: {program_dir_value!r}"
+                    )
+
+    if (
+        program_dir_value
+        and program_src_value
+        and not _is_placeholder_value(
+            values.get("PROGRAM_DIR", ""), template_values.get("PROGRAM_DIR", "")
+        )
+        and not _is_placeholder_value(
+            values.get("PROGRAM_SRC", ""), template_values.get("PROGRAM_SRC", "")
+        )
+    ):
+        program_src = Path(program_src_value)
+        if program_src.is_absolute():
+            problems.append(
+                "PROGRAM_SRC: must be relative to PROGRAM_DIR, matching the workflow's "
+                "PROGRAM_DIR/PROGRAM_SRC semantics"
+            )
+        else:
+            source_path = (repo_root / program_dir_value / program_src).resolve()
+            try:
+                source_path.relative_to(repo_root)
+            except ValueError:
+                problems.append(
+                    "PROGRAM_SRC: PROGRAM_DIR/PROGRAM_SRC resolves outside the target project"
+                )
+            else:
+                if not source_path.is_file():
+                    problems.append(
+                        "PROGRAM_SRC: file does not exist at the workflow path "
+                        f"{program_dir_value!r}/{program_src_value!r}"
+                    )
+
+    if problems:
+        details = "\n".join(f"  - {problem}" for problem in problems)
+        raise ConfigurationValidationError(
+            "Invalid .github/workflows/tag-release.yml configuration.\n"
+            "Before this template can be applied, edit the workflow env section and set:\n"
+            "  - PROGRAM_NAME to this project's actual name (not the template/default name).\n"
+            "  - PROGRAM_DIR to an existing source directory relative to the project root.\n"
+            "  - PROGRAM_SRC to the source file containing PROG_VERSION, relative to "
+            "PROGRAM_DIR.\n"
+            "These fields are framework-independent: use the real paths for either a "
+            "PlatformIO or ESP-IDF project.\n"
+            "Detected problems:\n"
+            f"{details}"
+        )
 
 
 def _copy_file_with_special_handling(src: Path, dst: Path) -> bool:
@@ -707,6 +820,43 @@ def main() -> int:
 
             print(f"Applied {rel}: +{copied} copied, {skipped} skipped{extra}")
 
+        # thisProject.png is stored at the template root but belongs in the
+        # target project's metadata directory. Apply the normal file policy.
+        project_image_src = template_dir / "thisProject.png"
+        project_image_dst = repo_root / "projectMetaData/thisProject.png"
+        if not project_image_src.is_file():
+            raise ConfigurationValidationError(
+                "Required template image is missing: thisProject.png must exist at "
+                "the template repository root."
+            )
+
+        copied, skipped, overwritten = copy_tree_with_policy(
+            src=project_image_src,
+            dst=project_image_dst,
+            on_existing=args.on_existing,
+            compare=args.compare,
+            show_diff=args.show_diff,
+        )
+        total_copied += copied
+        total_skipped += skipped
+        total_overwritten += overwritten
+        extra = ""
+        if args.on_existing != "skip":
+            extra = f", ~{overwritten} overwritten"
+        print(
+            "Applied thisProject.png -> projectMetaData/thisProject.png: "
+            f"+{copied} copied, {skipped} skipped{extra}"
+        )
+
+        validate_tag_release_configuration(
+            repo_root=repo_root,
+            template_dir=template_dir,
+        )
+        print(
+            "Validated tag-release.yml for a PlatformIO or ESP-IDF project: "
+            "PROGRAM_NAME, PROGRAM_DIR, and PROGRAM_SRC are project-specific and valid."
+        )
+
         # Self-update is handled last (from template root applyTemplate.py)
         self_updated = apply_self_update_from_template(
             template_dir=template_dir,
@@ -724,6 +874,9 @@ def main() -> int:
     except UserQuitRequested:
         print("Aborted by user.")
         return 130
+    except ConfigurationValidationError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
     finally:
         if "tmp_ctx" in locals() and tmp_ctx is not None:
             tmp_ctx.cleanup()

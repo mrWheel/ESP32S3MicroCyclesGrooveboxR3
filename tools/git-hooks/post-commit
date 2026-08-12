@@ -6,4 +6,21 @@ set -e
 python3 tools/git-hooks/bumpProgVersion.py
 
 # Stage any changes from bumpProgVersion for the next commit
-git add -A tools/PROG_VERSION.json include/appConfig.h src/main.cpp 2>/dev/null || true
+version_file=""
+if [ -f tools/PROG_VERSION.json ]; then
+  version_file=$(python3 - <<'PY'
+import json
+try:
+    with open("tools/PROG_VERSION.json", encoding="utf-8") as f:
+        data = json.load(f)
+    print(data.get("versionFile", "") or "")
+except Exception:
+    pass
+PY
+)
+fi
+if [ -n "$version_file" ]; then
+  git add -A -- tools/PROG_VERSION.json "$version_file" 2>/dev/null || true
+else
+  git add -A -- tools/PROG_VERSION.json 2>/dev/null || true
+fi

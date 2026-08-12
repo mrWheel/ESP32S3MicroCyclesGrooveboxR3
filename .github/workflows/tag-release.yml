@@ -56,7 +56,7 @@
 name: Auto Tag Release
 
 env:
-  PROGRAM_NAME: "ESP32MicroCyclesGroovebox"
+  PROGRAM_NAME: "GrooveBox"
   PROGRAM_SRC: "main.cpp"
   PROGRAM_DIR: "src"
 
@@ -83,7 +83,7 @@ jobs:
         id: getVersion
         run: |
           sourceFile="${{ env.PROGRAM_DIR }}/${{ env.PROGRAM_SRC }}"
-          versionLine=$(grep -m1 -E 'PROG_VERSION[[:space:]]*=' "$sourceFile" || true)
+          versionLine=$(grep -m1 'PROG_VERSION' "$sourceFile" || true)
           rawVersion=$(echo "$versionLine" | grep -Eo 'v?[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true)
           rawVersion="${rawVersion#v}"
           version=""
@@ -130,8 +130,6 @@ jobs:
           versionParseError="${{ steps.getVersion.outputs.VERSION_PARSE_ERROR }}"
           latest="${{ steps.latestTag.outputs.LATEST }}"
 
-          echo "SKIP_TAG_CREATE=false" >> $GITHUB_ENV
-
           echo "Comparing source version $version with latest tag $latest"
 
           if [ -n "$versionParseError" ]; then
@@ -152,11 +150,8 @@ jobs:
             echo "MAKE_RELEASE=true" >> $GITHUB_ENV
             echo "RELEASE_KIND=initial" >> $GITHUB_ENV
           elif [ "$version" = "$latest" ]; then
-            echo "::warning::Version $version tag already exists. Ensuring release exists/updates."
-            echo "PROCEED=true" >> $GITHUB_ENV
-            echo "MAKE_RELEASE=true" >> $GITHUB_ENV
-            echo "RELEASE_KIND=patch" >> $GITHUB_ENV
-            echo "SKIP_TAG_CREATE=true" >> $GITHUB_ENV
+            echo "::warning::Version $version already exists. Skipping."
+            echo "PROCEED=false" >> $GITHUB_ENV
           elif [ "$(printf '%s\n' "$latest" "$version" | sort -V | head -n 1)" = "$version" ]; then
             echo "::warning::Version $version is not greater than $latest. Skipping."
             echo "PROCEED=false" >> $GITHUB_ENV
@@ -187,7 +182,7 @@ jobs:
           fi
 
       - name: Create and push tag
-        if: env.PROCEED == 'true' && env.VERSION != '' && env.SKIP_TAG_CREATE != 'true'
+        if: env.PROCEED == 'true' && env.VERSION != ''
         run: |
           echo "Creating and pushing tag $VERSION"
           git config user.name "GitHub Actions"
@@ -347,7 +342,7 @@ jobs:
 
           if [ -z "$baseTag" ]; then
             echo "No base release tag found. Including recent commits (max 20)."
-            git log -n 20 --pretty=format:"- %s" > commits.txt
+            git log --pretty=format:"- %s" | head -n 20 > commits.txt
             echo "" >> release_notes.txt
             if [ -s commits.txt ]; then
               cat commits.txt >> release_notes.txt

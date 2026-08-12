@@ -1,0 +1,10 @@
+{
+  "name": "The Groovebox Project",
+  "long_name_nl": "The Groovebox Project",
+  "long_name_en": "The Groovebox Project",
+  "description_en": "An open-source ESP32 groovebox demonstrating real-time sample playback, sequencing, and embedded audio.",
+  "description_nl": "Een open-source ESP32-groovebox die laat zien hoe sample-weergave, sequencing en embedded audio samenkomen.",
+  "github_url": "https://github.com/mrWheel/",
+  "post_url": "https://willem.aandewiel.nl/index.php/2026/07/26/the-groovebox-project/",
+  "image": "GB_TrackEditView.jpeg"
+}

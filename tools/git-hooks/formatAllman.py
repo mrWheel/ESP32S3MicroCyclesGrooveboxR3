@@ -9,7 +9,7 @@ from pathlib import Path
 # ---------------- CONFIG ----------------
 
 # Extensions to format
-EXTENSIONS = {".c", ".cpp", ".h", ".js", ".ts", ".json", ".hpp"}
+EXTENSIONS = {".c", ".cpp", ".h"}
 
 # Directories to skip (relative path fragments)
 SKIP_DIRS = {
